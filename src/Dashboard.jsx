@@ -8,9 +8,10 @@ import {
   Send, Plus, Phone, ChevronRight, ChevronDown, ChevronUp, CheckCircle2,
   Circle, Lock, Unlock, X, BookOpen, Heart, AlertTriangle, Mail,
   Activity, Eye, Edit3, Download, ArrowLeft, RotateCcw,
+  UserCheck, UserX, UserPlus, Settings,
 } from "lucide-react";
 import { PALETTE, TopBarShell, formatTime, formatRelative, formatElapsed } from "./shared.jsx";
-import { SEVERITY, getIncident, saveIncident } from "./data.js";
+import { SEVERITY, getIncident, saveIncident, listStaff, responsibilitiesFor, ROLE_DEFINITIONS } from "./data.js";
 
 export default function Dashboard({ incidentId, onBack }) {
   const [incident, setIncident] = useState(null);
@@ -112,7 +113,7 @@ export default function Dashboard({ incidentId, onBack }) {
       <CommandStrip incident={incident} changeSeverity={changeSeverity} setDrawer={setDrawer} closeIncident={closeIncident} reopenIncident={reopenIncident} onBack={onBack} />
 
       <div style={{ maxWidth: 1480, margin: "0 auto", padding: "24px 32px", display: "grid", gridTemplateColumns: "260px 1fr 320px", gap: 24, alignItems: "start" }}>
-        <LeftRail incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />
+        <LeftRail incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} setDrawer={setDrawer} />
         <CenterColumn incident={incident} addTimelineEntry={addTimelineEntry} update={update} now={now} isClosed={isClosed} />
         <RightRail incident={incident} setDrawer={setDrawer} />
       </div>
@@ -125,6 +126,18 @@ export default function Dashboard({ incidentId, onBack }) {
       )}
       {drawer === "export" && (
         <Drawer onClose={() => setDrawer(null)} title="Incident Pack Export"><ExportDrawer incident={incident} /></Drawer>
+      )}
+      {drawer && typeof drawer === "object" && drawer.kind === "role" && (
+        <Drawer onClose={() => setDrawer(null)} title="Manage role assignment">
+          <RoleAssignDrawer
+            incident={incident}
+            roleId={drawer.roleId}
+            update={update}
+            addTimelineEntry={addTimelineEntry}
+            isClosed={isClosed}
+            onClose={() => setDrawer(null)}
+          />
+        </Drawer>
       )}
     </div>
   );
@@ -260,7 +273,7 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
 }
 
 /* ---------- Left rail: roles ---------- */
-function LeftRail({ incident, update, addTimelineEntry, isClosed }) {
+function LeftRail({ incident, update, addTimelineEntry, isClosed, setDrawer }) {
   function confirmRole(id) {
     update((prev) => ({ ...prev, roles: prev.roles.map((r) => (r.id === id ? { ...r, status: "confirmed" } : r)) }));
     const r = incident.roles.find((x) => x.id === id);
@@ -300,7 +313,16 @@ function LeftRail({ incident, update, addTimelineEntry, isClosed }) {
       </div>
       <div>
         {incident.roles.map((r) => (
-          <RoleRow key={r.id} role={r} onConfirm={() => confirmRole(r.id)} onAssign={() => assignSuggested(r.id)} onAssignSelf={() => assignSelf(r.id)} disabled={isClosed} />
+          <RoleRow
+            key={r.id}
+            role={r}
+            incidentType={incident.type}
+            onConfirm={() => confirmRole(r.id)}
+            onAssign={() => assignSuggested(r.id)}
+            onAssignSelf={() => assignSelf(r.id)}
+            onManage={() => setDrawer({ kind: "role", roleId: r.id })}
+            disabled={isClosed}
+          />
         ))}
       </div>
       <div style={{ padding: 14, borderTop: `1px solid rgba(15, 76, 92, 0.12)` }}>
@@ -334,7 +356,7 @@ function LeftRail({ incident, update, addTimelineEntry, isClosed }) {
   );
 }
 
-function RoleRow({ role, onConfirm, onAssign, onAssignSelf, disabled }) {
+function RoleRow({ role, incidentType, onConfirm, onAssign, onAssignSelf, onManage, disabled }) {
   const cfg = {
     confirmed: { color: PALETTE.sage, icon: CheckCircle2, label: "Confirmed" },
     pending: { color: PALETTE.amber, icon: Clock, label: "Pending" },
@@ -342,8 +364,10 @@ function RoleRow({ role, onConfirm, onAssign, onAssignSelf, disabled }) {
     contacted: { color: PALETTE.teal, icon: Phone, label: "Contacted" },
   }[role.status];
 
+  const hasResponsibilities = !!responsibilitiesFor(role.role, incidentType);
+
   return (
-    <div style={{ padding: "12px 14px", borderBottom: `1px solid rgba(15, 76, 92, 0.08)`, display: "flex", alignItems: "flex-start", gap: 10 }}>
+    <div style={{ padding: "12px 14px", borderBottom: `1px solid rgba(15, 76, 92, 0.08)`, display: "flex", alignItems: "flex-start", gap: 10, position: "relative" }}>
       <div style={{
         width: 28, height: 28,
         background: role.status === "unassigned" ? PALETTE.bone : role.isPrincipal ? PALETTE.teal : "rgba(15, 76, 92, 0.1)",
@@ -354,11 +378,23 @@ function RoleRow({ role, onConfirm, onAssign, onAssignSelf, disabled }) {
         borderRadius: "50%",
       }}>{role.initials}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="mono" style={{ fontSize: 9, letterSpacing: "0.12em", color: PALETTE.teal, opacity: 0.6 }}>
-          {role.role.toUpperCase()}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6 }}>
+          <div className="mono" style={{ fontSize: 9, letterSpacing: "0.12em", color: PALETTE.teal, opacity: 0.6 }}>
+            {role.role.toUpperCase()}
+          </div>
+          {!disabled && onManage && (
+            <button
+              onClick={onManage}
+              title="Manage assignment & view responsibilities"
+              className="btn-ghost"
+              style={{ background: "none", border: "none", padding: 2, color: PALETTE.teal, opacity: 0.7, cursor: "pointer" }}
+            >
+              <Settings size={11} />
+            </button>
+          )}
         </div>
         <div style={{ fontSize: 13, color: PALETTE.ink, marginTop: 2, fontWeight: role.staff === "—" ? 400 : 500 }}>{role.staff}</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4, flexWrap: "wrap" }}>
           <cfg.icon size={10} color={cfg.color} />
           <span style={{ fontSize: 10, color: cfg.color, fontWeight: 500 }}>{cfg.label}</span>
           {role.backup && <span style={{ fontSize: 10, color: PALETTE.inkSoft }}>· backup: {role.backup}</span>}
@@ -374,8 +410,13 @@ function RoleRow({ role, onConfirm, onAssign, onAssignSelf, disabled }) {
           </button>
         )}
         {!disabled && role.status === "unassigned" && !role.suggested && (
-          <button onClick={onAssignSelf} className="btn-ghost" style={{ marginTop: 6, fontSize: 11, color: PALETTE.teal, background: "none", border: "none", padding: 0, fontWeight: 500 }}>
-            Self-assign →
+          <button onClick={onManage || onAssignSelf} className="btn-ghost" style={{ marginTop: 6, fontSize: 11, color: PALETTE.teal, background: "none", border: "none", padding: 0, fontWeight: 500 }}>
+            Assign staff →
+          </button>
+        )}
+        {hasResponsibilities && role.status !== "unassigned" && !disabled && (
+          <button onClick={onManage} className="btn-ghost" style={{ marginTop: 4, fontSize: 10, color: PALETTE.sage, background: "none", border: "none", padding: 0, fontWeight: 500, display: "flex", alignItems: "center", gap: 3 }}>
+            <BookOpen size={9} /> View responsibilities
           </button>
         )}
       </div>
@@ -647,6 +688,335 @@ function Drawer({ children, onClose, title }) {
         <div className="scroll-y" style={{ flex: 1, padding: 24 }}>{children}</div>
       </div>
     </div>
+  );
+}
+
+function RoleAssignDrawer({ incident, roleId, update, addTimelineEntry, isClosed, onClose }) {
+  const role = incident.roles.find((r) => r.id === roleId);
+  const def = role ? ROLE_DEFINITIONS[role.role] : null;
+  const responsibilities = role ? responsibilitiesFor(role.role, incident.type) : null;
+  const [showStaffPicker, setShowStaffPicker] = useState(false);
+  const [pickerMode, setPickerMode] = useState("primary"); // "primary" | "backup"
+
+  if (!role) {
+    return <p style={{ fontSize: 14, color: PALETTE.inkSoft }}>Role not found.</p>;
+  }
+
+  const allStaff = listStaff();
+  const qualifiedStaff = allStaff.filter((s) => s.qualifiedFor?.includes(role.role));
+  const otherStaff = allStaff.filter((s) => !s.qualifiedFor?.includes(role.role));
+
+  function assignStaff(staffMember, mode) {
+    const isPrimary = mode === "primary";
+    const oldStaff = role.staff;
+    update((prev) => ({
+      ...prev,
+      roles: prev.roles.map((r) =>
+        r.id === roleId
+          ? isPrimary
+            ? {
+                ...r,
+                staff: staffMember.name,
+                initials: staffMember.initials,
+                status: "confirmed",
+                suggestedStaffId: staffMember.id,
+                suggested: undefined,
+              }
+            : { ...r, backup: staffMember.name, backupStaffId: staffMember.id }
+          : r
+      ),
+    }));
+    if (isPrimary) {
+      addTimelineEntry({
+        type: "system",
+        text: oldStaff && oldStaff !== "—"
+          ? `${role.role}: ${staffMember.name} re-assigned (was ${oldStaff}).`
+          : `${role.role}: ${staffMember.name} assigned.`,
+      });
+    } else {
+      addTimelineEntry({ type: "system", text: `${role.role}: ${staffMember.name} set as backup.` });
+    }
+    setShowStaffPicker(false);
+  }
+
+  function clearAssignment() {
+    if (!confirm(`Remove ${role.staff} from ${role.role}?`)) return;
+    const oldStaff = role.staff;
+    update((prev) => ({
+      ...prev,
+      roles: prev.roles.map((r) =>
+        r.id === roleId ? { ...r, staff: "—", initials: "—", status: "unassigned" } : r
+      ),
+    }));
+    addTimelineEntry({ type: "system", text: `${role.role}: ${oldStaff} removed.` });
+  }
+
+  function clearBackup() {
+    update((prev) => ({
+      ...prev,
+      roles: prev.roles.map((r) =>
+        r.id === roleId ? { ...r, backup: undefined, backupStaffId: undefined } : r
+      ),
+    }));
+    addTimelineEntry({ type: "system", text: `${role.role}: backup cleared.` });
+  }
+
+  function promoteBackup() {
+    if (!role.backup) return;
+    const oldStaff = role.staff;
+    const initials = role.backup.split(/\s+/).map((s) => s[0]).join("").toUpperCase().slice(0, 3);
+    update((prev) => ({
+      ...prev,
+      roles: prev.roles.map((r) =>
+        r.id === roleId
+          ? {
+              ...r,
+              staff: role.backup,
+              initials,
+              status: "confirmed",
+              backup: undefined,
+              backupStaffId: undefined,
+            }
+          : r
+      ),
+    }));
+    addTimelineEntry({
+      type: "system",
+      text: `${role.role}: ${role.backup} promoted from backup to primary (was ${oldStaff}).`,
+    });
+  }
+
+  if (showStaffPicker) {
+    return (
+      <div className="fade-in">
+        <button
+          onClick={() => setShowStaffPicker(false)}
+          className="btn-ghost"
+          style={{ background: "none", border: "none", padding: 0, color: PALETTE.teal, fontSize: 13, display: "flex", alignItems: "center", gap: 6, marginBottom: 16 }}
+        >
+          <ArrowLeft size={13} /> Back
+        </button>
+        <h3 className="display" style={{ fontSize: 22, color: PALETTE.teal, fontWeight: 500, margin: "0 0 6px" }}>
+          Pick {pickerMode === "primary" ? "primary" : "backup"} for {role.role}
+        </h3>
+        <p style={{ fontSize: 12, color: PALETTE.inkSoft, marginBottom: 20, lineHeight: 1.5 }}>
+          {qualifiedStaff.length > 0
+            ? "Qualified staff are listed first. You can also pick someone not formally qualified if needed."
+            : "No staff are qualified for this role yet. Add qualifications in Admin → Staff Directory."}
+        </p>
+
+        {qualifiedStaff.length > 0 && (
+          <>
+            <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.sage, marginBottom: 8 }}>
+              QUALIFIED
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
+              {qualifiedStaff.map((s) => (
+                <StaffPickerRow key={s.id} staff={s} onPick={() => assignStaff(s, pickerMode)} />
+              ))}
+            </div>
+          </>
+        )}
+
+        {otherStaff.length > 0 && (
+          <>
+            <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.inkSoft, marginBottom: 8 }}>
+              OTHER STAFF
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {otherStaff.map((s) => (
+                <StaffPickerRow key={s.id} staff={s} onPick={() => assignStaff(s, pickerMode)} notQualified />
+              ))}
+            </div>
+          </>
+        )}
+
+        {allStaff.length === 0 && (
+          <div style={{ padding: 24, background: PALETTE.bone, textAlign: "center", color: PALETTE.inkSoft, fontSize: 13 }}>
+            No staff in directory yet. Go to Admin → Staff Directory to add staff.
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Role header */}
+      <div style={{ padding: "20px", background: PALETTE.bone, marginBottom: 20 }}>
+        <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6, marginBottom: 6 }}>
+          ROLE
+        </div>
+        <h2 className="display" style={{ fontSize: 26, color: PALETTE.teal, fontWeight: 500, margin: 0, letterSpacing: "-0.015em" }}>
+          {role.role}
+        </h2>
+        {def && (
+          <p style={{ fontSize: 13, color: PALETTE.ink, marginTop: 8, lineHeight: 1.5, marginBottom: 0 }}>
+            {def.description}
+          </p>
+        )}
+        {def && (
+          <div style={{ display: "flex", gap: 16, marginTop: 12, fontSize: 11, color: PALETTE.inkSoft, flexWrap: "wrap" }}>
+            <span><strong style={{ color: PALETTE.teal }}>Reports to:</strong> {def.reportsTo}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Primary assignment */}
+      <Section title="Primary">
+        {role.staff && role.staff !== "—" ? (
+          <div style={{ padding: "14px 16px", border: `1px solid rgba(15, 76, 92, 0.18)`, display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: "50%",
+              background: role.isPrincipal ? PALETTE.teal : PALETTE.sage,
+              color: PALETTE.paper, fontSize: 12, fontWeight: 600,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+            }}>{role.initials}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: PALETTE.ink }}>{role.staff}</div>
+              <div style={{ fontSize: 11, color: PALETTE.sage, marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
+                <CheckCircle2 size={10} /> Confirmed
+              </div>
+            </div>
+            {!isClosed && (
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => { setPickerMode("primary"); setShowStaffPicker(true); }} className="btn" style={{ padding: "6px 10px", fontSize: 11 }}>
+                  Change
+                </button>
+                <button onClick={clearAssignment} className="btn-ghost" style={{ background: "none", border: "none", padding: 6, color: PALETTE.inkSoft }} title="Remove">
+                  <X size={13} />
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => { setPickerMode("primary"); setShowStaffPicker(true); }}
+            className="btn"
+            disabled={isClosed}
+            style={{ width: "100%", padding: 14, justifyContent: "center", borderStyle: "dashed", color: PALETTE.teal }}
+          >
+            <UserPlus size={14} /> Assign primary staff
+          </button>
+        )}
+      </Section>
+
+      {/* Backup */}
+      <Section title="Backup">
+        {role.backup ? (
+          <div style={{ padding: "14px 16px", border: `1px solid rgba(15, 76, 92, 0.18)`, display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: "50%",
+              background: "rgba(15, 76, 92, 0.1)",
+              color: PALETTE.teal, fontSize: 11, fontWeight: 600,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+            }}>{role.backup.split(/\s+/).map((s) => s[0]).join("").toUpperCase().slice(0, 3)}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, color: PALETTE.ink }}>{role.backup}</div>
+              <div style={{ fontSize: 10, color: PALETTE.inkSoft, marginTop: 2 }}>Standing by</div>
+            </div>
+            {!isClosed && (
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={promoteBackup} className="btn" style={{ padding: "6px 10px", fontSize: 11 }} title="Promote to primary">
+                  Promote
+                </button>
+                <button onClick={clearBackup} className="btn-ghost" style={{ background: "none", border: "none", padding: 6, color: PALETTE.inkSoft }} title="Clear backup">
+                  <X size={13} />
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => { setPickerMode("backup"); setShowStaffPicker(true); }}
+            className="btn"
+            disabled={isClosed}
+            style={{ width: "100%", padding: 12, justifyContent: "center", borderStyle: "dashed", color: PALETTE.teal, fontSize: 12 }}
+          >
+            <UserPlus size={13} /> Assign backup
+          </button>
+        )}
+      </Section>
+
+      {/* Responsibilities for THIS role + incident type */}
+      {responsibilities && responsibilities.length > 0 && (
+        <Section title={`Responsibilities — ${incident.typeLabel}`}>
+          <div style={{ padding: "14px 16px", background: PALETTE.bone, borderLeft: `3px solid ${PALETTE.teal}` }}>
+            <p style={{ fontSize: 11, color: PALETTE.inkSoft, margin: "0 0 12px", lineHeight: 1.5 }}>
+              What {role.role} should do during this specific incident type:
+            </p>
+            <ol style={{ margin: 0, padding: 0, listStyle: "none" }}>
+              {responsibilities.map((r, i) => (
+                <li
+                  key={i}
+                  style={{
+                    display: "flex",
+                    gap: 12,
+                    padding: "10px 0",
+                    borderBottom: i < responsibilities.length - 1 ? `1px solid rgba(15, 76, 92, 0.1)` : "none",
+                    fontSize: 13,
+                    color: PALETTE.ink,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <span className="mono" style={{ color: PALETTE.teal, fontSize: 11, fontWeight: 500, minWidth: 20, paddingTop: 2 }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  {r}
+                </li>
+              ))}
+            </ol>
+          </div>
+        </Section>
+      )}
+
+      {!responsibilities && (
+        <Section title="Responsibilities">
+          <p style={{ fontSize: 12, color: PALETTE.inkSoft, fontStyle: "italic", margin: 0 }}>
+            No specific responsibilities defined for {role.role} in {incident.typeLabel} incidents. Refer to general role description above.
+          </p>
+        </Section>
+      )}
+    </div>
+  );
+}
+
+function StaffPickerRow({ staff, onPick, notQualified }) {
+  return (
+    <button
+      onClick={onPick}
+      disabled={!staff.available}
+      style={{
+        textAlign: "left",
+        background: PALETTE.paper,
+        border: `1px solid rgba(15, 76, 92, 0.18)`,
+        padding: "12px 14px",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        cursor: staff.available ? "pointer" : "not-allowed",
+        opacity: staff.available ? 1 : 0.5,
+      }}
+    >
+      <div style={{
+        width: 32, height: 32, borderRadius: "50%",
+        background: staff.available ? PALETTE.teal : PALETTE.inkSoft,
+        color: PALETTE.paper, fontSize: 11, fontWeight: 600,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        flexShrink: 0,
+      }}>{staff.initials}</div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 13, color: PALETTE.ink, fontWeight: 500 }}>{staff.name}</div>
+        <div style={{ fontSize: 11, color: PALETTE.inkSoft, marginTop: 2 }}>
+          {staff.role || "—"}
+          {!staff.available && " · Off duty"}
+          {notQualified && staff.available && " · Not formally qualified"}
+        </div>
+      </div>
+      <ChevronRight size={14} color={PALETTE.teal} style={{ opacity: 0.5 }} />
+    </button>
   );
 }
 
