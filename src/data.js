@@ -132,15 +132,28 @@ const ROLE_TEMPLATES = {
 
 export function rolesForIncidentType(typeId) {
   const template = ROLE_TEMPLATES[typeId] || COMMON_ROLES;
-  return template.map((t, i) => ({
-    id: `r${Date.now()}-${i}`,
-    role: t.role,
-    required: t.required,
-    isPrincipal: t.isPrincipal || false,
-    staff: "—",
-    initials: "—",
-    status: "unassigned",
-  }));
+  // Defer suggestStaffForRole until call time so this works on first load
+  const allStaff = (loadAll().staff || []);
+  return template.map((t, i) => {
+    const matches = allStaff
+      .filter((s) => s.qualifiedFor?.includes(t.role) && s.available)
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const primary = matches[0];
+    const backup = matches[1];
+    return {
+      id: `r${Date.now()}-${i}`,
+      role: t.role,
+      required: t.required,
+      isPrincipal: t.isPrincipal || false,
+      staff: "—",
+      initials: "—",
+      status: "unassigned",
+      suggestedStaffId: primary?.id || null,
+      suggested: primary?.name || null,
+      backupStaffId: backup?.id || null,
+      backup: backup?.name || null,
+    };
+  });
 }
 
 // ---------- ID generator ----------
@@ -415,12 +428,13 @@ export function buildSampleIncidents() {
 function defaultState() {
   return {
     incidents: [],
+    staff: [],
     settings: {
       principalName: "K. Patel",
       principalInitials: "KP",
       schoolName: "Demo School",
     },
-    version: 1,
+    version: 2,
   };
 }
 
@@ -481,4 +495,314 @@ export function resetAll() {
 
 export function listIncidents() {
   return loadAll().incidents;
+}
+
+// ============================================================
+// v3 — STAFF MANAGEMENT, ROLE DEFINITIONS & RESPONSIBILITIES
+// ============================================================
+
+// Master list of all role types CIMPLE knows about.
+// Each role has a description and reporting line.
+export const ROLE_DEFINITIONS = {
+  "Incident Commander": {
+    description: "Overall command of the incident. Final decision-maker on severity, escalation, role assignment, and closure. Signs off all external communications.",
+    reportsTo: "Head Office (in escalations)",
+    typicallyHeldBy: "Principal or Deputy Principal",
+  },
+  "Deputy Commander": {
+    description: "Acts as second-in-charge to the Incident Commander. Steps into command if the IC is unavailable. Coordinates internal logistics during the response.",
+    reportsTo: "Incident Commander",
+    typicallyHeldBy: "Deputy Principal or senior leader",
+  },
+  "Wellbeing Lead": {
+    description: "Coordinates psychological and emotional support for affected students and staff. Liaises with school counsellor and external mental health services.",
+    reportsTo: "Incident Commander",
+    typicallyHeldBy: "Head of Wellbeing or School Counsellor",
+  },
+  "First Aid": {
+    description: "Provides immediate medical response. Triages injuries. Logs treatment given. Liaises with paramedics on arrival.",
+    reportsTo: "Incident Commander",
+    typicallyHeldBy: "First Aid Officer",
+  },
+  "Family Liaison": {
+    description: "Sole point of contact with affected students' families. Ensures timely, consistent communication. All parent contact is logged through this role.",
+    reportsTo: "Incident Commander",
+    typicallyHeldBy: "Front Office Lead or designated staff member",
+  },
+  "Documenter": {
+    description: "Maintains the incident timeline. Records actions, decisions, and communications. Ensures audit-ready record-keeping.",
+    reportsTo: "Incident Commander",
+    typicallyHeldBy: "Admin Staff",
+  },
+  "Communications Lead": {
+    description: "Drafts internal and external communications. All comms route through this role for consistency before Principal approval.",
+    reportsTo: "Incident Commander",
+    typicallyHeldBy: "Designated communications staff member",
+  },
+  "Floor Wardens": {
+    description: "Lead evacuation/lockdown of their assigned area. Conduct headcounts. Report status to Incident Commander.",
+    reportsTo: "Incident Commander",
+    typicallyHeldBy: "Designated teaching staff per zone",
+  },
+  "Headcount Officer": {
+    description: "Receives roll status from each Floor Warden. Reconciles against expected attendance. Reports any unaccounted persons to Incident Commander immediately.",
+    reportsTo: "Incident Commander",
+    typicallyHeldBy: "Admin Staff or Deputy",
+  },
+  "Search Coordinator": {
+    description: "Coordinates organised search for missing student. Assigns search zones. Liaises with police if escalated.",
+    reportsTo: "Incident Commander",
+    typicallyHeldBy: "Deputy Principal or senior leader",
+  },
+  "Police Liaison": {
+    description: "Sole point of contact with attending police. Ensures information flow is controlled and accurate. Records all police interactions.",
+    reportsTo: "Incident Commander",
+    typicallyHeldBy: "Principal, Deputy, or designated leader",
+  },
+  "Counsellor (External)": {
+    description: "External mental health professional brought in to provide additional support. Coordinated through Wellbeing Lead.",
+    reportsTo: "Wellbeing Lead",
+    typicallyHeldBy: "Headspace, school psychologist, or contracted service",
+  },
+  "Front Office Lead": {
+    description: "Manages the front-of-school during the incident. Handles unexpected visitors and gate control. First point of contact for arriving services.",
+    reportsTo: "Incident Commander",
+    typicallyHeldBy: "Front Office Manager",
+  },
+};
+
+// Per-incident-type responsibilities for each role.
+// Tells the user "what does THIS role do during THIS type of incident".
+const ROLE_RESPONSIBILITIES = {
+  // Mental health
+  mental_health: {
+    "Incident Commander": [
+      "Confirm severity classification within 5 minutes",
+      "Activate EMP §4.3 if not yet triggered",
+      "Approve all family communications before they leave the school",
+      "Decide on counsellor activation (internal vs external)",
+      "Determine head office notification timing",
+    ],
+    "Wellbeing Lead": [
+      "Locate student and remain with them — do not leave unsupervised",
+      "Conduct initial wellbeing assessment using school's framework",
+      "Document disclosure factually in the timeline (no interpretation)",
+      "Determine if mandatory reporting trigger is present",
+      "Arrange immediate counsellor support (internal or Headspace)",
+    ],
+    "First Aid": [
+      "Perform medical assessment if any self-harm injury",
+      "Document any physical findings in incident timeline",
+      "Standby for transfer to medical care if required",
+    ],
+    "Family Liaison": [
+      "Wait for Principal approval before contacting family",
+      "Use prepared script — do not improvise wording",
+      "Document the call (time, who answered, what was said)",
+      "Coordinate parent collection or attendance at school",
+    ],
+    "Documenter": [
+      "Maintain factual timeline — no opinions or interpretation",
+      "Capture all role assignments and changes",
+      "Ensure mandatory reporting decision is recorded with rationale",
+    ],
+    "Counsellor (External)": [
+      "Arrive within agreed response time",
+      "Take primary responsibility for direct student support",
+      "Brief Wellbeing Lead at handover",
+    ],
+  },
+  // Medical
+  medical: {
+    "Incident Commander": [
+      "Decide on ambulance vs parent transport based on First Aid advice",
+      "Brief arriving paramedics personally",
+      "Approve communication to family",
+    ],
+    "First Aid": [
+      "Perform DRS-ABCD assessment immediately",
+      "Apply first aid within scope of qualification",
+      "Call 000 if condition meets ambulance criteria",
+      "Stay with patient until handover to paramedics or parent",
+      "Complete medical incident form",
+    ],
+    "Family Liaison": [
+      "Contact emergency contact within 5 minutes of incident open",
+      "Arrange parent collection or meet at hospital",
+      "Provide factual update only — do not speculate on diagnosis",
+    ],
+    "Documenter": [
+      "Record times of: incident, first aid commenced, 000 called, paramedics arrived, parent contacted",
+      "Document treatment given and patient response",
+    ],
+  },
+  // Lockdown
+  lockdown: {
+    "Incident Commander": [
+      "Confirm trigger and decision to lockdown is documented",
+      "Initiate PA announcement",
+      "Maintain communication with police via Police Liaison",
+      "Make all-clear decision",
+    ],
+    "Communications Lead": [
+      "Draft internal staff message — to be sent silently via approved channel",
+      "Hold all external comms until Principal approval",
+      "Prepare parent notification draft for post-event release",
+    ],
+    "Floor Wardens": [
+      "Lock all doors in your zone immediately",
+      "Account for all students in your zone",
+      "Move students away from windows",
+      "Maintain silence — phones on silent",
+      "Report your zone status to Headcount Officer",
+    ],
+    "Police Liaison": [
+      "Brief police on arrival",
+      "Provide site map and access points",
+      "Maintain communication channel with Incident Commander",
+    ],
+    "Documenter": [
+      "Record lockdown commenced time and trigger",
+      "Capture all status reports from zones",
+      "Record all-clear time and lifting decision",
+    ],
+  },
+  // Evacuation
+  evacuation: {
+    "Incident Commander": [
+      "Confirm evacuation trigger",
+      "Authorise alarm sound",
+      "Brief emergency services on arrival",
+      "Authorise re-entry decision",
+    ],
+    "Floor Wardens": [
+      "Lead your zone to the assembly point via designated route",
+      "Sweep classrooms and bathrooms in your zone",
+      "Conduct headcount at assembly point",
+      "Report status to Headcount Officer",
+    ],
+    "Headcount Officer": [
+      "Receive headcount from each Floor Warden",
+      "Reconcile against expected attendance",
+      "Report any unaccounted persons immediately",
+      "Document final reconciled count",
+    ],
+    "Communications Lead": [
+      "Prepare drafts for parent notification",
+      "Draft media holding statement if required",
+      "Hold all communications until Principal approval",
+    ],
+  },
+  // Death — on campus
+  death_oncampus: {
+    "Incident Commander": [
+      "Confirm services are en route — do not move the deceased",
+      "Restrict access to the area",
+      "Notify head office immediately — phone, not email",
+      "Designate single spokesperson",
+      "Approve all internal and external communications personally",
+    ],
+    "Wellbeing Lead": [
+      "Coordinate immediate support for any witnesses",
+      "Activate critical incident counsellor protocol",
+      "Brief teaching staff on supporting students once authorised",
+    ],
+    "Family Liaison": [
+      "Wait for police authorisation before family contact",
+      "Coordinate with police if they are making the notification",
+      "Be physically present with family if appropriate",
+    ],
+    "Communications Lead": [
+      "Prepare staff communication for after-hours release",
+      "Prepare community communication for after-hours release",
+      "Prepare media holding statement",
+      "All drafts route to Principal for approval",
+    ],
+    "Police Liaison": [
+      "Maintain sole communication with police",
+      "Document all interactions",
+      "Coordinate scene access",
+    ],
+  },
+  // Behavioural — fallback minimal
+  behavioural: {
+    "Incident Commander": [
+      "Confirm safety of all involved parties",
+      "Approve disciplinary or restorative pathway",
+      "Authorise family communications",
+    ],
+    "Wellbeing Lead": [
+      "Separate parties involved in conflict",
+      "Conduct individual debriefs (not joint)",
+      "Document accounts factually from each party",
+    ],
+    "Family Liaison": [
+      "Contact family of each involved student separately",
+      "Provide factual account — do not blame or speculate",
+    ],
+  },
+};
+
+export function responsibilitiesFor(roleName, incidentType) {
+  return ROLE_RESPONSIBILITIES[incidentType]?.[roleName] || null;
+}
+
+// ============================================================
+// Staff CRUD
+// ============================================================
+export function listStaff() {
+  return loadAll().staff || [];
+}
+
+export function getStaff(id) {
+  return listStaff().find((s) => s.id === id) || null;
+}
+
+export function saveStaff(staff) {
+  const state = loadAll();
+  const idx = (state.staff || []).findIndex((s) => s.id === staff.id);
+  if (!state.staff) state.staff = [];
+  if (idx >= 0) state.staff[idx] = staff;
+  else state.staff.push(staff);
+  saveAll(state);
+}
+
+export function deleteStaff(id) {
+  const state = loadAll();
+  state.staff = (state.staff || []).filter((s) => s.id !== id);
+  saveAll(state);
+}
+
+export function newStaffMember(data) {
+  const initials = (data.name || "")
+    .split(/\s+/)
+    .map((s) => s[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return {
+    id: `staff-${Date.now()}`,
+    name: data.name || "",
+    initials: data.initials || initials || "?",
+    role: data.role || "",
+    qualifiedFor: data.qualifiedFor || [],
+    phone: data.phone || "",
+    email: data.email || "",
+    available: data.available !== false,
+    notes: data.notes || "",
+  };
+}
+
+// Find best available staff for a role.
+// Returns { primary, backup } where backup is the next best match.
+export function suggestStaffForRole(roleName) {
+  const allStaff = listStaff();
+  const matches = allStaff
+    .filter((s) => s.qualifiedFor?.includes(roleName) && s.available)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return {
+    primary: matches[0] || null,
+    backup: matches[1] || null,
+  };
 }
