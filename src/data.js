@@ -1,0 +1,484 @@
+// ============================================================
+// CIMPLE — Data Layer
+// All localStorage CRUD + types + role templates per incident type.
+// ============================================================
+
+const STORAGE_KEY = "cimple-v2-state";
+
+// ---------- Severity definitions ----------
+export const SEVERITY = {
+  1: { label: "L1 Minor", short: "L1", color: "#7FB3A6", bg: "#D9E8E3", tone: "No injury, low disruption" },
+  2: { label: "L2 Moderate", short: "L2", color: "#C9A961", bg: "#F0E6CC", tone: "Medical attention required, parent contact" },
+  3: { label: "L3 Major", short: "L3", color: "#B85C3C", bg: "#F2D8CC", tone: "Emergency services involved, significant disruption" },
+  4: { label: "L4 Critical", short: "L4", color: "#8B2E1A", bg: "#E8C9C2", tone: "Death, serious injury, major threat, media" },
+};
+
+// ---------- Incident types with metadata ----------
+export const INCIDENT_TYPES = [
+  { id: "medical", label: "Medical / Injury", category: "student", icon: "Heart", emp: "EMP §3.1 — Medical Emergency Response", defaultSeverity: 2 },
+  { id: "mental_health", label: "Student Mental Health / Self-Harm", category: "student", icon: "Brain", emp: "EMP §4.3 — Student Mental Health Crisis Response", defaultSeverity: 3 },
+  { id: "behavioural", label: "Behavioural / Violent Incident", category: "student", icon: "AlertTriangle", emp: "EMP §5.2 — Behavioural Crisis Response", defaultSeverity: 2 },
+  { id: "missing", label: "Missing Student", category: "student", icon: "UserX", emp: "EMP §6.1 — Missing Student Procedure", defaultSeverity: 3 },
+  { id: "bullying", label: "Bullying / Harassment", category: "student", icon: "Users", emp: "EMP §5.4 — Bullying Response", defaultSeverity: 2 },
+  { id: "lockdown", label: "Lockdown", category: "school", icon: "Lock", emp: "EMP §1.1 — Lockdown Procedure", defaultSeverity: 4 },
+  { id: "evacuation", label: "Fire / Evacuation", category: "school", icon: "Flame", emp: "EMP §1.2 — Evacuation Procedure", defaultSeverity: 3 },
+  { id: "hazmat", label: "Hazardous Material", category: "school", icon: "AlertOctagon", emp: "EMP §1.4 — Hazmat Response", defaultSeverity: 3 },
+  { id: "natural_disaster", label: "Natural Disaster", category: "school", icon: "CloudLightning", emp: "EMP §1.5 — Natural Disaster Response", defaultSeverity: 3 },
+  { id: "parent_aggression", label: "Parent Aggression", category: "external", icon: "UserCheck", emp: "EMP §7.3 — Parent Conflict Response", defaultSeverity: 2 },
+  { id: "external_threat", label: "External Threat / Police", category: "external", icon: "Shield", emp: "EMP §1.3 — External Threat Response", defaultSeverity: 4 },
+  { id: "transport", label: "Transport Accident", category: "external", icon: "Bus", emp: "EMP §8.2 — Transport Incident Response", defaultSeverity: 3 },
+  { id: "death_oncampus", label: "Death — On Campus", category: "death", icon: "AlertCircle", emp: "EMP §9.1 — Critical Incident: Death", defaultSeverity: 4 },
+  { id: "death_offcampus", label: "Death — Off Campus", category: "death", icon: "AlertCircle", emp: "EMP §9.2 — Off-Campus Death Response", defaultSeverity: 4 },
+];
+
+export const TYPE_CATEGORIES = {
+  student: { label: "Student-Related", color: "#0F4C5C" },
+  school: { label: "School-Wide", color: "#B85C3C" },
+  external: { label: "Community / External", color: "#C9A961" },
+  death: { label: "Death", color: "#8B2E1A" },
+};
+
+// ---------- Role templates per incident type ----------
+const COMMON_ROLES = [
+  { role: "Incident Commander", required: true, isPrincipal: true },
+  { role: "Documenter", required: true },
+];
+
+const ROLE_TEMPLATES = {
+  medical: [
+    ...COMMON_ROLES,
+    { role: "First Aid", required: true },
+    { role: "Family Liaison", required: true },
+  ],
+  mental_health: [
+    ...COMMON_ROLES,
+    { role: "Wellbeing Lead", required: true },
+    { role: "First Aid", required: true },
+    { role: "Family Liaison", required: true },
+    { role: "Counsellor (External)", required: false },
+  ],
+  behavioural: [
+    ...COMMON_ROLES,
+    { role: "Wellbeing Lead", required: true },
+    { role: "Family Liaison", required: true },
+  ],
+  missing: [
+    ...COMMON_ROLES,
+    { role: "Search Coordinator", required: true },
+    { role: "Family Liaison", required: true },
+    { role: "Police Liaison", required: false },
+  ],
+  bullying: [
+    ...COMMON_ROLES,
+    { role: "Wellbeing Lead", required: true },
+    { role: "Family Liaison", required: true },
+  ],
+  lockdown: [
+    ...COMMON_ROLES,
+    { role: "Communications Lead", required: true },
+    { role: "Floor Wardens", required: true },
+    { role: "Police Liaison", required: true },
+  ],
+  evacuation: [
+    ...COMMON_ROLES,
+    { role: "Floor Wardens", required: true },
+    { role: "Headcount Officer", required: true },
+    { role: "Communications Lead", required: true },
+  ],
+  hazmat: [
+    ...COMMON_ROLES,
+    { role: "Floor Wardens", required: true },
+    { role: "First Aid", required: true },
+    { role: "Communications Lead", required: true },
+  ],
+  natural_disaster: [
+    ...COMMON_ROLES,
+    { role: "Floor Wardens", required: true },
+    { role: "Communications Lead", required: true },
+    { role: "First Aid", required: false },
+  ],
+  parent_aggression: [
+    ...COMMON_ROLES,
+    { role: "Front Office Lead", required: true },
+    { role: "Police Liaison", required: false },
+  ],
+  external_threat: [
+    ...COMMON_ROLES,
+    { role: "Police Liaison", required: true },
+    { role: "Communications Lead", required: true },
+    { role: "Floor Wardens", required: true },
+  ],
+  transport: [
+    ...COMMON_ROLES,
+    { role: "Family Liaison", required: true },
+    { role: "First Aid", required: false },
+    { role: "Communications Lead", required: true },
+  ],
+  death_oncampus: [
+    ...COMMON_ROLES,
+    { role: "Wellbeing Lead", required: true },
+    { role: "Family Liaison", required: true },
+    { role: "Communications Lead", required: true },
+    { role: "Police Liaison", required: true },
+    { role: "Counsellor (External)", required: true },
+  ],
+  death_offcampus: [
+    ...COMMON_ROLES,
+    { role: "Wellbeing Lead", required: true },
+    { role: "Communications Lead", required: true },
+    { role: "Counsellor (External)", required: true },
+  ],
+};
+
+export function rolesForIncidentType(typeId) {
+  const template = ROLE_TEMPLATES[typeId] || COMMON_ROLES;
+  return template.map((t, i) => ({
+    id: `r${Date.now()}-${i}`,
+    role: t.role,
+    required: t.required,
+    isPrincipal: t.isPrincipal || false,
+    staff: "—",
+    initials: "—",
+    status: "unassigned",
+  }));
+}
+
+// ---------- ID generator ----------
+function nextIncidentId(existingIncidents) {
+  const today = new Date();
+  const datePart = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
+  const todaysIncidents = existingIncidents.filter((i) => i.id.includes(datePart));
+  const seq = String(todaysIncidents.length + 1).padStart(3, "0");
+  return `INC-${datePart}-${seq}`;
+}
+
+// ---------- Default tasks per type ----------
+const DEFAULT_TASKS = {
+  medical: ["Administer first aid", "Contact parent / guardian", "Log treatment", "Notify Principal"],
+  mental_health: ["Notify Wellbeing Lead within 15 min", "Document in Wellbeing Register", "Contact parent (unless reporting trigger)", "Maintain supervision"],
+  behavioural: ["De-escalate situation", "Separate parties involved", "Notify parents", "Document witness accounts"],
+  missing: ["Begin coordinated search", "Notify parents immediately", "Check CCTV", "Prepare description for police"],
+  bullying: ["Separate parties", "Document accounts from all parties", "Notify wellbeing team", "Contact parents of involved students"],
+  lockdown: ["Lock all doors", "Account for all students", "Silent until all-clear", "Police liaison communication"],
+  evacuation: ["Sound alarm", "Lead to assembly point", "Headcount", "Brief emergency services on arrival"],
+  hazmat: ["Evacuate affected zone", "Contain if possible (do not approach)", "Call 000", "Hazmat team coordination"],
+  natural_disaster: ["Move students to safe zone", "Account for all", "Communications to families", "Monitor weather/event updates"],
+  parent_aggression: ["De-escalate at front office", "Move children away from area", "Document incident", "Consider AVO if threatening"],
+  external_threat: ["Initiate lockdown if needed", "Police liaison", "Account for all students", "Restrict information flow"],
+  transport: ["Confirm welfare of all students", "Contact parents of affected students", "Document accident details", "Notify head office"],
+  death_oncampus: ["Call 000 — confirm services en route", "Restrict area", "Notify head office immediately", "Designate spokesperson"],
+  death_offcampus: ["Notify staff via wellbeing channel", "Prepare communications for community", "Coordinate counsellor support", "Family liaison"],
+};
+
+export function tasksForIncidentType(typeId) {
+  const items = DEFAULT_TASKS[typeId] || ["Document incident", "Notify Principal"];
+  return items.map((text, i) => ({
+    id: `tk${Date.now()}-${i}`,
+    text,
+    owner: "—",
+    done: false,
+    priority: i === 0 ? "high" : i < 2 ? "med" : "low",
+  }));
+}
+
+// ---------- Create new incident ----------
+export function createIncident({ type, severity, title, location, isDrill = false }) {
+  const typeMeta = INCIDENT_TYPES.find((t) => t.id === type);
+  const allIncidents = loadAll().incidents;
+  const id = nextIncidentId(allIncidents);
+
+  return {
+    id,
+    title: title || typeMeta.label,
+    type,
+    typeLabel: typeMeta.label,
+    typeCategory: typeMeta.category,
+    severity: severity || typeMeta.defaultSeverity,
+    status: "active",
+    isDrill,
+    startedAt: Date.now(),
+    closedAt: null,
+    location: location || "Location not specified",
+    empSection: typeMeta.emp,
+    policies: defaultPoliciesForType(type),
+    student: null,
+    roles: rolesForIncidentType(type),
+    timeline: [
+      {
+        id: `t${Date.now()}`,
+        ts: Date.now(),
+        actor: "K. Patel",
+        actorInitials: "KP",
+        type: "system",
+        text: `Incident opened. Initial severity: ${SEVERITY[severity || typeMeta.defaultSeverity].label}.`,
+      },
+    ],
+    tasks: tasksForIncidentType(type),
+  };
+}
+
+function defaultPoliciesForType(typeId) {
+  const policies = {
+    medical: [
+      { id: "p1", name: "First Aid Procedure", section: "§3.1", type: "policy" },
+      { id: "p2", name: "Medical Emergency Response", section: "§3", type: "emp" },
+    ],
+    mental_health: [
+      { id: "p1", name: "Mandatory Reporting Procedure", section: "§2.1", type: "policy" },
+      { id: "p2", name: "Student Wellbeing Framework", section: "§4", type: "policy" },
+      { id: "p3", name: "Family Communication Protocol", section: "§7.2", type: "emp" },
+    ],
+    lockdown: [
+      { id: "p1", name: "Lockdown Procedure", section: "§1.1", type: "emp" },
+      { id: "p2", name: "Communications Protocol", section: "§7", type: "emp" },
+    ],
+    evacuation: [
+      { id: "p1", name: "Evacuation Procedure", section: "§1.2", type: "emp" },
+      { id: "p2", name: "Assembly Point Map", section: "§1.2.1", type: "emp" },
+    ],
+    death_oncampus: [
+      { id: "p1", name: "Critical Incident: Death", section: "§9.1", type: "emp" },
+      { id: "p2", name: "Media & Communications", section: "§7.5", type: "policy" },
+      { id: "p3", name: "Post-Incident Wellbeing", section: "§10", type: "emp" },
+    ],
+  };
+  return policies[typeId] || [
+    { id: "p1", name: "General Incident Procedure", section: "§1", type: "emp" },
+    { id: "p2", name: "Reporting Requirements", section: "§2", type: "policy" },
+  ];
+}
+
+// ---------- Sample seeded incidents (the "Load samples" button) ----------
+export function buildSampleIncidents() {
+  const now = Date.now();
+  const minutes = (n) => n * 60 * 1000;
+
+  const samples = [];
+
+  // 1. Active L3 mental health (the original demo, now 23m old)
+  samples.push({
+    id: "INC-2026-0427-001",
+    title: "Year 9 student welfare concern — D-Block bathroom",
+    type: "mental_health",
+    typeLabel: "Student Mental Health / Self-Harm",
+    typeCategory: "student",
+    severity: 3,
+    status: "active",
+    isDrill: false,
+    startedAt: now - minutes(23),
+    closedAt: null,
+    location: "D-Block, Level 1, Bathroom B",
+    empSection: "EMP §4.3 — Student Mental Health Crisis Response",
+    policies: defaultPoliciesForType("mental_health"),
+    student: {
+      initials: "M.T.",
+      yearLevel: "Year 9",
+      medicalAlerts: ["Asthma — Ventolin in office"],
+      behaviourPlan: "Active — see counsellor file",
+      emergencyContacts: [
+        { name: "Parent 1", relation: "Mother", phone: "0412 ••• 678" },
+        { name: "Parent 2", relation: "Father", phone: "0419 ••• 221" },
+      ],
+      knownRisks: "History of anxiety; recent disclosure to wellbeing team (March)",
+      supportNotes: "Prefers female counsellor. Year advisor: Ms Nguyen.",
+    },
+    roles: [
+      { id: "r1", role: "Incident Commander", staff: "K. Patel", initials: "KP", status: "confirmed", required: true, isPrincipal: true },
+      { id: "r2", role: "Wellbeing Lead", staff: "S. Nguyen", initials: "SN", status: "confirmed", required: true },
+      { id: "r3", role: "First Aid", staff: "J. Okafor", initials: "JO", status: "confirmed", required: true },
+      { id: "r4", role: "Family Liaison", staff: "L. Martin", initials: "LM", status: "pending", required: true, backup: "R. Chen" },
+      { id: "r5", role: "Documenter", staff: "—", initials: "—", status: "unassigned", required: true, suggested: "A. Wright" },
+      { id: "r6", role: "Counsellor (External)", staff: "Headspace on call", initials: "HC", status: "contacted", required: false },
+    ],
+    timeline: [
+      { id: "t1", ts: now - minutes(23), actor: "K. Patel", actorInitials: "KP", type: "system", text: "Incident opened. Initial severity: L3 Major." },
+      { id: "t2", ts: now - minutes(22), actor: "K. Patel", actorInitials: "KP", type: "action", text: "Activated EMP §4.3 — Student Mental Health Crisis Response." },
+      { id: "t3", ts: now - minutes(21), actor: "S. Nguyen", actorInitials: "SN", type: "note", text: "On site with student. Calm but distressed. No visible injury. Ventolin not required." },
+      { id: "t4", ts: now - minutes(18), actor: "J. Okafor", actorInitials: "JO", type: "note", text: "First aid assessment complete. No medical intervention required at this time." },
+      { id: "t5", ts: now - minutes(14), actor: "K. Patel", actorInitials: "KP", type: "action", text: "Contacted external counsellor (Headspace). On standby." },
+      { id: "t6", ts: now - minutes(9), actor: "L. Martin", actorInitials: "LM", type: "note", text: "Drafting parent communication for review. Will not send without sign-off." },
+      { id: "t7", ts: now - minutes(4), actor: "S. Nguyen", actorInitials: "SN", type: "note", text: "Student speaking with wellbeing lead. Refusing to call parent directly. Has agreed to remain on site with counsellor." },
+    ],
+    tasks: [
+      { id: "tk1", text: "Confirm parent contact attempt", owner: "LM", done: false, priority: "high" },
+      { id: "tk2", text: "Document incident in wellbeing register", owner: "SN", done: false, priority: "med" },
+      { id: "tk3", text: "Notify Year Advisor (Ms Nguyen)", owner: "KP", done: true, priority: "med" },
+      { id: "tk4", text: "Prepare head office notification draft", owner: "KP", done: false, priority: "high" },
+      { id: "tk5", text: "Schedule student check-in for tomorrow AM", owner: "SN", done: false, priority: "low" },
+    ],
+  });
+
+  // 2. Active L2 medical, fresh
+  samples.push({
+    id: "INC-2026-0427-002",
+    title: "Year 7 sports injury — ankle fracture suspected",
+    type: "medical",
+    typeLabel: "Medical / Injury",
+    typeCategory: "student",
+    severity: 2,
+    status: "active",
+    isDrill: false,
+    startedAt: now - minutes(8),
+    closedAt: null,
+    location: "Oval — Eastern Field",
+    empSection: "EMP §3.1 — Medical Emergency Response",
+    policies: defaultPoliciesForType("medical"),
+    student: null,
+    roles: [
+      { id: "r1", role: "Incident Commander", staff: "K. Patel", initials: "KP", status: "confirmed", required: true, isPrincipal: true },
+      { id: "r2", role: "First Aid", staff: "J. Okafor", initials: "JO", status: "confirmed", required: true },
+      { id: "r3", role: "Family Liaison", staff: "—", initials: "—", status: "unassigned", required: true, suggested: "L. Martin" },
+      { id: "r4", role: "Documenter", staff: "A. Wright", initials: "AW", status: "confirmed", required: true },
+    ],
+    timeline: [
+      { id: "t1", ts: now - minutes(8), actor: "K. Patel", actorInitials: "KP", type: "system", text: "Incident opened. Initial severity: L2 Moderate." },
+      { id: "t2", ts: now - minutes(7), actor: "J. Okafor", actorInitials: "JO", type: "note", text: "On scene. Student conscious, ankle visibly swollen, painful on weight-bearing." },
+      { id: "t3", ts: now - minutes(3), actor: "J. Okafor", actorInitials: "JO", type: "action", text: "Splint applied. Awaiting parent collection / ambulance decision." },
+    ],
+    tasks: tasksForIncidentType("medical"),
+  });
+
+  // 3. Closed L1 minor (yesterday)
+  samples.push({
+    id: "INC-2026-0426-003",
+    title: "Minor playground scuffle — Year 5",
+    type: "behavioural",
+    typeLabel: "Behavioural / Violent Incident",
+    typeCategory: "student",
+    severity: 1,
+    status: "closed",
+    isDrill: false,
+    startedAt: now - minutes(60 * 26),
+    closedAt: now - minutes(60 * 24),
+    location: "Lower playground",
+    empSection: "EMP §5.2 — Behavioural Crisis Response",
+    policies: defaultPoliciesForType("behavioural"),
+    student: null,
+    roles: [
+      { id: "r1", role: "Incident Commander", staff: "K. Patel", initials: "KP", status: "confirmed", required: true, isPrincipal: true },
+      { id: "r2", role: "Wellbeing Lead", staff: "S. Nguyen", initials: "SN", status: "confirmed", required: true },
+      { id: "r3", role: "Family Liaison", staff: "L. Martin", initials: "LM", status: "confirmed", required: true },
+      { id: "r4", role: "Documenter", staff: "A. Wright", initials: "AW", status: "confirmed", required: true },
+    ],
+    timeline: [
+      { id: "t1", ts: now - minutes(60 * 26), actor: "K. Patel", actorInitials: "KP", type: "system", text: "Incident opened. Initial severity: L1 Minor." },
+      { id: "t2", ts: now - minutes(60 * 26 - 5), actor: "S. Nguyen", actorInitials: "SN", type: "note", text: "Two students separated and spoken with. No injuries." },
+      { id: "t3", ts: now - minutes(60 * 25), actor: "L. Martin", actorInitials: "LM", type: "action", text: "Both sets of parents notified by phone." },
+      { id: "t4", ts: now - minutes(60 * 24), actor: "K. Patel", actorInitials: "KP", type: "system", text: "Incident closed. Resolution: minor disagreement, both students reconciled, restorative conversation completed." },
+    ],
+    tasks: [
+      { id: "tk1", text: "Restorative conversation with both students", owner: "SN", done: true, priority: "high" },
+      { id: "tk2", text: "Notify both sets of parents", owner: "LM", done: true, priority: "high" },
+      { id: "tk3", text: "Log in behaviour register", owner: "AW", done: true, priority: "med" },
+    ],
+  });
+
+  // 4. Drill — recent evacuation
+  samples.push({
+    id: "INC-2026-0426-004",
+    title: "Term 2 evacuation drill — whole school",
+    type: "evacuation",
+    typeLabel: "Fire / Evacuation",
+    typeCategory: "school",
+    severity: 1,
+    status: "closed",
+    isDrill: true,
+    startedAt: now - minutes(60 * 30),
+    closedAt: now - minutes(60 * 29),
+    location: "Whole campus → Lower Oval assembly point",
+    empSection: "EMP §1.2 — Evacuation Procedure",
+    policies: defaultPoliciesForType("evacuation"),
+    student: null,
+    roles: [
+      { id: "r1", role: "Incident Commander", staff: "K. Patel", initials: "KP", status: "confirmed", required: true, isPrincipal: true },
+      { id: "r2", role: "Floor Wardens", staff: "5 staff", initials: "FW", status: "confirmed", required: true },
+      { id: "r3", role: "Headcount Officer", staff: "A. Wright", initials: "AW", status: "confirmed", required: true },
+      { id: "r4", role: "Communications Lead", staff: "L. Martin", initials: "LM", status: "confirmed", required: true },
+      { id: "r5", role: "Documenter", staff: "R. Chen", initials: "RC", status: "confirmed", required: true },
+    ],
+    timeline: [
+      { id: "t1", ts: now - minutes(60 * 30), actor: "K. Patel", actorInitials: "KP", type: "system", text: "Drill commenced. Type: Fire / Evacuation." },
+      { id: "t2", ts: now - minutes(60 * 30 - 4), actor: "A. Wright", actorInitials: "AW", type: "note", text: "All 487 students accounted for at assembly point. Time: 4 min 12 sec." },
+      { id: "t3", ts: now - minutes(60 * 29), actor: "K. Patel", actorInitials: "KP", type: "system", text: "Drill closed. Performance: Within target. Minor delay in C-Block staircase noted for review." },
+    ],
+    tasks: [
+      { id: "tk1", text: "All students to assembly point", owner: "FW", done: true, priority: "high" },
+      { id: "tk2", text: "Complete headcount", owner: "AW", done: true, priority: "high" },
+      { id: "tk3", text: "Log drill in compliance register", owner: "RC", done: true, priority: "med" },
+    ],
+  });
+
+  return samples;
+}
+
+// ---------- localStorage operations ----------
+function defaultState() {
+  return {
+    incidents: [],
+    settings: {
+      principalName: "K. Patel",
+      principalInitials: "KP",
+      schoolName: "Demo School",
+    },
+    version: 1,
+  };
+}
+
+export function loadAll() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultState();
+    const parsed = JSON.parse(raw);
+    return { ...defaultState(), ...parsed };
+  } catch {
+    return defaultState();
+  }
+}
+
+export function saveAll(state) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn("Could not save state:", e);
+  }
+}
+
+export function getIncident(id) {
+  return loadAll().incidents.find((i) => i.id === id) || null;
+}
+
+export function saveIncident(incident) {
+  const state = loadAll();
+  const idx = state.incidents.findIndex((i) => i.id === incident.id);
+  if (idx >= 0) {
+    state.incidents[idx] = incident;
+  } else {
+    state.incidents.unshift(incident);
+  }
+  saveAll(state);
+}
+
+export function deleteIncident(id) {
+  const state = loadAll();
+  state.incidents = state.incidents.filter((i) => i.id !== id);
+  saveAll(state);
+}
+
+export function loadSampleData() {
+  const state = loadAll();
+  const samples = buildSampleIncidents();
+  // Don't duplicate
+  const existingIds = new Set(state.incidents.map((i) => i.id));
+  for (const s of samples) {
+    if (!existingIds.has(s.id)) state.incidents.push(s);
+  }
+  saveAll(state);
+}
+
+export function resetAll() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+export function listIncidents() {
+  return loadAll().incidents;
+}
