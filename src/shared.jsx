@@ -5,6 +5,7 @@
 //   Crimson #A02029 (accent — used sparingly per TAC mark)
 // ============================================================
 import React from "react";
+import { AlertCircle } from "lucide-react";
 
 export const PALETTE = {
   // Primary brand (renamed keys kept as `teal*` for backwards compatibility
@@ -118,8 +119,37 @@ export function Logo({ size = 36 }) {
   );
 }
 
+export function PrototypeNotice() {
+  return (
+    <div
+      role="note"
+      style={{
+        background: PALETTE.tealDeep,
+        color: PALETTE.paper,
+        padding: "6px 32px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 12,
+        borderBottom: `1px solid ${PALETTE.crimson}`,
+      }}
+    >
+      <AlertCircle size={13} color={PALETTE.crimson} strokeWidth={2.5} />
+      <span
+        className="mono"
+        style={{ fontSize: 10, letterSpacing: "0.22em", fontWeight: 600, textAlign: "center" }}
+      >
+        PROTOTYPE · DEMO USE ONLY · DO NOT ENTER REAL STUDENT OR STAFF DATA
+      </span>
+      <AlertCircle size={13} color={PALETTE.crimson} strokeWidth={2.5} />
+    </div>
+  );
+}
+
 export function TopBarShell({ children, current }) {
   return (
+    <>
+    <PrototypeNotice />
     <div
       style={{
         background: PALETTE.paper,
@@ -192,6 +222,7 @@ export function TopBarShell({ children, current }) {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
