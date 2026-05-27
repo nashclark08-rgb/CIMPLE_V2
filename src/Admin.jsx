@@ -5,13 +5,16 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   Users, Plus, Trash2, Edit3, X, Phone, Mail, ChevronRight,
   CheckCircle2, AlertCircle, ArrowLeft, BookOpen, Shield,
-  Search, UserCheck, UserX, Save,
+  Search, UserCheck, UserX, Save, RefreshCw, AlertTriangle,
 } from "lucide-react";
 import { PALETTE, TopBarShell } from "./shared.jsx";
 import {
   listStaff, saveStaff, deleteStaff, newStaffMember,
-  ROLE_DEFINITIONS,
+  ROLE_DEFINITIONS, verifyStaffContact, staffContactAgeDays,
+  detectRoleConflicts,
 } from "./data.js";
+
+const VERIFY_THRESHOLD_DAYS = 90;
 
 const ROLE_NAMES = Object.keys(ROLE_DEFINITIONS);
 
@@ -32,7 +35,7 @@ export default function Admin({ onBack }) {
           Configure your school's staff directory and define the roles used during incident response. Staff added here are auto-suggested when starting a new incident.
         </p>
 
-        <div style={{ marginTop: 32, display: "flex", gap: 4, borderBottom: `1px solid rgba(15, 76, 92, 0.15)` }}>
+        <div style={{ marginTop: 32, display: "flex", gap: 4, borderBottom: `1px solid rgba(0, 48, 94, 0.15)` }}>
           {[
             { v: "staff", l: "Staff Directory" },
             { v: "roles", l: "Role Definitions" },
@@ -98,6 +101,11 @@ function StaffTab() {
     refresh();
   }
 
+  function handleVerify(id) {
+    verifyStaffContact(id);
+    refresh();
+  }
+
   const filtered = useMemo(() => {
     if (!search.trim()) return staff;
     const q = search.toLowerCase();
@@ -106,13 +114,26 @@ function StaffTab() {
     );
   }, [staff, search]);
 
+  const stale = staff.filter((s) => staffContactAgeDays(s) > VERIFY_THRESHOLD_DAYS).length;
+  const conflicted = staff.filter((s) => detectRoleConflicts(s.qualifiedFor).length > 0).length;
+
   return (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 16, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <span className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.7 }}>
             {staff.length} STAFF · {staff.filter((s) => s.available).length} AVAILABLE
           </span>
+          {stale > 0 && (
+            <span className="mono" title={`Contact details not verified in ${VERIFY_THRESHOLD_DAYS}+ days`} style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.rust, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <RefreshCw size={10} /> {stale} NEEDS VERIFY
+            </span>
+          )}
+          {conflicted > 0 && (
+            <span className="mono" title="Has conflicting role qualifications" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.crimson, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <AlertTriangle size={10} /> {conflicted} ROLE CONFLICT
+            </span>
+          )}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           {staff.length > 0 && (
@@ -140,10 +161,10 @@ function StaffTab() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "60px 1fr 1.2fr 1.5fr 100px 80px",
+              gridTemplateColumns: "60px 1fr 1.2fr 1.5fr 130px 80px",
               gap: 16,
               padding: "12px 18px",
-              borderBottom: `1px solid rgba(15, 76, 92, 0.12)`,
+              borderBottom: `1px solid rgba(0, 48, 94, 0.12)`,
               background: PALETTE.bone,
             }}
           >
@@ -154,7 +175,7 @@ function StaffTab() {
             ))}
           </div>
           {filtered.map((s, i) => (
-            <StaffRow key={s.id} staff={s} onEdit={() => startEdit(s)} onDelete={() => handleDelete(s.id)} isLast={i === filtered.length - 1} />
+            <StaffRow key={s.id} staff={s} onEdit={() => startEdit(s)} onDelete={() => handleDelete(s.id)} onVerify={() => handleVerify(s.id)} isLast={i === filtered.length - 1} />
           ))}
           {filtered.length === 0 && (
             <div style={{ padding: "32px", textAlign: "center", color: PALETTE.inkSoft, fontSize: 13 }}>
@@ -169,15 +190,20 @@ function StaffTab() {
   );
 }
 
-function StaffRow({ staff, onEdit, onDelete, isLast }) {
+function StaffRow({ staff, onEdit, onDelete, onVerify, isLast }) {
+  const ageDays = staffContactAgeDays(staff);
+  const stale = ageDays > VERIFY_THRESHOLD_DAYS;
+  const verifyLabel = ageDays === Infinity ? "Never verified" : ageDays === 0 ? "Verified today" : `Verified ${ageDays}d ago`;
+  const conflicts = detectRoleConflicts(staff.qualifiedFor);
+
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "60px 1fr 1.2fr 1.5fr 100px 80px",
+        gridTemplateColumns: "60px 1fr 1.2fr 1.5fr 130px 80px",
         gap: 16,
         padding: "14px 18px",
-        borderBottom: isLast ? "none" : `1px solid rgba(15, 76, 92, 0.08)`,
+        borderBottom: isLast ? "none" : `1px solid rgba(0, 48, 94, 0.08)`,
         alignItems: "center",
       }}
     >
@@ -198,7 +224,17 @@ function StaffRow({ staff, onEdit, onDelete, isLast }) {
         {staff.initials}
       </div>
       <div>
-        <div style={{ fontSize: 14, color: PALETTE.ink, fontWeight: 500 }}>{staff.name}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 14, color: PALETTE.ink, fontWeight: 500 }}>{staff.name}</span>
+          {conflicts.length > 0 && (
+            <span
+              title={`Role conflict: ${conflicts.map((c) => c.roles.join(" + ")).join("; ")}`}
+              style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "1px 6px", background: "rgba(160, 32, 41, 0.1)", color: PALETTE.crimson, fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              <AlertTriangle size={9} strokeWidth={2.5} /> CONFLICT
+            </span>
+          )}
+        </div>
         {staff.email && <div className="mono" style={{ fontSize: 10, color: PALETTE.inkSoft, marginTop: 2 }}>{staff.email}</div>}
       </div>
       <div style={{ fontSize: 13, color: PALETTE.ink, opacity: 0.85 }}>{staff.role || "—"}</div>
@@ -213,7 +249,7 @@ function StaffRow({ staff, onEdit, onDelete, isLast }) {
           <span style={{ fontSize: 12, color: PALETTE.inkSoft, fontStyle: "italic" }}>No roles assigned</span>
         )}
       </div>
-      <div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {staff.available ? (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: PALETTE.sage, fontWeight: 500 }}>
             <UserCheck size={11} /> Available
@@ -223,6 +259,27 @@ function StaffRow({ staff, onEdit, onDelete, isLast }) {
             <UserX size={11} /> Off duty
           </span>
         )}
+        <button
+          onClick={onVerify}
+          title={stale ? "Contact details are stale — confirm and re-verify" : "Re-confirm contact details now"}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 9,
+            letterSpacing: "0.1em",
+            color: stale ? PALETTE.rust : PALETTE.inkSoft,
+            fontWeight: stale ? 600 : 400,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            textAlign: "left",
+          }}
+        >
+          <RefreshCw size={9} /> {verifyLabel}
+        </button>
       </div>
       <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
         <button onClick={onEdit} className="btn-ghost" style={{ background: "none", border: "none", padding: 6, color: PALETTE.teal }} title="Edit">
@@ -306,7 +363,26 @@ function StaffEditor({ staff, onSave, onCancel }) {
       <p style={{ fontSize: 12, color: PALETTE.inkSoft, margin: "0 0 12px", lineHeight: 1.5 }}>
         Tick the roles this person is qualified to perform. CIMPLE will auto-suggest them when a new incident is opened.
       </p>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, background: "rgba(15, 76, 92, 0.15)", border: `1px solid rgba(15, 76, 92, 0.14)`, marginBottom: 20 }}>
+      {(() => {
+        const conflicts = detectRoleConflicts(form.qualifiedFor);
+        if (conflicts.length === 0) return null;
+        return (
+          <div style={{ padding: "10px 14px", marginBottom: 12, background: "rgba(160, 32, 41, 0.08)", borderLeft: `3px solid ${PALETTE.crimson}`, fontSize: 12, color: PALETTE.ink, lineHeight: 1.5 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, color: PALETTE.crimson, fontWeight: 600 }}>
+              <AlertTriangle size={12} /> Role conflict — one person can't do both at once
+            </div>
+            {conflicts.map((c, i) => (
+              <div key={i} style={{ marginTop: 4 }}>
+                <strong>{c.roles[0]} + {c.roles[1]}:</strong> {c.reason}
+              </div>
+            ))}
+            <div style={{ marginTop: 6, fontSize: 11, color: PALETTE.inkSoft }}>
+              You can still save — but in a real incident, name a separate primary or alternate (PRD §13.2).
+            </div>
+          </div>
+        );
+      })()}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, background: "rgba(0, 48, 94, 0.15)", border: `1px solid rgba(0, 48, 94, 0.14)`, marginBottom: 20 }}>
         {ROLE_NAMES.map((role) => {
           const checked = (form.qualifiedFor || []).includes(role);
           return (
@@ -346,7 +422,7 @@ function StaffEditor({ staff, onSave, onCancel }) {
             fontWeight: 500,
             background: form.available ? PALETTE.sage : PALETTE.paper,
             color: form.available ? PALETTE.paper : PALETTE.ink,
-            border: `1px solid ${form.available ? PALETTE.sage : "rgba(15, 76, 92, 0.18)"}`,
+            border: `1px solid ${form.available ? PALETTE.sage : "rgba(0, 48, 94, 0.18)"}`,
           }}
         >
           <UserCheck size={13} style={{ marginRight: 6, verticalAlign: "middle" }} />
@@ -361,7 +437,7 @@ function StaffEditor({ staff, onSave, onCancel }) {
             fontWeight: 500,
             background: !form.available ? PALETTE.inkSoft : PALETTE.paper,
             color: !form.available ? PALETTE.paper : PALETTE.ink,
-            border: `1px solid ${!form.available ? PALETTE.inkSoft : "rgba(15, 76, 92, 0.18)"}`,
+            border: `1px solid ${!form.available ? PALETTE.inkSoft : "rgba(0, 48, 94, 0.18)"}`,
           }}
         >
           <UserX size={13} style={{ marginRight: 6, verticalAlign: "middle" }} />
@@ -372,7 +448,7 @@ function StaffEditor({ staff, onSave, onCancel }) {
       <Label>Notes (optional)</Label>
       <textarea rows={2} value={form.notes || ""} onChange={(e) => update("notes", e.target.value)} placeholder="Any relevant notes — e.g. on extended leave, lead first aider, etc." style={{ resize: "vertical", marginBottom: 20 }} />
 
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 20, borderTop: `1px solid rgba(15, 76, 92, 0.12)` }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 20, borderTop: `1px solid rgba(0, 48, 94, 0.12)` }}>
         <button className="btn" onClick={onCancel}>Cancel</button>
         <button className="btn btn-primary" onClick={handleSubmit}>
           <Save size={13} /> Save
@@ -451,7 +527,7 @@ function RolesTab() {
                 </div>
               </div>
               {qualified.length > 0 && (
-                <div style={{ paddingTop: 12, borderTop: `1px solid rgba(15, 76, 92, 0.1)`, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                <div style={{ paddingTop: 12, borderTop: `1px solid rgba(0, 48, 94, 0.1)`, display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {qualified.map((s) => (
                     <span
                       key={s.id}
@@ -469,7 +545,7 @@ function RolesTab() {
                 </div>
               )}
               {qualified.length === 0 && (
-                <div style={{ paddingTop: 12, borderTop: `1px solid rgba(15, 76, 92, 0.1)`, display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: PALETTE.rust }}>
+                <div style={{ paddingTop: 12, borderTop: `1px solid rgba(0, 48, 94, 0.1)`, display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: PALETTE.rust }}>
                   <AlertCircle size={12} /> No staff currently qualified for this role.
                 </div>
               )}
@@ -500,9 +576,9 @@ function Modal({ children, onClose, title }) {
   }, [onClose]);
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(10, 54, 66, 0.4)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div onClick={(e) => e.stopPropagation()} className="fade-in" style={{ width: "100%", maxWidth: 640, maxHeight: "90vh", background: PALETTE.paper, border: `1px solid rgba(15, 76, 92, 0.2)`, display: "flex", flexDirection: "column" }}>
-        <div style={{ padding: "18px 24px", borderBottom: `1px solid rgba(15, 76, 92, 0.14)`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0, 30, 61, 0.4)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} className="fade-in" style={{ width: "100%", maxWidth: 640, maxHeight: "90vh", background: PALETTE.paper, border: `1px solid rgba(0, 48, 94, 0.2)`, display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "18px 24px", borderBottom: `1px solid rgba(0, 48, 94, 0.14)`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div className="display" style={{ fontSize: 22, color: PALETTE.teal, fontWeight: 500, letterSpacing: "-0.015em" }}>{title}</div>
           <button onClick={onClose} className="btn-ghost" style={{ background: "none", border: "none", color: PALETTE.ink, padding: 6 }}><X size={18} /></button>
         </div>

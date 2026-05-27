@@ -79,7 +79,7 @@ export default function NewIncident({ onCancel, onCreated }) {
                     {group.meta.label.toUpperCase()}
                   </span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 1, background: "rgba(15, 76, 92, 0.15)", border: `1px solid rgba(15, 76, 92, 0.14)` }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 1, background: "rgba(0, 48, 94, 0.15)", border: `1px solid rgba(0, 48, 94, 0.14)` }}>
                   {group.items.map((t) => {
                     const Icon = ICON_MAP[t.icon] || AlertCircle;
                     const sev = SEVERITY[t.defaultSeverity];
@@ -129,7 +129,7 @@ export default function NewIncident({ onCancel, onCreated }) {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
               <div>
                 <Label>Type</Label>
-                <div style={{ padding: "12px 14px", border: `1px solid rgba(15, 76, 92, 0.18)`, fontSize: 14, color: PALETTE.ink, background: PALETTE.bone, marginBottom: 24 }}>
+                <div style={{ padding: "12px 14px", border: `1px solid rgba(0, 48, 94, 0.18)`, fontSize: 14, color: PALETTE.ink, background: PALETTE.bone, marginBottom: 24 }}>
                   {pickedType.label}
                 </div>
 
@@ -162,7 +162,7 @@ export default function NewIncident({ onCancel, onCreated }) {
                       fontWeight: 500,
                       background: !isDrill ? PALETTE.teal : PALETTE.paper,
                       color: !isDrill ? PALETTE.paper : PALETTE.ink,
-                      border: `1px solid ${!isDrill ? PALETTE.teal : "rgba(15, 76, 92, 0.18)"}`,
+                      border: `1px solid ${!isDrill ? PALETTE.teal : "rgba(0, 48, 94, 0.18)"}`,
                     }}
                   >
                     Real incident
@@ -176,7 +176,7 @@ export default function NewIncident({ onCancel, onCreated }) {
                       fontWeight: 500,
                       background: isDrill ? PALETTE.amber : PALETTE.paper,
                       color: isDrill ? PALETTE.ink : PALETTE.ink,
-                      border: `1px solid ${isDrill ? PALETTE.amber : "rgba(15, 76, 92, 0.18)"}`,
+                      border: `1px solid ${isDrill ? PALETTE.amber : "rgba(0, 48, 94, 0.18)"}`,
                     }}
                   >
                     Drill / training
@@ -198,7 +198,7 @@ export default function NewIncident({ onCancel, onCreated }) {
                           padding: "14px 16px",
                           background: selected ? cfg.color : PALETTE.paper,
                           color: selected ? PALETTE.paper : PALETTE.ink,
-                          border: `1px solid ${selected ? cfg.color : "rgba(15, 76, 92, 0.18)"}`,
+                          border: `1px solid ${selected ? cfg.color : "rgba(0, 48, 94, 0.18)"}`,
                           textAlign: "left",
                           display: "flex",
                           alignItems: "center",
@@ -220,7 +220,7 @@ export default function NewIncident({ onCancel, onCreated }) {
               </div>
             </div>
 
-            <div style={{ marginTop: 40, paddingTop: 24, borderTop: `1px solid rgba(15, 76, 92, 0.12)`, display: "flex", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ marginTop: 40, paddingTop: 24, borderTop: `1px solid rgba(0, 48, 94, 0.12)`, display: "flex", justifyContent: "space-between", gap: 12 }}>
               <button className="btn" onClick={() => setStep(1)}>
                 <ArrowLeft size={14} /> Pick a different type
               </button>

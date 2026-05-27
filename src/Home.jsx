@@ -125,7 +125,7 @@ export default function Home({ onOpenIncident, onNew, onTriage }) {
         </div>
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 1, background: "rgba(15, 76, 92, 0.15)", marginBottom: 24, border: `1px solid rgba(15, 76, 92, 0.14)` }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 1, background: "rgba(0, 48, 94, 0.15)", marginBottom: 24, border: `1px solid rgba(0, 48, 94, 0.14)` }}>
           <Stat label="Active" value={stats.active} icon={Activity} color={PALETTE.teal} />
           <Stat label="Critical" value={stats.critical} icon={AlertCircle} color={PALETTE.rust} />
           <Stat label="Closed today" value={stats.closedToday} icon={CheckCircle2} color={PALETTE.sage} />
@@ -164,7 +164,7 @@ export default function Home({ onOpenIncident, onNew, onTriage }) {
                       style={{
                         fontSize: 10,
                         padding: "1px 6px",
-                        background: filter === t.v ? "rgba(255,255,255,0.2)" : "rgba(15, 76, 92, 0.1)",
+                        background: filter === t.v ? "rgba(255,255,255,0.2)" : "rgba(0, 48, 94, 0.1)",
                       }}
                     >
                       {t.c}
@@ -203,7 +203,7 @@ export default function Home({ onOpenIncident, onNew, onTriage }) {
         </div>
 
         {/* Footer utilities */}
-        <div style={{ marginTop: 32, padding: "16px 0", borderTop: `1px solid rgba(15, 76, 92, 0.12)`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ marginTop: 32, padding: "16px 0", borderTop: `1px solid rgba(0, 48, 94, 0.12)`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6 }}>
             DATA STORED LOCALLY · YOUR BROWSER ONLY
           </div>
@@ -249,7 +249,7 @@ function ListHeader() {
         gridTemplateColumns: "70px 1fr 160px 120px 120px 40px",
         gap: 16,
         padding: "12px 18px",
-        borderBottom: `1px solid rgba(15, 76, 92, 0.12)`,
+        borderBottom: `1px solid rgba(0, 48, 94, 0.12)`,
         background: PALETTE.bone,
       }}
     >
@@ -284,7 +284,7 @@ function IncidentRow({ incident, now, onClick, onDelete }) {
         gridTemplateColumns: "70px 1fr 160px 120px 120px 40px",
         gap: 16,
         padding: "16px 18px",
-        borderBottom: `1px solid rgba(15, 76, 92, 0.08)`,
+        borderBottom: `1px solid rgba(0, 48, 94, 0.08)`,
         alignItems: "center",
         opacity: incident.status === "closed" ? 0.7 : 1,
       }}

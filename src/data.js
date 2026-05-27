@@ -7,7 +7,7 @@ const STORAGE_KEY = "cimple-v2-state";
 
 // ---------- Severity definitions ----------
 export const SEVERITY = {
-  1: { label: "L1 Minor", short: "L1", color: "#7FB3A6", bg: "#D9E8E3", tone: "No injury, low disruption" },
+  1: { label: "L1 Minor", short: "L1", color: "#5B8C7C", bg: "#D7E3DE", tone: "No injury, low disruption" },
   2: { label: "L2 Moderate", short: "L2", color: "#C9A961", bg: "#F0E6CC", tone: "Medical attention required, parent contact" },
   3: { label: "L3 Major", short: "L3", color: "#B85C3C", bg: "#F2D8CC", tone: "Emergency services involved, significant disruption" },
   4: { label: "L4 Critical", short: "L4", color: "#8B2E1A", bg: "#E8C9C2", tone: "Death, serious injury, major threat, media" },
@@ -32,7 +32,7 @@ export const INCIDENT_TYPES = [
 ];
 
 export const TYPE_CATEGORIES = {
-  student: { label: "Student-Related", color: "#0F4C5C" },
+  student: { label: "Student-Related", color: "#00305E" },
   school: { label: "School-Wide", color: "#B85C3C" },
   external: { label: "Community / External", color: "#C9A961" },
   death: { label: "Death", color: "#8B2E1A" },
@@ -791,7 +791,57 @@ export function newStaffMember(data) {
     email: data.email || "",
     available: data.available !== false,
     notes: data.notes || "",
+    verifiedAt: data.verifiedAt || Date.now(),
   };
+}
+
+// Mark a staff record's contact details as freshly verified.
+export function verifyStaffContact(id) {
+  const state = loadAll();
+  const idx = (state.staff || []).findIndex((s) => s.id === id);
+  if (idx >= 0) {
+    state.staff[idx] = { ...state.staff[idx], verifiedAt: Date.now() };
+    saveAll(state);
+  }
+}
+
+// Days since contact details were last confirmed. Returns Infinity if never.
+export function staffContactAgeDays(staff) {
+  if (!staff?.verifiedAt) return Infinity;
+  return Math.floor((Date.now() - staff.verifiedAt) / (24 * 60 * 60 * 1000));
+}
+
+// ============================================================
+// v4 — ROLE CONFLICT DETECTION (PRD §13.2 / FR-ADM-03)
+// ============================================================
+// Pairs of roles that should NOT be held simultaneously by the same person.
+// Drawn from PRD §13.2 (e.g. the source plan flags the Risk & Compliance
+// Officer being both Planning Coordinator and Recovery Coordinator).
+// Each pair: [roleA, roleB, reason shown to user].
+export const ROLE_CONFLICTS = [
+  ["Incident Commander", "Documenter", "Commander must lead; cannot also keep the timeline."],
+  ["Incident Commander", "Police Liaison", "Commander must keep oversight; cannot be tied up briefing police."],
+  ["Incident Commander", "Family Liaison", "Family contact is sustained, hands-on work — Commander can't be off the floor."],
+  ["Incident Commander", "First Aid", "Hands-on first aid removes Commander from oversight."],
+  ["Incident Commander", "Floor Wardens", "Wardens are tied to a zone; Commander must be free to move."],
+  ["Wellbeing Lead", "Communications Lead", "Wellbeing must stay with affected people; comms drafting needs separate focus."],
+  ["Wellbeing Lead", "Documenter", "Both demand sustained attention in different rooms."],
+  ["Family Liaison", "Police Liaison", "Two simultaneous high-stakes external conversations — split them."],
+  ["Family Liaison", "Documenter", "Family calls require full presence; logging needs separate hands."],
+  ["First Aid", "Documenter", "First aider is hands-on with the patient; cannot also log."],
+  ["First Aid", "Communications Lead", "First aid takes priority; comms drafting must not wait on it."],
+  ["Headcount Officer", "Floor Wardens", "Officer receives counts from wardens — can't be both."],
+  ["Search Coordinator", "Documenter", "Coordinator is mobile and directing search; needs separate logger."],
+];
+
+// Returns array of conflict descriptions for a given staff member's role set.
+// Each item: { roles: [roleA, roleB], reason }
+export function detectRoleConflicts(qualifiedFor) {
+  if (!qualifiedFor || qualifiedFor.length < 2) return [];
+  const set = new Set(qualifiedFor);
+  return ROLE_CONFLICTS
+    .filter(([a, b]) => set.has(a) && set.has(b))
+    .map(([a, b, reason]) => ({ roles: [a, b], reason }));
 }
 
 // Find best available staff for a role.

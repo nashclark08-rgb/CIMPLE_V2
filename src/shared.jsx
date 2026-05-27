@@ -1,18 +1,30 @@
 // ============================================================
 // CIMPLE — Shared UI atoms, palette, global styles
+// Brand: Trinity Anglican College
+//   Navy   #00305E  (primary)
+//   Crimson #A02029 (accent — used sparingly per TAC mark)
 // ============================================================
 import React from "react";
 
 export const PALETTE = {
-  teal: "#0F4C5C",
-  tealDeep: "#0A3642",
-  tealMist: "#E8F0F2",
-  sage: "#7FB3A6",
-  sageMist: "#D9E8E3",
-  bone: "#F4EFE6",
-  paper: "#FBF8F2",
+  // Primary brand (renamed keys kept as `teal*` for backwards compatibility
+  // with existing JSX — values are now TAC Navy)
+  teal: "#00305E",
+  tealDeep: "#001E3D",
+  tealMist: "#E5EAF1",
+  // Positive / safe / confirmed (tuned to sit comfortably next to navy)
+  sage: "#5B8C7C",
+  sageMist: "#D7E3DE",
+  // TAC accent — use sparingly (logo region, live indicator)
+  crimson: "#A02029",
+  crimsonDeep: "#7A1820",
+  // Surfaces
+  bone: "#F3F1EC",
+  paper: "#FFFFFF",
+  // Type
   ink: "#1A2024",
   inkSoft: "#5A6670",
+  // Severity / status (functional, not brand)
   rust: "#B85C3C",
   amber: "#C9A961",
   rose: "#8B2E1A",
@@ -29,13 +41,13 @@ export function GlobalStyles() {
 
       .card {
         background: ${PALETTE.paper};
-        border: 1px solid rgba(15, 76, 92, 0.14);
+        border: 1px solid rgba(0, 48, 94, 0.14);
       }
 
       .panel-h {
         display: flex; justify-content: space-between; align-items: center;
         padding: 14px 18px;
-        border-bottom: 1px solid rgba(15, 76, 92, 0.12);
+        border-bottom: 1px solid rgba(0, 48, 94, 0.12);
       }
       .panel-h-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.16em; color: ${PALETTE.teal}; opacity: 0.7; }
       .panel-h-meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: ${PALETTE.teal}; opacity: 0.5; }
@@ -43,7 +55,7 @@ export function GlobalStyles() {
       .chip {
         display: inline-flex; align-items: center; gap: 6px;
         padding: 4px 10px; font-size: 11px; font-weight: 500;
-        border: 1px solid rgba(15, 76, 92, 0.2);
+        border: 1px solid rgba(0, 48, 94, 0.2);
         background: ${PALETTE.paper};
         color: ${PALETTE.teal};
       }
@@ -52,7 +64,7 @@ export function GlobalStyles() {
       .btn {
         display: inline-flex; align-items: center; gap: 8px;
         padding: 9px 14px; font-size: 13px; font-weight: 500;
-        border: 1px solid rgba(15, 76, 92, 0.2);
+        border: 1px solid rgba(0, 48, 94, 0.2);
         background: ${PALETTE.paper}; color: ${PALETTE.teal};
         transition: all 160ms ease;
       }
@@ -60,13 +72,13 @@ export function GlobalStyles() {
       .btn-primary { background: ${PALETTE.teal}; color: ${PALETTE.paper}; border-color: ${PALETTE.teal}; }
       .btn-primary:hover { background: ${PALETTE.tealDeep}; }
       .btn-ghost { background: transparent; border-color: transparent; color: ${PALETTE.teal}; }
-      .btn-ghost:hover { background: rgba(15, 76, 92, 0.06); }
-      .btn-danger { background: ${PALETTE.rose}; color: ${PALETTE.paper}; border-color: ${PALETTE.rose}; }
-      .btn-danger:hover { background: #6e2415; }
+      .btn-ghost:hover { background: rgba(0, 48, 94, 0.06); }
+      .btn-danger { background: ${PALETTE.crimson}; color: ${PALETTE.paper}; border-color: ${PALETTE.crimson}; }
+      .btn-danger:hover { background: ${PALETTE.crimsonDeep}; }
 
       input[type="text"], input[type="search"], textarea, select {
         font-family: inherit; font-size: 14px;
-        border: 1px solid rgba(15, 76, 92, 0.2);
+        border: 1px solid rgba(0, 48, 94, 0.2);
         background: ${PALETTE.paper};
         color: ${PALETTE.ink};
         padding: 10px 12px;
@@ -86,7 +98,7 @@ export function GlobalStyles() {
 
       .scroll-y { overflow-y: auto; }
       .scroll-y::-webkit-scrollbar { width: 6px; }
-      .scroll-y::-webkit-scrollbar-thumb { background: rgba(15, 76, 92, 0.2); }
+      .scroll-y::-webkit-scrollbar-thumb { background: rgba(0, 48, 94, 0.2); }
       .scroll-y::-webkit-scrollbar-track { background: transparent; }
 
       .row-hover:hover { background: ${PALETTE.tealMist}; cursor: pointer; }
@@ -94,13 +106,15 @@ export function GlobalStyles() {
   );
 }
 
-export function Logo({ size = 28 }) {
+export function Logo({ size = 36 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 36 36" fill="none">
-      <rect width="36" height="36" fill={PALETTE.teal} />
-      <path d="M10 18 L16 24 L26 12" stroke={PALETTE.sage} strokeWidth="2" fill="none" strokeLinecap="square" />
-      <rect x="2" y="2" width="32" height="32" stroke={PALETTE.bone} strokeWidth="0.5" fill="none" />
-    </svg>
+    <img
+      src="/trinity-logo.svg"
+      alt="Trinity Anglican College"
+      width={size}
+      height={size}
+      style={{ display: "block", objectFit: "contain" }}
+    />
   );
 }
 
@@ -109,7 +123,7 @@ export function TopBarShell({ children, current }) {
     <div
       style={{
         background: PALETTE.paper,
-        borderBottom: `1px solid rgba(15, 76, 92, 0.14)`,
+        borderBottom: `1px solid rgba(0, 48, 94, 0.14)`,
         padding: "10px 32px",
         display: "flex",
         justifyContent: "space-between",
@@ -119,21 +133,19 @@ export function TopBarShell({ children, current }) {
         zIndex: 30,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-        <a href="#/" style={{ textDecoration: "none" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Logo />
-            <div>
-              <div className="display" style={{ fontSize: 16, fontWeight: 500, color: PALETTE.teal, lineHeight: 1 }}>
-                CIMPLE
-              </div>
-              <div className="mono" style={{ fontSize: 8, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.55, marginTop: 2 }}>
-                INCIDENT MANAGEMENT
-              </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+        <a href="#/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 14 }}>
+          <Logo size={40} />
+          <div style={{ borderLeft: `1px solid rgba(0, 48, 94, 0.18)`, paddingLeft: 14 }}>
+            <div className="display" style={{ fontSize: 18, fontWeight: 500, color: PALETTE.teal, lineHeight: 1, letterSpacing: "-0.01em" }}>
+              CIMPLE
+            </div>
+            <div className="mono" style={{ fontSize: 8, letterSpacing: "0.16em", color: PALETTE.teal, opacity: 0.6, marginTop: 3 }}>
+              CRITICAL INCIDENT · TRINITY ANGLICAN COLLEGE
             </div>
           </div>
         </a>
-        <div style={{ width: 1, height: 28, background: "rgba(15, 76, 92, 0.15)" }} />
+        <div style={{ width: 1, height: 28, background: "rgba(0, 48, 94, 0.15)" }} />
         <nav style={{ display: "flex", gap: 4 }}>
           {[
             { l: "Incidents", href: "#/", key: "home" },

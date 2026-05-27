@@ -141,7 +141,7 @@ export default function Triage({ onCancel, onCreated }) {
               {step >= total ? "COMPLETE" : `${step + 1} / ${total}`}
             </div>
           </div>
-          <div style={{ height: 2, background: "rgba(15, 76, 92, 0.15)", marginBottom: 32, position: "relative" }}>
+          <div style={{ height: 2, background: "rgba(0, 48, 94, 0.15)", marginBottom: 32, position: "relative" }}>
             <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${progress}%`, background: PALETTE.teal, transition: "width 400ms ease" }} />
           </div>
 
@@ -205,7 +205,7 @@ function Question({ q, index, total, value, onPick, onBack, canBack }) {
               width: "100%",
               background: value === o.v ? PALETTE.teal : PALETTE.paper,
               color: value === o.v ? PALETTE.paper : PALETTE.ink,
-              border: `1px solid ${value === o.v ? PALETTE.teal : "rgba(15, 76, 92, 0.18)"}`,
+              border: `1px solid ${value === o.v ? PALETTE.teal : "rgba(0, 48, 94, 0.18)"}`,
               padding: "14px 18px",
               fontSize: 14,
               fontWeight: 400,
@@ -239,7 +239,7 @@ function Result({ severity, answers, title, setTitle, location, setLocation, det
         </button>
       </div>
 
-      <div style={{ height: 6, background: "rgba(15, 76, 92, 0.1)", position: "relative", marginBottom: 8 }}>
+      <div style={{ height: 6, background: "rgba(0, 48, 94, 0.1)", position: "relative", marginBottom: 8 }}>
         <div style={{ height: "100%", width: `${severity * 25}%`, background: sev.color }} />
       </div>
       <div className="mono" style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: PALETTE.teal, opacity: 0.5, marginBottom: 24, letterSpacing: "0.1em" }}>
@@ -282,7 +282,7 @@ function Result({ severity, answers, title, setTitle, location, setLocation, det
         <textarea rows={2} value={details} onChange={(e) => setDetails(e.target.value)} placeholder="A few words to log alongside the triage. No identifying student details." style={{ resize: "vertical", lineHeight: 1.5 }} />
       </div>
 
-      <div style={{ marginTop: 32, paddingTop: 24, borderTop: `1px solid rgba(15, 76, 92, 0.12)`, display: "flex", justifyContent: "flex-end" }}>
+      <div style={{ marginTop: 32, paddingTop: 24, borderTop: `1px solid rgba(0, 48, 94, 0.12)`, display: "flex", justifyContent: "flex-end" }}>
         <button onClick={onCreate} className="btn btn-primary">
           <Sparkles size={14} /> Open incident with these settings
         </button>

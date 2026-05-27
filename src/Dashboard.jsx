@@ -45,12 +45,16 @@ export default function Dashboard({ incidentId, onBack }) {
   }
 
   function addTimelineEntry(entry) {
+    const text = incident?.isDrill && entry.text && !entry.text.startsWith("[DRILL]")
+      ? `[DRILL] ${entry.text}`
+      : entry.text;
     const e = {
       id: `t${Date.now()}`,
       ts: Date.now(),
       actor: "K. Patel",
       actorInitials: "KP",
       ...entry,
+      text,
     };
     update((prev) => ({ ...prev, timeline: [...prev.timeline, e] }));
   }
@@ -110,6 +114,7 @@ export default function Dashboard({ incidentId, onBack }) {
   return (
     <div style={{ background: PALETTE.bone, minHeight: "100vh" }}>
       <TopBarPresence incident={incident} now={now} />
+      {incident.isDrill && <DrillBanner />}
       <CommandStrip incident={incident} changeSeverity={changeSeverity} setDrawer={setDrawer} closeIncident={closeIncident} reopenIncident={reopenIncident} onBack={onBack} />
 
       <div style={{ maxWidth: 1480, margin: "0 auto", padding: "24px 32px", display: "grid", gridTemplateColumns: "260px 1fr 320px", gap: 24, alignItems: "start" }}>
@@ -143,6 +148,31 @@ export default function Dashboard({ incidentId, onBack }) {
   );
 }
 
+/* ---------- Drill mode banner ---------- */
+function DrillBanner() {
+  return (
+    <div
+      role="status"
+      style={{
+        background: `repeating-linear-gradient(135deg, ${PALETTE.amber} 0 18px, #d4b56e 18px 36px)`,
+        color: PALETTE.ink,
+        padding: "10px 32px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 14,
+        borderBottom: `2px solid ${PALETTE.amber}`,
+      }}
+    >
+      <AlertTriangle size={16} color={PALETTE.ink} strokeWidth={2.2} />
+      <span className="mono" style={{ fontSize: 11, letterSpacing: "0.22em", fontWeight: 600 }}>
+        DRILL MODE · NO REAL NOTIFICATIONS WILL BE SENT · TRAINING USE ONLY
+      </span>
+      <AlertTriangle size={16} color={PALETTE.ink} strokeWidth={2.2} />
+    </div>
+  );
+}
+
 /* ---------- Top bar: presence + elapsed ---------- */
 function TopBarPresence({ incident, now }) {
   const elapsed = formatElapsed(now - incident.startedAt);
@@ -161,9 +191,9 @@ function TopBarPresence({ incident, now }) {
   return (
     <TopBarShell current="home">
       {isActive && (
-        <div className="mono" style={{ fontSize: 11, color: PALETTE.teal, display: "flex", alignItems: "center", gap: 8, opacity: 0.85 }}>
-          <span className="live-dot" style={{ width: 7, height: 7, background: PALETTE.rust, display: "inline-block", borderRadius: "50%" }} />
-          LIVE · {elapsed} ELAPSED
+        <div className="mono" style={{ fontSize: 11, color: incident.isDrill ? PALETTE.amber : PALETTE.teal, display: "flex", alignItems: "center", gap: 8, opacity: 0.95, fontWeight: incident.isDrill ? 600 : 400 }}>
+          <span className="live-dot" style={{ width: 7, height: 7, background: incident.isDrill ? PALETTE.amber : PALETTE.rust, display: "inline-block", borderRadius: "50%" }} />
+          {incident.isDrill ? "DRILL" : "LIVE"} · {elapsed} ELAPSED
         </div>
       )}
       {!isActive && (
@@ -201,7 +231,7 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
   const isClosed = incident.status === "closed";
 
   return (
-    <div style={{ background: PALETTE.paper, borderBottom: `1px solid rgba(15, 76, 92, 0.14)`, padding: "20px 32px" }}>
+    <div style={{ background: PALETTE.paper, borderBottom: `1px solid rgba(0, 48, 94, 0.14)`, padding: "20px 32px" }}>
       <div style={{ maxWidth: 1480, margin: "0 auto" }}>
         <button onClick={onBack} className="btn-ghost" style={{ background: "none", border: "none", padding: 0, color: PALETTE.teal, fontSize: 12, display: "flex", alignItems: "center", gap: 6, marginBottom: 12, opacity: 0.8 }}>
           <ArrowLeft size={13} /> All incidents
@@ -236,7 +266,7 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6 }}>SEVERITY</span>
-              <div style={{ display: "flex", border: `1px solid rgba(15, 76, 92, 0.2)`, opacity: isClosed ? 0.5 : 1 }}>
+              <div style={{ display: "flex", border: `1px solid rgba(0, 48, 94, 0.2)`, opacity: isClosed ? 0.5 : 1 }}>
                 {[1, 2, 3, 4].map((lvl) => {
                   const isActive = lvl === incident.severity;
                   const cfg = SEVERITY[lvl];
@@ -246,7 +276,7 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
                       background: isActive ? cfg.color : PALETTE.paper,
                       color: isActive ? PALETTE.paper : PALETTE.ink,
                       border: "none",
-                      borderRight: lvl < 4 ? `1px solid rgba(15, 76, 92, 0.15)` : "none",
+                      borderRight: lvl < 4 ? `1px solid rgba(0, 48, 94, 0.15)` : "none",
                       fontSize: 12,
                       fontWeight: 500,
                       letterSpacing: "0.04em",
@@ -325,7 +355,7 @@ function LeftRail({ incident, update, addTimelineEntry, isClosed, setDrawer }) {
           />
         ))}
       </div>
-      <div style={{ padding: 14, borderTop: `1px solid rgba(15, 76, 92, 0.12)` }}>
+      <div style={{ padding: 14, borderTop: `1px solid rgba(0, 48, 94, 0.12)` }}>
         <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6, marginBottom: 8 }}>
           DIRECTORY · QUICK CALL
         </div>
@@ -340,7 +370,7 @@ function LeftRail({ incident, update, addTimelineEntry, isClosed, setDrawer }) {
               display: "flex", alignItems: "center", gap: 8,
               padding: "7px 10px",
               background: c.urgent ? "rgba(184, 92, 60, 0.08)" : "transparent",
-              border: `1px solid ${c.urgent ? "rgba(184, 92, 60, 0.3)" : "rgba(15, 76, 92, 0.12)"}`,
+              border: `1px solid ${c.urgent ? "rgba(184, 92, 60, 0.3)" : "rgba(0, 48, 94, 0.12)"}`,
               fontSize: 12,
               color: c.urgent ? PALETTE.rust : PALETTE.ink,
               fontWeight: c.urgent ? 500 : 400,
@@ -367,10 +397,10 @@ function RoleRow({ role, incidentType, onConfirm, onAssign, onAssignSelf, onMana
   const hasResponsibilities = !!responsibilitiesFor(role.role, incidentType);
 
   return (
-    <div style={{ padding: "12px 14px", borderBottom: `1px solid rgba(15, 76, 92, 0.08)`, display: "flex", alignItems: "flex-start", gap: 10, position: "relative" }}>
+    <div style={{ padding: "12px 14px", borderBottom: `1px solid rgba(0, 48, 94, 0.08)`, display: "flex", alignItems: "flex-start", gap: 10, position: "relative" }}>
       <div style={{
         width: 28, height: 28,
-        background: role.status === "unassigned" ? PALETTE.bone : role.isPrincipal ? PALETTE.teal : "rgba(15, 76, 92, 0.1)",
+        background: role.status === "unassigned" ? PALETTE.bone : role.isPrincipal ? PALETTE.teal : "rgba(0, 48, 94, 0.1)",
         color: role.status === "unassigned" ? PALETTE.inkSoft : role.isPrincipal ? PALETTE.paper : PALETTE.teal,
         fontSize: 10, fontWeight: 600,
         display: "flex", alignItems: "center", justifyContent: "center",
@@ -437,9 +467,9 @@ function CenterColumn({ incident, addTimelineEntry, update, now, isClosed }) {
     update((prev) => ({ ...prev, tasks: prev.tasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t)) }));
   }
 
-  function addTask(text) {
+  function addTask(text, dueAt) {
     if (!text.trim()) return;
-    update((prev) => ({ ...prev, tasks: [...prev.tasks, { id: `tk${Date.now()}`, text, owner: "—", done: false, priority: "med" }] }));
+    update((prev) => ({ ...prev, tasks: [...prev.tasks, { id: `tk${Date.now()}`, text, owner: "—", done: false, priority: "med", dueAt: dueAt || null }] }));
   }
 
   return (
@@ -459,12 +489,12 @@ function CenterColumn({ incident, addTimelineEntry, update, now, isClosed }) {
 
       <div className="card">
         <div className="panel-h">
-          <span className="panel-h-label">ACTIVE TASKS · {incident.tasks.filter((t) => !t.done).length} OPEN</span>
+          <span className="panel-h-label">ACTIVE TASKS · {incident.tasks.filter((t) => !t.done).length} OPEN{incident.tasks.some((t) => !t.done && t.dueAt && t.dueAt < now) ? ` · ${incident.tasks.filter((t) => !t.done && t.dueAt && t.dueAt < now).length} OVERDUE` : ""}</span>
           <span className="panel-h-meta">FROM EMP</span>
         </div>
         <div>
-          {incident.tasks.map((t, i) => (
-            <TaskRow key={t.id} task={t} onToggle={() => toggleTask(t.id)} isLast={i === incident.tasks.length - 1} disabled={isClosed} />
+          {sortTasks(incident.tasks, now).map((t, i, arr) => (
+            <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleTask(t.id)} isLast={i === arr.length - 1} disabled={isClosed} />
           ))}
         </div>
         {!isClosed && <TaskAdder onAdd={addTask} />}
@@ -487,7 +517,7 @@ function TimelineEntry({ entry, now, isLast }) {
         <div style={{ width: 26, height: 26, background: PALETTE.paper, border: `1.5px solid ${cfg.color}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: "50%" }}>
           <cfg.icon size={12} color={cfg.color} strokeWidth={2} />
         </div>
-        {!isLast && <div style={{ width: 1, flex: 1, background: "rgba(15, 76, 92, 0.15)", marginTop: 4, minHeight: 24 }} />}
+        {!isLast && <div style={{ width: 1, flex: 1, background: "rgba(0, 48, 94, 0.15)", marginTop: 4, minHeight: 24 }} />}
       </div>
       <div style={{ flex: 1, paddingTop: 2 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
@@ -504,7 +534,7 @@ function TimelineEntry({ entry, now, isLast }) {
 function Composer({ composerType, setComposerType, onSubmit }) {
   const [text, setText] = useState("");
   return (
-    <div style={{ borderTop: `1px solid rgba(15, 76, 92, 0.12)`, padding: 18 }}>
+    <div style={{ borderTop: `1px solid rgba(0, 48, 94, 0.12)`, padding: 18 }}>
       <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         {[
           { v: "note", label: "Note", icon: Edit3 },
@@ -514,7 +544,7 @@ function Composer({ composerType, setComposerType, onSubmit }) {
           <button key={t.v} onClick={() => setComposerType(t.v)} style={{
             display: "flex", alignItems: "center", gap: 6,
             padding: "5px 10px", fontSize: 11, fontWeight: 500,
-            border: `1px solid ${composerType === t.v ? PALETTE.teal : "rgba(15, 76, 92, 0.15)"}`,
+            border: `1px solid ${composerType === t.v ? PALETTE.teal : "rgba(0, 48, 94, 0.15)"}`,
             background: composerType === t.v ? PALETTE.teal : PALETTE.paper,
             color: composerType === t.v ? PALETTE.paper : PALETTE.ink,
           }}>
@@ -543,10 +573,43 @@ function Composer({ composerType, setComposerType, onSubmit }) {
   );
 }
 
-function TaskRow({ task, onToggle, isLast, disabled }) {
+function sortTasks(tasks, now) {
+  // Active tasks first, sorted by overdue → soonest dueAt → no dueAt. Then completed.
+  const active = tasks.filter((t) => !t.done);
+  const done = tasks.filter((t) => t.done);
+  active.sort((a, b) => {
+    const aOver = a.dueAt && a.dueAt < now ? 1 : 0;
+    const bOver = b.dueAt && b.dueAt < now ? 1 : 0;
+    if (aOver !== bOver) return bOver - aOver;
+    if (a.dueAt && b.dueAt) return a.dueAt - b.dueAt;
+    if (a.dueAt) return -1;
+    if (b.dueAt) return 1;
+    return 0;
+  });
+  return [...active, ...done];
+}
+
+function formatDue(dueAt, now) {
+  const d = new Date(dueAt);
+  const sameDay = new Date(now).toDateString() === d.toDateString();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  if (sameDay) return `${hh}:${mm}`;
+  return d.toLocaleDateString("en-AU", { day: "numeric", month: "short" }) + ` ${hh}:${mm}`;
+}
+
+function TaskRow({ task, now, onToggle, isLast, disabled }) {
   const p = { high: { color: PALETTE.rust, label: "HIGH" }, med: { color: PALETTE.amber, label: "MED" }, low: { color: PALETTE.sage, label: "LOW" } }[task.priority];
+  const overdue = !task.done && task.dueAt && task.dueAt < now;
   return (
-    <div style={{ padding: "12px 18px", borderBottom: isLast ? "none" : `1px solid rgba(15, 76, 92, 0.08)`, display: "flex", alignItems: "center", gap: 12, opacity: task.done ? 0.55 : 1 }}>
+    <div style={{
+      padding: "12px 18px",
+      borderBottom: isLast ? "none" : `1px solid rgba(0, 48, 94, 0.08)`,
+      display: "flex", alignItems: "center", gap: 12,
+      opacity: task.done ? 0.55 : 1,
+      background: overdue ? "rgba(160, 32, 41, 0.06)" : "transparent",
+      borderLeft: overdue ? `3px solid ${PALETTE.crimson}` : "3px solid transparent",
+    }}>
       <button onClick={onToggle} disabled={disabled} style={{
         width: 18, height: 18,
         border: `1.5px solid ${task.done ? PALETTE.sage : PALETTE.teal}`,
@@ -559,25 +622,91 @@ function TaskRow({ task, onToggle, isLast, disabled }) {
         {task.done && <CheckCircle2 size={12} color={PALETTE.paper} strokeWidth={3} />}
       </button>
       <span style={{ flex: 1, fontSize: 14, color: PALETTE.ink, textDecoration: task.done ? "line-through" : "none" }}>{task.text}</span>
+      {task.dueAt && (
+        <span
+          className="mono"
+          title={overdue ? "Overdue" : "Due"}
+          style={{
+            fontSize: 10,
+            letterSpacing: "0.1em",
+            padding: "2px 7px",
+            background: overdue ? PALETTE.crimson : "rgba(0, 48, 94, 0.08)",
+            color: overdue ? PALETTE.paper : PALETTE.teal,
+            fontWeight: 600,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Clock size={9} /> {overdue ? "OVERDUE " : ""}{formatDue(task.dueAt, now)}
+        </span>
+      )}
       <span className="mono" style={{ fontSize: 9, letterSpacing: "0.12em", color: p.color, fontWeight: 500 }}>{p.label}</span>
-      <div style={{ width: 24, height: 24, background: "rgba(15, 76, 92, 0.1)", color: PALETTE.teal, fontSize: 9, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%" }}>{task.owner}</div>
+      <div style={{ width: 24, height: 24, background: "rgba(0, 48, 94, 0.1)", color: PALETTE.teal, fontSize: 9, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%" }}>{task.owner}</div>
     </div>
   );
 }
 
 function TaskAdder({ onAdd }) {
   const [text, setText] = useState("");
+  const [dueMins, setDueMins] = useState(""); // "" | "15" | "30" | "60" | "120" | "eod"
+
+  function computeDueAt() {
+    if (!dueMins) return null;
+    if (dueMins === "eod") {
+      const d = new Date();
+      d.setHours(17, 0, 0, 0); // 5pm = end of school day
+      if (d.getTime() < Date.now()) d.setDate(d.getDate() + 1);
+      return d.getTime();
+    }
+    return Date.now() + parseInt(dueMins, 10) * 60 * 1000;
+  }
+
+  function submit() {
+    onAdd(text, computeDueAt());
+    setText("");
+    setDueMins("");
+  }
+
   return (
-    <div style={{ padding: "12px 18px", borderTop: `1px solid rgba(15, 76, 92, 0.08)`, display: "flex", gap: 8 }}>
+    <div style={{ padding: "12px 18px", borderTop: `1px solid rgba(0, 48, 94, 0.08)`, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
       <input
         type="text"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter") { onAdd(text); setText(""); } }}
+        onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
         placeholder="Add a task…"
-        style={{ fontSize: 13, padding: "8px 10px" }}
+        style={{ fontSize: 13, padding: "8px 10px", flex: 1, minWidth: 180 }}
       />
-      <button onClick={() => { onAdd(text); setText(""); }} className="btn" style={{ padding: "8px 12px" }}>
+      <div style={{ display: "flex", gap: 2, border: `1px solid rgba(0, 48, 94, 0.18)`, background: PALETTE.paper }}>
+        {[
+          { v: "", l: "—" },
+          { v: "15", l: "15m" },
+          { v: "30", l: "30m" },
+          { v: "60", l: "1h" },
+          { v: "120", l: "2h" },
+          { v: "eod", l: "EOD" },
+        ].map((o) => (
+          <button
+            key={o.v}
+            onClick={() => setDueMins(o.v)}
+            title={o.v ? `Due in ${o.l}` : "No due time"}
+            style={{
+              padding: "6px 8px",
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.06em",
+              background: dueMins === o.v ? PALETTE.teal : "transparent",
+              color: dueMins === o.v ? PALETTE.paper : PALETTE.teal,
+              border: "none",
+              fontFamily: "'JetBrains Mono', monospace",
+            }}
+          >
+            {o.l}
+          </button>
+        ))}
+      </div>
+      <button onClick={submit} className="btn" style={{ padding: "8px 12px" }}>
         <Plus size={13} />
       </button>
     </div>
@@ -641,7 +770,7 @@ function RightRail({ incident, setDrawer }) {
           {(incident.policies || []).map((p, i) => (
             <div key={p.id} onClick={() => setDrawer("policy")} className="row-hover" style={{
               padding: "12px 18px",
-              borderBottom: i < incident.policies.length - 1 ? `1px solid rgba(15, 76, 92, 0.08)` : "none",
+              borderBottom: i < incident.policies.length - 1 ? `1px solid rgba(0, 48, 94, 0.08)` : "none",
               display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer",
             }}>
               {p.type === "emp" ? <Shield size={14} color={PALETTE.teal} style={{ marginTop: 2, flexShrink: 0 }} /> : <FileText size={14} color={PALETTE.teal} style={{ marginTop: 2, flexShrink: 0 }} />}
@@ -679,9 +808,9 @@ function Drawer({ children, onClose, title }) {
   }, [onClose]);
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(10, 54, 66, 0.4)", display: "flex", justifyContent: "flex-end" }}>
-      <div onClick={(e) => e.stopPropagation()} className="slide-in" style={{ width: 520, maxWidth: "100vw", height: "100vh", background: PALETTE.paper, borderLeft: `1px solid rgba(15, 76, 92, 0.2)`, display: "flex", flexDirection: "column" }}>
-        <div style={{ padding: "18px 24px", borderBottom: `1px solid rgba(15, 76, 92, 0.14)`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0, 30, 61, 0.4)", display: "flex", justifyContent: "flex-end" }}>
+      <div onClick={(e) => e.stopPropagation()} className="slide-in" style={{ width: 520, maxWidth: "100vw", height: "100vh", background: PALETTE.paper, borderLeft: `1px solid rgba(0, 48, 94, 0.2)`, display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "18px 24px", borderBottom: `1px solid rgba(0, 48, 94, 0.14)`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div className="display" style={{ fontSize: 22, color: PALETTE.teal, fontWeight: 500, letterSpacing: "-0.015em" }}>{title}</div>
           <button onClick={onClose} className="btn-ghost" style={{ background: "none", border: "none", color: PALETTE.ink, padding: 6 }}><X size={18} /></button>
         </div>
@@ -865,7 +994,7 @@ function RoleAssignDrawer({ incident, roleId, update, addTimelineEntry, isClosed
       {/* Primary assignment */}
       <Section title="Primary">
         {role.staff && role.staff !== "—" ? (
-          <div style={{ padding: "14px 16px", border: `1px solid rgba(15, 76, 92, 0.18)`, display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ padding: "14px 16px", border: `1px solid rgba(0, 48, 94, 0.18)`, display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{
               width: 36, height: 36, borderRadius: "50%",
               background: role.isPrincipal ? PALETTE.teal : PALETTE.sage,
@@ -905,10 +1034,10 @@ function RoleAssignDrawer({ incident, roleId, update, addTimelineEntry, isClosed
       {/* Backup */}
       <Section title="Backup">
         {role.backup ? (
-          <div style={{ padding: "14px 16px", border: `1px solid rgba(15, 76, 92, 0.18)`, display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ padding: "14px 16px", border: `1px solid rgba(0, 48, 94, 0.18)`, display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{
               width: 32, height: 32, borderRadius: "50%",
-              background: "rgba(15, 76, 92, 0.1)",
+              background: "rgba(0, 48, 94, 0.1)",
               color: PALETTE.teal, fontSize: 11, fontWeight: 600,
               display: "flex", alignItems: "center", justifyContent: "center",
               flexShrink: 0,
@@ -955,7 +1084,7 @@ function RoleAssignDrawer({ incident, roleId, update, addTimelineEntry, isClosed
                     display: "flex",
                     gap: 12,
                     padding: "10px 0",
-                    borderBottom: i < responsibilities.length - 1 ? `1px solid rgba(15, 76, 92, 0.1)` : "none",
+                    borderBottom: i < responsibilities.length - 1 ? `1px solid rgba(0, 48, 94, 0.1)` : "none",
                     fontSize: 13,
                     color: PALETTE.ink,
                     lineHeight: 1.5,
@@ -991,7 +1120,7 @@ function StaffPickerRow({ staff, onPick, notQualified }) {
       style={{
         textAlign: "left",
         background: PALETTE.paper,
-        border: `1px solid rgba(15, 76, 92, 0.18)`,
+        border: `1px solid rgba(0, 48, 94, 0.18)`,
         padding: "12px 14px",
         display: "flex",
         alignItems: "center",
@@ -1038,7 +1167,7 @@ function StudentDrawer({ student }) {
       <Section title="Behaviour Plan"><p style={{ fontSize: 13, color: PALETTE.ink, lineHeight: 1.6, margin: 0 }}>{student.behaviourPlan}</p></Section>
       <Section title="Emergency Contacts">
         {student.emergencyContacts?.map((c) => (
-          <div key={c.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", border: `1px solid rgba(15, 76, 92, 0.12)`, marginBottom: 6 }}>
+          <div key={c.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", border: `1px solid rgba(0, 48, 94, 0.12)`, marginBottom: 6 }}>
             <div>
               <div style={{ fontSize: 13, color: PALETTE.ink, fontWeight: 500 }}>{c.relation}</div>
               <div className="mono" style={{ fontSize: 11, color: PALETTE.inkSoft, marginTop: 2 }}>{c.phone}</div>
@@ -1061,7 +1190,7 @@ function PolicyDrawer({ incident }) {
         AI has identified the following sections from your school's EMP and policy library as relevant to this incident type.
       </div>
       {(incident.policies || []).map((p, i) => (
-        <div key={p.id} style={{ border: `1px solid rgba(15, 76, 92, 0.14)`, marginBottom: 10 }}>
+        <div key={p.id} style={{ border: `1px solid rgba(0, 48, 94, 0.14)`, marginBottom: 10 }}>
           <button onClick={() => setExpanded(expanded === i ? -1 : i)} style={{ width: "100%", padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, background: PALETTE.paper, border: "none", textAlign: "left" }}>
             {p.type === "emp" ? <Shield size={14} color={PALETTE.teal} /> : <FileText size={14} color={PALETTE.teal} />}
             <div style={{ flex: 1 }}>
@@ -1071,7 +1200,7 @@ function PolicyDrawer({ incident }) {
             {expanded === i ? <ChevronUp size={14} color={PALETTE.teal} /> : <ChevronDown size={14} color={PALETTE.teal} />}
           </button>
           {expanded === i && (
-            <div style={{ padding: "0 16px 16px", borderTop: `1px solid rgba(15, 76, 92, 0.08)` }}>
+            <div style={{ padding: "0 16px 16px", borderTop: `1px solid rgba(0, 48, 94, 0.08)` }}>
               <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.sage, margin: "12px 0 8px" }}>SUMMARY</div>
               <p style={{ fontSize: 13, lineHeight: 1.6, color: PALETTE.ink, margin: 0 }}>
                 For this incident type, the responsible staff member must follow the procedures outlined in {p.section}. Documentation, escalation thresholds, and family communication requirements are detailed in the linked source.
@@ -1105,19 +1234,143 @@ function ExportDrawer({ incident }) {
     { k: "Student profile", v: incident.student ? incident.student.initials + " · attached" : "n/a" },
     { k: "Communications log", v: "drafts only · none sent" },
   ];
+
+  function downloadJSON() {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      exportedBy: "K. Patel",
+      schema: "cimple.incident.v1",
+      incident,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    triggerDownload(blob, `${incident.id}.json`);
+  }
+
+  async function downloadPDF() {
+    const { jsPDF } = await import("jspdf");
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 48;
+    let y = margin;
+
+    function line(text, opts = {}) {
+      const { size = 10, color = [26, 32, 36], bold = false, gap = 14, indent = 0 } = opts;
+      doc.setFontSize(size);
+      doc.setFont("helvetica", bold ? "bold" : "normal");
+      doc.setTextColor(...color);
+      const wrapped = doc.splitTextToSize(String(text), pageW - margin * 2 - indent);
+      for (const w of wrapped) {
+        if (y > pageH - margin) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.text(w, margin + indent, y);
+        y += gap;
+      }
+    }
+    function rule() {
+      if (y > pageH - margin) { doc.addPage(); y = margin; }
+      doc.setDrawColor(0, 48, 94);
+      doc.setLineWidth(0.5);
+      doc.line(margin, y, pageW - margin, y);
+      y += 12;
+    }
+    function heading(text) {
+      y += 6;
+      line(text, { size: 11, color: [0, 48, 94], bold: true, gap: 16 });
+    }
+
+    // Header
+    line("TRINITY ANGLICAN COLLEGE", { size: 9, color: [0, 48, 94], bold: true, gap: 12 });
+    line("CIMPLE · INCIDENT AUDIT RECORD", { size: 9, color: [90, 102, 112], gap: 18 });
+    line(incident.title, { size: 17, color: [0, 48, 94], bold: true, gap: 22 });
+
+    // Metadata block
+    const sev = SEVERITY[incident.severity];
+    const meta = [
+      ["Incident ID", incident.id],
+      ["Type", incident.typeLabel || "—"],
+      ["Severity", sev.label],
+      ["Status", incident.status === "active" ? "Active" : "Closed"],
+      ["Drill", incident.isDrill ? "Yes — training exercise" : "No — real incident"],
+      ["Location", incident.location || "—"],
+      ["Started", new Date(incident.startedAt).toLocaleString("en-AU")],
+      ["Closed", incident.closedAt ? new Date(incident.closedAt).toLocaleString("en-AU") : "—"],
+      ["EMP reference", incident.empSection || "—"],
+    ];
+    for (const [k, v] of meta) {
+      line(`${k}:  ${v}`, { size: 10, gap: 14 });
+    }
+    rule();
+
+    // Roles
+    heading("ROLES");
+    if (incident.roles.length === 0) {
+      line("No roles assigned.", { color: [90, 102, 112] });
+    } else {
+      for (const r of incident.roles) {
+        const status = r.status.charAt(0).toUpperCase() + r.status.slice(1);
+        line(`${r.role}  —  ${r.staff || "—"}  (${status})${r.backup ? `  · backup: ${r.backup}` : ""}`, { size: 10 });
+      }
+    }
+    rule();
+
+    // Tasks
+    heading(`TASKS (${incident.tasks.filter((t) => t.done).length} of ${incident.tasks.length} complete)`);
+    if (incident.tasks.length === 0) {
+      line("No tasks recorded.", { color: [90, 102, 112] });
+    } else {
+      for (const t of incident.tasks) {
+        const mark = t.done ? "[x]" : "[ ]";
+        const due = t.dueAt ? `  (due ${new Date(t.dueAt).toLocaleString("en-AU")})` : "";
+        line(`${mark}  ${t.text}  · ${(t.priority || "med").toUpperCase()}${due}  · owner ${t.owner || "—"}`, { size: 10 });
+      }
+    }
+    rule();
+
+    // Timeline
+    heading(`TIMELINE (${incident.timeline.length} entries · chronological)`);
+    for (const e of incident.timeline) {
+      const stamp = new Date(e.ts).toLocaleString("en-AU");
+      line(`${stamp}  ·  ${(e.type || "entry").toUpperCase()}  ·  ${e.actor}`, { size: 9, color: [0, 48, 94], bold: true, gap: 12 });
+      line(e.text, { size: 10, indent: 8, gap: 13 });
+      y += 4;
+    }
+    rule();
+
+    // Policies
+    heading("EMP & POLICY REFERENCES");
+    if (!incident.policies || incident.policies.length === 0) {
+      line("No policies linked.", { color: [90, 102, 112] });
+    } else {
+      for (const p of incident.policies) {
+        line(`${p.section}  ·  ${p.name}  [${(p.type || "").toUpperCase()}]`, { size: 10 });
+      }
+    }
+    rule();
+
+    // Footer / signature block
+    y += 8;
+    line(`Generated by CIMPLE on ${new Date().toLocaleString("en-AU")} by K. Patel.`, { size: 9, color: [90, 102, 112], gap: 12 });
+    line("This document is a machine-generated record of the incident as captured in CIMPLE. Original timeline entries are immutable.", { size: 9, color: [90, 102, 112], gap: 12 });
+
+    doc.save(`${incident.id}.pdf`);
+  }
+
   return (
     <div>
       <div style={{ padding: 16, background: PALETTE.tealDeep, color: PALETTE.paper, marginBottom: 24 }}>
-        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.sage, marginBottom: 6 }}>INCIDENT PACK PREVIEW</div>
+        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.sage, marginBottom: 6 }}>INCIDENT PACK</div>
         <div className="display" style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.015em" }}>One-click, audit-ready export.</div>
         <p style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.85, marginTop: 8 }}>
-          Generates a complete, locked record suitable for head office, network audit, or formal review. PDF + JSON archive.
+          Generates a complete record suitable for head office, network audit, or formal review. PDF (printable) + JSON archive (machine-readable).
         </p>
       </div>
       <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6, marginBottom: 12 }}>INCLUDED</div>
-      <div style={{ border: `1px solid rgba(15, 76, 92, 0.14)` }}>
+      <div style={{ border: `1px solid rgba(0, 48, 94, 0.14)` }}>
         {sections.map((s, i) => (
-          <div key={s.k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderBottom: i < sections.length - 1 ? `1px solid rgba(15, 76, 92, 0.08)` : "none", fontSize: 13 }}>
+          <div key={s.k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderBottom: i < sections.length - 1 ? `1px solid rgba(0, 48, 94, 0.08)` : "none", fontSize: 13 }}>
             <span style={{ display: "flex", alignItems: "center", gap: 8, color: PALETTE.ink }}>
               <CheckCircle2 size={13} color={PALETTE.sage} /> {s.k}
             </span>
@@ -1126,11 +1379,22 @@ function ExportDrawer({ incident }) {
         ))}
       </div>
       <div style={{ display: "flex", gap: 8, marginTop: 24 }}>
-        <button className="btn" style={{ flex: 1, justifyContent: "center" }}><Download size={13} /> JSON archive</button>
-        <button className="btn btn-primary" style={{ flex: 1, justifyContent: "center" }}><Download size={13} /> Audit PDF</button>
+        <button onClick={downloadJSON} className="btn" style={{ flex: 1, justifyContent: "center" }}><Download size={13} /> JSON archive</button>
+        <button onClick={downloadPDF} className="btn btn-primary" style={{ flex: 1, justifyContent: "center" }}><Download size={13} /> Audit PDF</button>
       </div>
     </div>
   );
+}
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function Section({ title, children }) {
