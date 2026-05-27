@@ -219,7 +219,7 @@ export function PrototypeNotice() {
   );
 }
 
-/* ---------- Two-row institutional masthead ---------- */
+/* ---------- Institutional masthead (heraldic navy ribbon) ---------- */
 export function TopBarShell({ children, current }) {
   const today = new Date().toLocaleDateString("en-AU", {
     weekday: "long",
@@ -232,53 +232,69 @@ export function TopBarShell({ children, current }) {
     <>
       <PrototypeNotice />
 
-      {/* Row 1: Colophon — quiet, document-like */}
+      {/* Heraldic colophon — tiny line above the navy ribbon */}
       <div
         style={{
-          background: PALETTE.bone,
-          padding: "6px 32px",
+          background: PALETTE.tealDeep,
+          padding: "5px 32px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          borderBottom: `1px solid rgba(0, 48, 94, 0.08)`,
           fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
           fontSize: 9,
-          letterSpacing: "0.18em",
+          letterSpacing: "0.2em",
           textTransform: "uppercase",
-          color: PALETTE.inkSoft,
+          color: "rgba(255, 255, 255, 0.55)",
         }}
       >
         <span>Trinity Anglican College · Office of the Principal</span>
         <span>{today}</span>
       </div>
 
-      {/* Row 2: Main masthead — logo, wordmark, navigation */}
+      {/* Main masthead — solid navy ribbon with heraldic crimson under-rule */}
       <div
         style={{
-          background: PALETTE.paper,
-          padding: "18px 32px 16px",
+          background: PALETTE.teal,
+          padding: "16px 32px 14px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           position: "sticky",
           top: 0,
           zIndex: 30,
-          borderBottom: `2px solid ${PALETTE.teal}`,
-          boxShadow: `inset 0 -3px 0 ${PALETTE.crimson}`,
+          boxShadow: `inset 0 -4px 0 ${PALETTE.crimson}`,
+          color: PALETTE.paper,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
-          <a href="#/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 18 }}>
-            <Logo size={46} />
-            <div style={{ borderLeft: `1px solid rgba(0, 48, 94, 0.2)`, paddingLeft: 18 }}>
+          <a href="#/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 18, color: "inherit" }}>
+            {/* Logo medallion — white badge for the navy-coloured logo */}
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                background: PALETTE.paper,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: "50%",
+                boxShadow: `0 0 0 2px ${PALETTE.crimson}, 0 0 0 4px ${PALETTE.paper}, 0 0 0 5px rgba(255,255,255,0.18)`,
+                flexShrink: 0,
+              }}
+            >
+              <Logo size={38} />
+            </div>
+
+            <div style={{ borderLeft: `1px solid rgba(255, 255, 255, 0.22)`, paddingLeft: 18 }}>
               <div
-                className="display"
                 style={{
-                  fontSize: 26,
+                  fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
+                  fontSize: 24,
                   fontWeight: 600,
-                  color: PALETTE.teal,
-                  lineHeight: 0.95,
-                  letterSpacing: "-0.02em",
+                  color: PALETTE.paper,
+                  lineHeight: 1,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
                 }}
               >
                 CIMPLE
@@ -286,20 +302,22 @@ export function TopBarShell({ children, current }) {
               <div
                 className="mono"
                 style={{
-                  fontSize: 8.5,
-                  letterSpacing: "0.22em",
-                  color: PALETTE.inkSoft,
-                  marginTop: 5,
+                  fontSize: 9,
+                  letterSpacing: "0.24em",
+                  color: "rgba(255, 255, 255, 0.7)",
+                  marginTop: 6,
                   textTransform: "uppercase",
-                  fontWeight: 600,
+                  fontWeight: 500,
                 }}
               >
                 Critical Incident Platform
               </div>
             </div>
           </a>
-          <div style={{ width: 1, height: 36, background: "rgba(0, 48, 94, 0.18)" }} />
-          <nav style={{ display: "flex", gap: 2 }}>
+
+          <div style={{ width: 1, height: 38, background: "rgba(255, 255, 255, 0.2)" }} />
+
+          <nav style={{ display: "flex", gap: 4 }}>
             {[
               { l: "Incidents", href: "#/", key: "home" },
               { l: "Triage", href: "#/triage", key: "triage" },
@@ -311,18 +329,21 @@ export function TopBarShell({ children, current }) {
                 <a
                   key={item.key}
                   href={item.href}
-                  className="display"
                   style={{
-                    padding: "8px 16px",
-                    fontSize: 15,
+                    padding: "8px 14px",
+                    fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
+                    fontSize: 13,
                     fontWeight: active ? 600 : 500,
-                    fontStyle: active ? "italic" : "normal",
-                    color: active ? PALETTE.crimson : PALETTE.teal,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    color: PALETTE.paper,
+                    opacity: active ? 1 : 0.78,
                     background: "transparent",
                     textDecoration: "none",
                     borderBottom: active ? `2px solid ${PALETTE.crimson}` : `2px solid transparent`,
-                    marginBottom: -2,
-                    transition: "color 140ms ease",
+                    marginBottom: -16,
+                    paddingBottom: 14,
+                    transition: "opacity 140ms ease",
                   }}
                 >
                   {item.l}
@@ -339,17 +360,17 @@ export function TopBarShell({ children, current }) {
             style={{
               width: 38,
               height: 38,
-              background: PALETTE.teal,
-              color: PALETTE.paper,
+              background: PALETTE.paper,
+              color: PALETTE.teal,
               fontSize: 12,
-              fontWeight: 600,
+              fontWeight: 700,
               fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
               letterSpacing: "0.04em",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               borderRadius: "50%",
-              boxShadow: `0 0 0 3px ${PALETTE.paper}, 0 0 0 4px ${PALETTE.crimson}`,
+              boxShadow: `0 0 0 2px ${PALETTE.crimson}`,
             }}
           >
             KP
