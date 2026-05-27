@@ -7,10 +7,10 @@ const STORAGE_KEY = "cimple-v2-state";
 
 // ---------- Severity definitions ----------
 export const SEVERITY = {
-  1: { label: "L1 Minor", short: "L1", color: "#5B8C7C", bg: "#D7E3DE", tone: "No injury, low disruption" },
-  2: { label: "L2 Moderate", short: "L2", color: "#C9A961", bg: "#F0E6CC", tone: "Medical attention required, parent contact" },
-  3: { label: "L3 Major", short: "L3", color: "#B85C3C", bg: "#F2D8CC", tone: "Emergency services involved, significant disruption" },
-  4: { label: "L4 Critical", short: "L4", color: "#8B2E1A", bg: "#E8C9C2", tone: "Death, serious injury, major threat, media" },
+  1: { label: "L1 Minor", short: "L1", color: "#5B8C7C", bg: "#DEE9E4", tone: "No injury, low disruption" },
+  2: { label: "L2 Moderate", short: "L2", color: "#B89460", bg: "#EFE6D0", tone: "Medical attention required, parent contact" },
+  3: { label: "L3 Major", short: "L3", color: "#A85535", bg: "#EAD5C7", tone: "Emergency services involved, significant disruption" },
+  4: { label: "L4 Critical", short: "L4", color: "#7A1820", bg: "#E4C8C9", tone: "Death, serious injury, major threat, media" },
 };
 
 // ---------- Incident types with metadata ----------

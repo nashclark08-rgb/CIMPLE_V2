@@ -9,7 +9,7 @@
 //   #/admin                  → Placeholder
 // ============================================================
 import React, { useState, useEffect, useCallback } from "react";
-import { GlobalStyles, PALETTE, TopBarShell } from "./shared.jsx";
+import { GlobalStyles, PALETTE, TopBarShell, InstitutionalFooter } from "./shared.jsx";
 import Home from "./Home.jsx";
 import Dashboard from "./Dashboard.jsx";
 import NewIncident from "./NewIncident.jsx";
@@ -73,6 +73,7 @@ export default function App() {
       )}
       {route.route === "sandbox" && <Placeholder title="Sandbox" subtitle="Training mode coming soon — practice scenarios with AI-generated incidents." onBack={() => navigate("#/")} />}
       {route.route === "admin" && <Admin onBack={() => navigate("#/")} />}
+      <InstitutionalFooter />
     </>
   );
 }

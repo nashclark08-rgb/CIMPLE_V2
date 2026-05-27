@@ -1,113 +1,179 @@
 // ============================================================
 // CIMPLE — Shared UI atoms, palette, global styles
 // Brand: Trinity Anglican College
-//   Navy   #00305E  (primary)
-//   Crimson #A02029 (accent — used sparingly per TAC mark)
+//   Navy    #00305E  (primary — used dominantly)
+//   Crimson #A02029  (accent — used sparingly, heraldically)
+// Aesthetic: editorial / institutional. Quiet authority.
 // ============================================================
 import React from "react";
 import { AlertCircle } from "lucide-react";
 
 export const PALETTE = {
-  // Primary brand (renamed keys kept as `teal*` for backwards compatibility
-  // with existing JSX — values are now TAC Navy)
-  teal: "#00305E",
+  // Primary brand
+  teal: "#00305E",         // (kept key name `teal` for back-compat; value is TAC Navy)
   tealDeep: "#001E3D",
   tealMist: "#E5EAF1",
-  // Positive / safe / confirmed (tuned to sit comfortably next to navy)
+  // Positive / safe / confirmed
   sage: "#5B8C7C",
-  sageMist: "#D7E3DE",
-  // TAC accent — use sparingly (logo region, live indicator)
+  sageMist: "#DEE9E4",
+  // TAC accent — used sparingly
   crimson: "#A02029",
   crimsonDeep: "#7A1820",
-  // Surfaces
-  bone: "#F3F1EC",
-  paper: "#FFFFFF",
+  // Surfaces — warm cream paper stock
+  bone: "#F4EFE2",         // warm cream — the page
+  paper: "#FFFFFF",        // crisp white — interactive surfaces
+  parchment: "#FAF6EC",    // very subtle inset / quiet areas
   // Type
-  ink: "#1A2024",
-  inkSoft: "#5A6670",
-  // Severity / status (functional, not brand)
-  rust: "#B85C3C",
-  amber: "#C9A961",
-  rose: "#8B2E1A",
+  ink: "#0B1620",          // near-black with cool cast
+  inkSoft: "#5C5648",      // warm soft gray for secondary text
+  // Severity / status — desaturated, sober
+  rust: "#A85535",
+  amber: "#B89460",
+  rose: "#7A1820",
 };
 
 export function GlobalStyles() {
   return (
     <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-      * { box-sizing: border-box; }
-      body { margin: 0; font-family: 'Inter', system-ui, sans-serif; color: ${PALETTE.ink}; background: ${PALETTE.bone}; }
-      .display { font-family: 'Fraunces', Georgia, serif; letter-spacing: -0.01em; }
-      .mono { font-family: 'JetBrains Mono', monospace; }
+      @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
+      * { box-sizing: border-box; }
+      html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+      body {
+        margin: 0;
+        font-family: 'Newsreader', Georgia, serif;
+        font-size: 15px;
+        line-height: 1.55;
+        color: ${PALETTE.ink};
+        background: ${PALETTE.bone};
+        font-feature-settings: "kern", "liga", "calt";
+      }
+      .display { font-family: 'Fraunces', Georgia, serif; letter-spacing: -0.018em; font-feature-settings: "ss01", "kern"; }
+      .display-italic { font-family: 'Fraunces', Georgia, serif; font-style: italic; letter-spacing: -0.012em; }
+      .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-feature-settings: "tnum"; }
+
+      /* ---------- Surfaces ---------- */
       .card {
         background: ${PALETTE.paper};
-        border: 1px solid rgba(0, 48, 94, 0.14);
+        border: 1px solid rgba(0, 48, 94, 0.12);
+        box-shadow: 0 1px 0 rgba(0, 48, 94, 0.03), 0 8px 24px -16px rgba(0, 48, 94, 0.18);
       }
 
       .panel-h {
         display: flex; justify-content: space-between; align-items: center;
-        padding: 14px 18px;
-        border-bottom: 1px solid rgba(0, 48, 94, 0.12);
+        padding: 14px 20px 12px;
+        border-bottom: 1px solid rgba(0, 48, 94, 0.1);
+        position: relative;
       }
-      .panel-h-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.16em; color: ${PALETTE.teal}; opacity: 0.7; }
-      .panel-h-meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: ${PALETTE.teal}; opacity: 0.5; }
+      .panel-h::after {
+        content: "";
+        position: absolute; left: 20px; right: 20px; bottom: -1px;
+        height: 1px; background: ${PALETTE.crimson};
+        width: 24px;
+      }
+      .panel-h-label {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+        color: ${PALETTE.teal}; font-weight: 600;
+      }
+      .panel-h-meta {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;
+        color: ${PALETTE.inkSoft};
+      }
 
+      /* ---------- Chips & labels ---------- */
       .chip {
         display: inline-flex; align-items: center; gap: 6px;
-        padding: 4px 10px; font-size: 11px; font-weight: 500;
-        border: 1px solid rgba(0, 48, 94, 0.2);
-        background: ${PALETTE.paper};
+        padding: 4px 10px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px; letter-spacing: 0.1em; font-weight: 600;
+        text-transform: uppercase;
+        border: 1px solid ${PALETTE.teal};
+        background: transparent;
         color: ${PALETTE.teal};
       }
 
+      /* ---------- Buttons ---------- */
       button { font-family: inherit; cursor: pointer; }
       .btn {
         display: inline-flex; align-items: center; gap: 8px;
-        padding: 9px 14px; font-size: 13px; font-weight: 500;
-        border: 1px solid rgba(0, 48, 94, 0.2);
-        background: ${PALETTE.paper}; color: ${PALETTE.teal};
-        transition: all 160ms ease;
+        padding: 10px 16px;
+        font-family: 'Newsreader', Georgia, serif;
+        font-size: 14px; font-weight: 500;
+        letter-spacing: 0.005em;
+        border: 1px solid rgba(0, 48, 94, 0.28);
+        background: ${PALETTE.paper};
+        color: ${PALETTE.teal};
+        transition: background 140ms ease, border-color 140ms ease, transform 80ms ease;
       }
       .btn:hover { background: ${PALETTE.tealMist}; border-color: ${PALETTE.teal}; }
-      .btn-primary { background: ${PALETTE.teal}; color: ${PALETTE.paper}; border-color: ${PALETTE.teal}; }
-      .btn-primary:hover { background: ${PALETTE.tealDeep}; }
-      .btn-ghost { background: transparent; border-color: transparent; color: ${PALETTE.teal}; }
+      .btn:active { transform: translateY(1px); }
+      .btn-primary {
+        background: ${PALETTE.teal};
+        color: ${PALETTE.paper};
+        border-color: ${PALETTE.teal};
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 1px 0 rgba(0,48,94,0.15);
+      }
+      .btn-primary:hover { background: ${PALETTE.tealDeep}; border-color: ${PALETTE.tealDeep}; }
+      .btn-ghost { background: transparent; border-color: transparent; color: ${PALETTE.teal}; box-shadow: none; }
       .btn-ghost:hover { background: rgba(0, 48, 94, 0.06); }
-      .btn-danger { background: ${PALETTE.crimson}; color: ${PALETTE.paper}; border-color: ${PALETTE.crimson}; }
-      .btn-danger:hover { background: ${PALETTE.crimsonDeep}; }
+      .btn-danger { background: ${PALETTE.crimson}; color: ${PALETTE.paper}; border-color: ${PALETTE.crimson}; box-shadow: inset 0 1px 0 rgba(255,255,255,0.1); }
+      .btn-danger:hover { background: ${PALETTE.crimsonDeep}; border-color: ${PALETTE.crimsonDeep}; }
 
+      /* ---------- Form controls ---------- */
       input[type="text"], input[type="search"], textarea, select {
-        font-family: inherit; font-size: 14px;
-        border: 1px solid rgba(0, 48, 94, 0.2);
+        font-family: 'Newsreader', Georgia, serif;
+        font-size: 14px;
+        border: 1px solid rgba(0, 48, 94, 0.22);
         background: ${PALETTE.paper};
         color: ${PALETTE.ink};
         padding: 10px 12px;
         outline: none;
         width: 100%;
+        transition: border-color 140ms ease, box-shadow 140ms ease;
       }
-      input:focus, textarea:focus, select:focus { border-color: ${PALETTE.teal}; }
+      input:focus, textarea:focus, select:focus {
+        border-color: ${PALETTE.teal};
+        box-shadow: 0 0 0 3px rgba(0, 48, 94, 0.08);
+      }
 
-      a { color: ${PALETTE.teal}; }
+      a { color: ${PALETTE.teal}; text-decoration-color: rgba(0,48,94,0.3); text-underline-offset: 2px; }
+      a:hover { text-decoration-color: ${PALETTE.crimson}; }
 
+      /* ---------- Section heading helper ---------- */
+      .section-label {
+        display: inline-flex; align-items: center; gap: 10px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase;
+        color: ${PALETTE.teal}; font-weight: 600;
+      }
+      .section-label::before {
+        content: ""; display: inline-block;
+        width: 24px; height: 1px;
+        background: ${PALETTE.crimson};
+      }
+
+      /* ---------- Motion ---------- */
       @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-      .fade-in { animation: fadeIn 280ms ease both; }
+      .fade-in { animation: fadeIn 320ms ease both; }
       @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
-      .slide-in { animation: slideIn 320ms cubic-bezier(0.4, 0, 0.2, 1) both; }
-      @keyframes pulseSoft { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+      .slide-in { animation: slideIn 360ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+      @keyframes pulseSoft { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
       .live-dot { animation: pulseSoft 1.6s ease-in-out infinite; }
 
+      /* ---------- Scrollbar ---------- */
       .scroll-y { overflow-y: auto; }
       .scroll-y::-webkit-scrollbar { width: 6px; }
-      .scroll-y::-webkit-scrollbar-thumb { background: rgba(0, 48, 94, 0.2); }
+      .scroll-y::-webkit-scrollbar-thumb { background: rgba(0, 48, 94, 0.22); }
       .scroll-y::-webkit-scrollbar-track { background: transparent; }
 
-      .row-hover:hover { background: ${PALETTE.tealMist}; cursor: pointer; }
+      .row-hover:hover { background: ${PALETTE.parchment}; cursor: pointer; }
     `}</style>
   );
 }
 
-export function Logo({ size = 36 }) {
+export function Logo({ size = 40 }) {
   return (
     <img
       src="/trinity-logo.svg"
@@ -119,6 +185,7 @@ export function Logo({ size = 36 }) {
   );
 }
 
+/* ---------- Prototype classification stamp ---------- */
 export function PrototypeNotice() {
   return (
     <div
@@ -134,95 +201,234 @@ export function PrototypeNotice() {
         borderBottom: `1px solid ${PALETTE.crimson}`,
       }}
     >
-      <AlertCircle size={13} color={PALETTE.crimson} strokeWidth={2.5} />
+      <AlertCircle size={12} color={PALETTE.crimson} strokeWidth={2.5} />
       <span
         className="mono"
-        style={{ fontSize: 10, letterSpacing: "0.22em", fontWeight: 600, textAlign: "center" }}
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.26em",
+          fontWeight: 600,
+          textAlign: "center",
+          textTransform: "uppercase",
+        }}
       >
-        PROTOTYPE · DEMO USE ONLY · DO NOT ENTER REAL STUDENT OR STAFF DATA
+        Prototype · Demo Use Only · Do Not Enter Real Student or Staff Data
       </span>
-      <AlertCircle size={13} color={PALETTE.crimson} strokeWidth={2.5} />
+      <AlertCircle size={12} color={PALETTE.crimson} strokeWidth={2.5} />
     </div>
   );
 }
 
+/* ---------- Two-row institutional masthead ---------- */
 export function TopBarShell({ children, current }) {
+  const today = new Date().toLocaleDateString("en-AU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
   return (
     <>
-    <PrototypeNotice />
-    <div
-      style={{
-        background: PALETTE.paper,
-        borderBottom: `1px solid rgba(0, 48, 94, 0.14)`,
-        padding: "10px 32px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        position: "sticky",
-        top: 0,
-        zIndex: 30,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-        <a href="#/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 14 }}>
-          <Logo size={40} />
-          <div style={{ borderLeft: `1px solid rgba(0, 48, 94, 0.18)`, paddingLeft: 14 }}>
-            <div className="display" style={{ fontSize: 18, fontWeight: 500, color: PALETTE.teal, lineHeight: 1, letterSpacing: "-0.01em" }}>
-              CIMPLE
-            </div>
-            <div className="mono" style={{ fontSize: 8, letterSpacing: "0.16em", color: PALETTE.teal, opacity: 0.6, marginTop: 3 }}>
-              CRITICAL INCIDENT · TRINITY ANGLICAN COLLEGE
-            </div>
-          </div>
-        </a>
-        <div style={{ width: 1, height: 28, background: "rgba(0, 48, 94, 0.15)" }} />
-        <nav style={{ display: "flex", gap: 4 }}>
-          {[
-            { l: "Incidents", href: "#/", key: "home" },
-            { l: "Triage", href: "#/triage", key: "triage" },
-            { l: "Sandbox", href: "#/sandbox", key: "sandbox" },
-            { l: "Admin", href: "#/admin", key: "admin" },
-          ].map((item) => (
-            <a
-              key={item.key}
-              href={item.href}
-              style={{
-                padding: "6px 12px",
-                fontSize: 13,
-                color: current === item.key ? PALETTE.paper : PALETTE.ink,
-                background: current === item.key ? PALETTE.teal : "transparent",
-                textDecoration: "none",
-                fontWeight: current === item.key ? 500 : 400,
-              }}
-            >
-              {item.l}
-            </a>
-          ))}
-        </nav>
+      <PrototypeNotice />
+
+      {/* Row 1: Colophon — quiet, document-like */}
+      <div
+        style={{
+          background: PALETTE.bone,
+          padding: "6px 32px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderBottom: `1px solid rgba(0, 48, 94, 0.08)`,
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 9,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: PALETTE.inkSoft,
+        }}
+      >
+        <span>Trinity Anglican College · Office of the Principal</span>
+        <span>{today}</span>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-        {children}
-        <div
-          title="K. Patel — Principal"
-          style={{
-            width: 32,
-            height: 32,
-            background: PALETTE.teal,
-            color: PALETTE.paper,
-            fontSize: 12,
-            fontWeight: 600,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            borderRadius: "50%",
-          }}
-        >
-          KP
+      {/* Row 2: Main masthead — logo, wordmark, navigation */}
+      <div
+        style={{
+          background: PALETTE.paper,
+          padding: "18px 32px 16px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          position: "sticky",
+          top: 0,
+          zIndex: 30,
+          borderBottom: `2px solid ${PALETTE.teal}`,
+          boxShadow: `inset 0 -3px 0 ${PALETTE.crimson}`,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
+          <a href="#/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 18 }}>
+            <Logo size={46} />
+            <div style={{ borderLeft: `1px solid rgba(0, 48, 94, 0.2)`, paddingLeft: 18 }}>
+              <div
+                className="display"
+                style={{
+                  fontSize: 26,
+                  fontWeight: 600,
+                  color: PALETTE.teal,
+                  lineHeight: 0.95,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                CIMPLE
+              </div>
+              <div
+                className="mono"
+                style={{
+                  fontSize: 8.5,
+                  letterSpacing: "0.22em",
+                  color: PALETTE.inkSoft,
+                  marginTop: 5,
+                  textTransform: "uppercase",
+                  fontWeight: 600,
+                }}
+              >
+                Critical Incident Platform
+              </div>
+            </div>
+          </a>
+          <div style={{ width: 1, height: 36, background: "rgba(0, 48, 94, 0.18)" }} />
+          <nav style={{ display: "flex", gap: 2 }}>
+            {[
+              { l: "Incidents", href: "#/", key: "home" },
+              { l: "Triage", href: "#/triage", key: "triage" },
+              { l: "Sandbox", href: "#/sandbox", key: "sandbox" },
+              { l: "Admin", href: "#/admin", key: "admin" },
+            ].map((item) => {
+              const active = current === item.key;
+              return (
+                <a
+                  key={item.key}
+                  href={item.href}
+                  className="display"
+                  style={{
+                    padding: "8px 16px",
+                    fontSize: 15,
+                    fontWeight: active ? 600 : 500,
+                    fontStyle: active ? "italic" : "normal",
+                    color: active ? PALETTE.crimson : PALETTE.teal,
+                    background: "transparent",
+                    textDecoration: "none",
+                    borderBottom: active ? `2px solid ${PALETTE.crimson}` : `2px solid transparent`,
+                    marginBottom: -2,
+                    transition: "color 140ms ease",
+                  }}
+                >
+                  {item.l}
+                </a>
+              );
+            })}
+          </nav>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          {children}
+          <div
+            title="K. Patel — Principal"
+            style={{
+              width: 38,
+              height: 38,
+              background: PALETTE.teal,
+              color: PALETTE.paper,
+              fontSize: 12,
+              fontWeight: 600,
+              fontFamily: "'JetBrains Mono', monospace",
+              letterSpacing: "0.04em",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "50%",
+              boxShadow: `0 0 0 3px ${PALETTE.paper}, 0 0 0 4px ${PALETTE.crimson}`,
+            }}
+          >
+            KP
+          </div>
         </div>
       </div>
-    </div>
     </>
+  );
+}
+
+/* ---------- Institutional footer (colophon) ---------- */
+export function InstitutionalFooter() {
+  const year = new Date().getFullYear();
+  return (
+    <footer
+      style={{
+        marginTop: 64,
+        background: PALETTE.bone,
+        borderTop: `1px solid rgba(0, 48, 94, 0.12)`,
+        boxShadow: `inset 0 3px 0 ${PALETTE.crimson}, inset 0 4px 0 ${PALETTE.teal}`,
+        padding: "32px 32px 28px",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 1480,
+          margin: "0 auto",
+          display: "grid",
+          gridTemplateColumns: "auto 1fr auto",
+          gap: 32,
+          alignItems: "center",
+        }}
+      >
+        <Logo size={36} />
+
+        <div>
+          <div
+            className="display"
+            style={{
+              fontSize: 16,
+              fontWeight: 600,
+              color: PALETTE.teal,
+              letterSpacing: "-0.01em",
+              lineHeight: 1.2,
+            }}
+          >
+            CIMPLE · <span style={{ fontStyle: "italic", fontWeight: 500 }}>Critical Incident Platform</span>
+          </div>
+          <div
+            className="mono"
+            style={{
+              fontSize: 9.5,
+              letterSpacing: "0.18em",
+              color: PALETTE.inkSoft,
+              marginTop: 6,
+              textTransform: "uppercase",
+              fontWeight: 500,
+            }}
+          >
+            Issued by the Office of the Principal · Internal Use Only
+          </div>
+        </div>
+
+        <div
+          className="mono"
+          style={{
+            fontSize: 9,
+            letterSpacing: "0.16em",
+            color: PALETTE.inkSoft,
+            textAlign: "right",
+            textTransform: "uppercase",
+            lineHeight: 1.7,
+          }}
+        >
+          <div>Trinity Anglican College</div>
+          <div>MMXXVI · Prototype Build</div>
+        </div>
+      </div>
+    </footer>
   );
 }
 
