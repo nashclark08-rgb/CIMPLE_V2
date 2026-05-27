@@ -19,13 +19,13 @@ export const PALETTE = {
   // TAC accent — used sparingly
   crimson: "#A02029",
   crimsonDeep: "#7A1820",
-  // Surfaces — warm cream paper stock
-  bone: "#F4EFE2",         // warm cream — the page
+  // Surfaces — pale institutional blue, on-brand
+  bone: "#EBF0F6",         // pale navy wash — the page
   paper: "#FFFFFF",        // crisp white — interactive surfaces
-  parchment: "#FAF6EC",    // very subtle inset / quiet areas
+  parchment: "#F4F7FB",    // very subtle inset / quiet areas
   // Type
   ink: "#0B1620",          // near-black with cool cast
-  inkSoft: "#5C5648",      // warm soft gray for secondary text
+  inkSoft: "#4A5664",      // cool slate for secondary text
   // Severity / status — desaturated, sober
   rust: "#A85535",
   amber: "#B89460",
@@ -35,22 +35,22 @@ export const PALETTE = {
 export function GlobalStyles() {
   return (
     <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=JetBrains+Mono:wght@400;500;600&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;0,700;1,500;1,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
       * { box-sizing: border-box; }
       html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
       body {
         margin: 0;
-        font-family: 'Newsreader', Georgia, serif;
-        font-size: 15px;
+        font-family: 'IBM Plex Sans', system-ui, sans-serif;
+        font-size: 14px;
         line-height: 1.55;
         color: ${PALETTE.ink};
         background: ${PALETTE.bone};
-        font-feature-settings: "kern", "liga", "calt";
+        font-feature-settings: "kern", "liga";
       }
-      .display { font-family: 'Fraunces', Georgia, serif; letter-spacing: -0.018em; font-feature-settings: "ss01", "kern"; }
-      .display-italic { font-family: 'Fraunces', Georgia, serif; font-style: italic; letter-spacing: -0.012em; }
-      .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-feature-settings: "tnum"; }
+      .display { font-family: 'IBM Plex Serif', Georgia, serif; letter-spacing: -0.012em; font-feature-settings: "kern", "liga"; }
+      .display-italic { font-family: 'IBM Plex Serif', Georgia, serif; font-style: italic; letter-spacing: -0.008em; }
+      .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-feature-settings: "tnum", "zero"; }
 
       /* ---------- Surfaces ---------- */
       .card {
@@ -72,12 +72,12 @@ export function GlobalStyles() {
         width: 24px;
       }
       .panel-h-label {
-        font-family: 'JetBrains Mono', monospace;
+        font-family: 'IBM Plex Mono', ui-monospace, monospace;
         font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
         color: ${PALETTE.teal}; font-weight: 600;
       }
       .panel-h-meta {
-        font-family: 'JetBrains Mono', monospace;
+        font-family: 'IBM Plex Mono', ui-monospace, monospace;
         font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;
         color: ${PALETTE.inkSoft};
       }
@@ -86,7 +86,7 @@ export function GlobalStyles() {
       .chip {
         display: inline-flex; align-items: center; gap: 6px;
         padding: 4px 10px;
-        font-family: 'JetBrains Mono', monospace;
+        font-family: 'IBM Plex Mono', ui-monospace, monospace;
         font-size: 10px; letter-spacing: 0.1em; font-weight: 600;
         text-transform: uppercase;
         border: 1px solid ${PALETTE.teal};
@@ -99,7 +99,7 @@ export function GlobalStyles() {
       .btn {
         display: inline-flex; align-items: center; gap: 8px;
         padding: 10px 16px;
-        font-family: 'Newsreader', Georgia, serif;
+        font-family: 'IBM Plex Sans', system-ui, sans-serif;
         font-size: 14px; font-weight: 500;
         letter-spacing: 0.005em;
         border: 1px solid rgba(0, 48, 94, 0.28);
@@ -123,7 +123,7 @@ export function GlobalStyles() {
 
       /* ---------- Form controls ---------- */
       input[type="text"], input[type="search"], textarea, select {
-        font-family: 'Newsreader', Georgia, serif;
+        font-family: 'IBM Plex Sans', system-ui, sans-serif;
         font-size: 14px;
         border: 1px solid rgba(0, 48, 94, 0.22);
         background: ${PALETTE.paper};
@@ -144,7 +144,7 @@ export function GlobalStyles() {
       /* ---------- Section heading helper ---------- */
       .section-label {
         display: inline-flex; align-items: center; gap: 10px;
-        font-family: 'JetBrains Mono', monospace;
+        font-family: 'IBM Plex Mono', ui-monospace, monospace;
         font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase;
         color: ${PALETTE.teal}; font-weight: 600;
       }
@@ -241,7 +241,7 @@ export function TopBarShell({ children, current }) {
           justifyContent: "space-between",
           alignItems: "center",
           borderBottom: `1px solid rgba(0, 48, 94, 0.08)`,
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
           fontSize: 9,
           letterSpacing: "0.18em",
           textTransform: "uppercase",
@@ -343,7 +343,7 @@ export function TopBarShell({ children, current }) {
               color: PALETTE.paper,
               fontSize: 12,
               fontWeight: 600,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
               letterSpacing: "0.04em",
               display: "flex",
               alignItems: "center",

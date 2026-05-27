@@ -229,7 +229,7 @@ function StaffRow({ staff, onEdit, onDelete, onVerify, isLast }) {
           {conflicts.length > 0 && (
             <span
               title={`Role conflict: ${conflicts.map((c) => c.roles.join(" + ")).join("; ")}`}
-              style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "1px 6px", background: "rgba(160, 32, 41, 0.1)", color: PALETTE.crimson, fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", fontFamily: "'JetBrains Mono', monospace" }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "1px 6px", background: "rgba(160, 32, 41, 0.1)", color: PALETTE.crimson, fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", fontFamily: "'IBM Plex Mono', ui-monospace, monospace" }}
             >
               <AlertTriangle size={9} strokeWidth={2.5} /> CONFLICT
             </span>
@@ -266,7 +266,7 @@ function StaffRow({ staff, onEdit, onDelete, onVerify, isLast }) {
             background: "none",
             border: "none",
             padding: 0,
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
             fontSize: 9,
             letterSpacing: "0.1em",
             color: stale ? PALETTE.rust : PALETTE.inkSoft,

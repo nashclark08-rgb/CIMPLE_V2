@@ -699,7 +699,7 @@ function TaskAdder({ onAdd }) {
               background: dueMins === o.v ? PALETTE.teal : "transparent",
               color: dueMins === o.v ? PALETTE.paper : PALETTE.teal,
               border: "none",
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
             }}
           >
             {o.l}
