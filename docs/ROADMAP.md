@@ -142,8 +142,8 @@ Incident creation · triage · role assignment (with conflict detection) · task
 
 ### Phase 2 — Before backend _(all no-backend; ships on the current prototype)_
 Sequenced by value, dependency, and complexity:
-1. **Decision Log** _(Core)_ — the decision + accountability spine.
-2. **Risk / Watch Register** _(Core)_ — the "what risks remain?" stream.
+1. **Decision Log** _(Core)_ — the decision + accountability spine. ✅ **Shipped 2026-07-06.**
+2. **Risk / Watch Register** _(Core)_ — the "what risks remain?" stream. ◀ next
 3. **Crisis Copilot — rules-based MVP** _(Core)_ — gap detection from existing per-type templates.
 4. **Red Folder Mode** _(Core)_ — composes situation + contacts + actions + latest decisions + active risks into one stress-proof view.
 5. **Dynamic Role Replacement — MVP** _(Supporting)_ — extends the existing conflict/backup/failover engine.

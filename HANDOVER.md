@@ -82,6 +82,7 @@ The PRD **dictates scope** — the prototype evolves _toward_ it, never caps it.
 - **Comms (v5):** `COMMS_CHANNELS`, `COMMS_AUDIENCES`, `COMMS_TEMPLATES` (holding statements attributed to MWHI), `COMMS_CATEGORIES`, `COMMS_STATUS`; helpers `templatesForIncidentType`, `fillTemplate`, `newComm`. A comm: `{ id, ts, templateId, name, audienceId, channels[], body, status: draft|approved|dispatched, approvedBy, approvedAt, dispatchedAt }`.
 - **Activation (v6):** `ACTIVATION_CHANNELS` (Trinity App push + out-of-band SMS), `NOTIFY_STATUS` (sent|acked|no_response), `roleIsAssigned()`. State: `incident.activation = { declaredAt, declaredBy, channels[] }` + per-role `role.notify = { status, sentAt, ackedAt, viaBackup }`.
 - **PIR (v7):** `PIR_STATUS` (draft|final), `newPIR()`, `newCorrectiveAction()`, `pirFacts(incident)` (auto-assembled stats). State: `incident.pir = { createdAt, status, summary, whatWorked, whatImprove, planUpdates, correctiveActions[] }`. AI draft via `api/draft.js` with `kind:"pir"` (returns JSON), graceful local fallback.
+- **Decision Log (v8):** `DECISION_STATUS` (open|reviewed), `newDecision()`. State: `incident.decisions[] = { id, ts, decidedBy, decision, rationale, options, evidence, reviewBy, reviewedAt, outcome, status }`. "Decisions" drawer records immutable decisions with rationale/options/what-was-known + review point; logs a `decision` timeline entry; in Export pack. Answers "what decisions have been made?" (Phase 2.1, built 2026-07-06).
 
 ---
 

@@ -63,12 +63,12 @@ Avoid feature creep and platform expansion beyond incident management.
 | Who is responsible? | Roles rail (assign / confirm / conflicts) | Built |
 | What needs to happen next? | Tasks → Crisis Copilot (gap detection) | Partial — Copilot not built |
 | Who has been notified? | Activation & acknowledgements (M2) | Built (simulated) |
-| What decisions have been made? | **Decision Log** | **Not built** |
+| What decisions have been made? | Decision Log | **Built** (2026-07-06) |
 | What comms have been approved? | Communications (M4) | Built (simulated) |
 | What risks remain? | **Risk / Watch register** | **Not built** |
 | Progress to resolution | Status + Recovery Readiness | Partial |
 
-Two gaps sit squarely inside the charter and are unbuilt: **Decision Log** and the **Risk / Watch register**.
+Remaining unbuilt in-charter gap: the **Risk / Watch register**. (Decision Log shipped 2026-07-06.)
 
 ## Capability classification (from VISION_2030.md, re-cut through this charter)
 
