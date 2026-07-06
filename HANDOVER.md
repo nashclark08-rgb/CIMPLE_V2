@@ -4,6 +4,8 @@ _Last updated: 2026-07-06_
 
 This document is the **backbone brief** for anyone (human or AI) picking up CIMPLE. Read it before making changes.
 
+> **Read `docs/SCOPE.md` first — it is the governing charter.** CIMPLE is an **incident management platform** and that mission is fixed. Every feature must pass one test: _"Does this materially improve the management of an active incident?"_ If no, it is out of scope. Do not expand CIMPLE into a school-operations, student-management, wellbeing, compliance, or resilience platform. `docs/VISION_2030.md` is exploratory only and is subordinate to `SCOPE.md`.
+
 ---
 
 ## 1. What CIMPLE is

@@ -2,6 +2,8 @@
 
 _Prepared as lead product architect · 2026-07-06_
 
+> **⚠️ Governing charter: `SCOPE.md` overrides this document.** CIMPLE's mission is fixed — an **incident management platform**, nothing broader. Every idea below must pass one test: _"Does this materially improve the management of an active incident?"_ Parts of this document that lean on **peacetime value, drills/readiness, compliance evidence, cross-sector learning, or commercial/market positioning are explicitly OUT of scope** — they are exploratory context only, not direction. When this document and `SCOPE.md` disagree, `SCOPE.md` wins. Do not use this document to justify platform expansion.
+
 This is a strategy document, not a build spec. It evaluates twelve candidate capabilities against CIMPLE's seven governing principles, proposes missing capabilities, and sets a 2030 vision. Everything is filtered through one question: **what makes CIMPLE indispensable to a school in crisis — not to a generic enterprise?**
 
 ## The governing lens (why school ≠ enterprise)
