@@ -9,13 +9,14 @@ import {
   Circle, Lock, Unlock, X, BookOpen, Heart, AlertTriangle, Mail,
   Activity, Eye, Edit3, Download, ArrowLeft, RotateCcw,
   UserCheck, UserX, UserPlus, Settings, MessageSquare, Megaphone,
-  Sparkles, Check,
+  Sparkles, Check, Radio, Bell,
 } from "lucide-react";
 import { PALETTE, TopBarShell, formatTime, formatRelative, formatElapsed } from "./shared.jsx";
 import {
   SEVERITY, getIncident, saveIncident, listStaff, responsibilitiesFor, ROLE_DEFINITIONS,
   COMMS_CHANNELS, COMMS_AUDIENCES, COMMS_CATEGORIES, COMMS_STATUS,
   templatesForIncidentType, fillTemplate, newComm, channelLabel, audienceLabel,
+  ACTIVATION_CHANNELS, NOTIFY_STATUS, roleIsAssigned,
 } from "./data.js";
 
 export default function Dashboard({ incidentId, onBack }) {
@@ -140,6 +141,11 @@ export default function Dashboard({ incidentId, onBack }) {
       {drawer === "comms" && (
         <Drawer onClose={() => setDrawer(null)} title="Communications">
           <CommsDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />
+        </Drawer>
+      )}
+      {drawer === "activation" && (
+        <Drawer onClose={() => setDrawer(null)} title="Activation & Notification">
+          <ActivationDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />
         </Drawer>
       )}
       {drawer && typeof drawer === "object" && drawer.kind === "role" && (
@@ -297,6 +303,13 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
               </div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
+              {!incident.activation && !isClosed ? (
+                <button className="btn btn-danger" onClick={() => setDrawer("activation")}><Radio size={14} /> Activate</button>
+              ) : incident.activation ? (
+                <button className="btn" onClick={() => setDrawer("activation")} style={{ borderColor: PALETTE.sage, color: PALETTE.sage }}>
+                  <Radio size={14} /> Activated · {ackRollup(incident)}
+                </button>
+              ) : null}
               <button className="btn" onClick={() => setDrawer("policy")}><BookOpen size={14} /> Policy</button>
               <button className="btn" onClick={() => setDrawer("comms")}><MessageSquare size={14} /> Communications{(incident.comms || []).length ? ` · ${(incident.comms || []).length}` : ""}</button>
               <button className="btn" onClick={() => setDrawer("export")}><Download size={14} /> Export pack</button>
@@ -352,6 +365,12 @@ function LeftRail({ incident, update, addTimelineEntry, isClosed, setDrawer }) {
       <div className="panel-h">
         <span className="panel-h-label">ROLES · {confirmed}/{required}</span>
       </div>
+      {incident.activation && (
+        <button onClick={() => setDrawer("activation")} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", background: "rgba(91,140,124,0.08)", border: "none", borderBottom: `1px solid rgba(0,48,94,0.1)`, cursor: "pointer" }}>
+          <Radio size={12} color={PALETTE.sage} />
+          <span className="mono" style={{ fontSize: 9.5, letterSpacing: "0.1em", color: PALETTE.sage, fontWeight: 600 }}>ACTIVATED · {ackRollup(incident).toUpperCase()}</span>
+        </button>
+      )}
       <div>
         {incident.roles.map((r) => (
           <RoleRow
@@ -1232,6 +1251,185 @@ function PolicyDrawer({ incident }) {
   );
 }
 
+/* ---------- Activation & Notification drawer (PRD M2) ---------- */
+function ActivationDrawer({ incident, update, addTimelineEntry, isClosed }) {
+  const roles = incident.roles || [];
+  const assigned = roles.filter(roleIsAssigned);
+  const unassignedRequired = roles.filter((r) => r.required && !roleIsAssigned(r));
+  const activation = incident.activation || null;
+
+  function declare() {
+    const stamp = Date.now();
+    update((prev) => ({
+      ...prev,
+      activation: { declaredAt: stamp, declaredBy: "K. Patel", channels: ACTIVATION_CHANNELS.map((c) => c.id) },
+      roles: prev.roles.map((r) =>
+        roleIsAssigned(r) ? { ...r, notify: { status: "sent", sentAt: stamp, viaBackup: false } } : r
+      ),
+    }));
+    addTimelineEntry({
+      type: "system",
+      text: `Incident ACTIVATED — ${assigned.length} role-holder${assigned.length === 1 ? "" : "s"} notified via Trinity App push + SMS (out-of-band).`,
+    });
+  }
+
+  function ack(roleId) {
+    const r = roles.find((x) => x.id === roleId);
+    update((prev) => ({
+      ...prev,
+      roles: prev.roles.map((x) => (x.id === roleId ? { ...x, notify: { ...x.notify, status: "acked", ackedAt: Date.now() } } : x)),
+    }));
+    addTimelineEntry({ type: "action", text: `${r.staff} acknowledged notification as ${r.role}.` });
+  }
+
+  function markNoResponse(roleId) {
+    update((prev) => ({
+      ...prev,
+      roles: prev.roles.map((x) => (x.id === roleId ? { ...x, notify: { ...x.notify, status: "no_response" } } : x)),
+    }));
+  }
+
+  function escalateToBackup(roleId) {
+    const r = roles.find((x) => x.id === roleId);
+    if (!r?.backup) return;
+    const stamp = Date.now();
+    update((prev) => ({
+      ...prev,
+      roles: prev.roles.map((x) =>
+        x.id === roleId
+          ? { ...x, staff: r.backup, initials: initialsOf(r.backup), backup: undefined, notify: { status: "sent", sentAt: stamp, viaBackup: true } }
+          : x
+      ),
+    }));
+    addTimelineEntry({ type: "system", text: `No response from ${r.staff} — ${r.role} escalated to backup ${r.backup}, re-notified.` });
+  }
+
+  function renotify(roleId) {
+    const r = roles.find((x) => x.id === roleId);
+    update((prev) => ({
+      ...prev,
+      roles: prev.roles.map((x) => (x.id === roleId ? { ...x, notify: { ...x.notify, status: "sent", sentAt: Date.now() } } : x)),
+    }));
+    addTimelineEntry({ type: "system", text: `Re-notified ${r.staff} for ${r.role}.` });
+  }
+
+  const notified = assigned.filter((r) => r.notify);
+  const ackedCount = notified.filter((r) => r.notify.status === "acked").length;
+  const pct = notified.length ? Math.round((ackedCount / notified.length) * 100) : 0;
+
+  return (
+    <div>
+      <div style={{ padding: 16, background: PALETTE.tealDeep, color: PALETTE.paper, marginBottom: 20 }}>
+        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.sage, marginBottom: 6 }}>MODULE M2 · ACTIVATION & NOTIFICATION</div>
+        <div className="display" style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.015em" }}>Declare once. Everyone alerted.</div>
+        <p style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.85, marginTop: 8 }}>
+          One action notifies every assigned role-holder across two independent channels, then tracks who has acknowledged.
+          {incident.isDrill ? " Drill mode — notifications are simulated." : " Prototype — sends are simulated (no live gateway yet)."}
+        </p>
+      </div>
+
+      {/* Channels */}
+      <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6, marginBottom: 8 }}>ACTIVATION CHANNELS · ≥2 INDEPENDENT</div>
+      <div style={{ display: "grid", gap: 6, marginBottom: 20 }}>
+        {ACTIVATION_CHANNELS.map((ch) => (
+          <div key={ch.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", border: `1px solid rgba(0,48,94,0.14)`, background: PALETTE.paper }}>
+            <Bell size={14} color={PALETTE.teal} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: PALETTE.ink }}>{ch.label}</div>
+              <div className="mono" style={{ fontSize: 9.5, letterSpacing: "0.04em", color: PALETTE.inkSoft, marginTop: 2 }}>{ch.note}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {!activation ? (
+        <>
+          {unassignedRequired.length > 0 && (
+            <div style={{ padding: "10px 12px", background: "rgba(168,85,53,0.08)", border: `1px solid rgba(168,85,53,0.3)`, marginBottom: 16, fontSize: 12.5, color: PALETTE.rust, lineHeight: 1.5 }}>
+              <strong>{unassignedRequired.length} required role{unassignedRequired.length === 1 ? "" : "s"} unassigned</strong> — {unassignedRequired.map((r) => r.role).join(", ")}. They won't be notified until someone is assigned.
+            </div>
+          )}
+          <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6, marginBottom: 8 }}>WILL NOTIFY · {assigned.length}</div>
+          <div style={{ border: `1px solid rgba(0,48,94,0.14)`, marginBottom: 20 }}>
+            {assigned.length === 0 ? (
+              <p style={{ fontSize: 13, color: PALETTE.inkSoft, fontStyle: "italic", padding: 14, margin: 0 }}>No one assigned yet — assign roles before activating.</p>
+            ) : assigned.map((r, i) => (
+              <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: i < assigned.length - 1 ? `1px solid rgba(0,48,94,0.08)` : "none", fontSize: 13 }}>
+                <span style={{ color: PALETTE.ink }}>{r.staff}</span>
+                <span className="mono" style={{ fontSize: 10, color: PALETTE.inkSoft }}>{r.role.toUpperCase()}</span>
+              </div>
+            ))}
+          </div>
+          <button onClick={declare} disabled={isClosed || assigned.length === 0} className="btn btn-danger" style={{ width: "100%", justifyContent: "center", opacity: isClosed || assigned.length === 0 ? 0.5 : 1 }}>
+            <Radio size={15} /> Declare & notify {assigned.length} role-holder{assigned.length === 1 ? "" : "s"}
+          </button>
+        </>
+      ) : (
+        <>
+          {/* Roll-up */}
+          <div style={{ border: `1px solid rgba(0,48,94,0.14)`, padding: 16, marginBottom: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+              <span className="display" style={{ fontSize: 20, color: PALETTE.teal, fontWeight: 500 }}>{ackedCount} of {notified.length} acknowledged</span>
+              <span className="mono" style={{ fontSize: 11, color: PALETTE.inkSoft }}>{pct}%</span>
+            </div>
+            <div style={{ height: 6, background: PALETTE.tealMist, overflow: "hidden" }}>
+              <div style={{ width: `${pct}%`, height: "100%", background: PALETTE.sage, transition: "width 240ms ease" }} />
+            </div>
+            <div className="mono" style={{ fontSize: 9.5, letterSpacing: "0.06em", color: PALETTE.inkSoft, marginTop: 10 }}>
+              DECLARED {formatTime(activation.declaredAt)} BY {activation.declaredBy.toUpperCase()} · VIA {activation.channels.map(channelLabel).join(" + ").toUpperCase()}
+            </div>
+          </div>
+
+          <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6, marginBottom: 8 }}>RECIPIENTS</div>
+          <div style={{ display: "grid", gap: 8 }}>
+            {notified.map((r) => (
+              <RecipientRow key={r.id} role={r} isClosed={isClosed} onAck={() => ack(r.id)} onNoResponse={() => markNoResponse(r.id)} onEscalate={() => escalateToBackup(r.id)} onRenotify={() => renotify(r.id)} />
+            ))}
+          </div>
+          {unassignedRequired.length > 0 && (
+            <p style={{ fontSize: 12, color: PALETTE.rust, marginTop: 14, lineHeight: 1.5 }}>
+              Still unassigned: {unassignedRequired.map((r) => r.role).join(", ")} — assign, then re-open this panel to notify them.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function RecipientRow({ role, isClosed, onAck, onNoResponse, onEscalate, onRenotify }) {
+  const n = role.notify || {};
+  const st = NOTIFY_STATUS[n.status] || NOTIFY_STATUS.sent;
+  const acked = n.status === "acked";
+  return (
+    <div style={{ border: `1px solid rgba(0,48,94,0.14)`, background: PALETTE.paper, padding: "11px 14px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 500, color: PALETTE.ink }}>
+            {role.staff}{n.viaBackup && <span className="mono" style={{ fontSize: 9, color: PALETTE.rust, marginLeft: 6 }}>BACKUP</span>}
+          </div>
+          <div className="mono" style={{ fontSize: 9.5, letterSpacing: "0.1em", color: PALETTE.inkSoft, marginTop: 3 }}>{role.role.toUpperCase()}</div>
+        </div>
+        <span className="chip" style={{ borderColor: st.color, color: st.color, flexShrink: 0 }}>{st.label}</span>
+      </div>
+      <div className="mono" style={{ fontSize: 9.5, color: PALETTE.inkSoft, marginTop: 6 }}>
+        {acked ? `Acknowledged ${n.ackedAt ? formatTime(n.ackedAt) : ""}` : `Notified ${n.sentAt ? formatTime(n.sentAt) : ""}`}
+      </div>
+      {!isClosed && !acked && (
+        <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+          <button onClick={onAck} className="btn" style={{ padding: "6px 10px", fontSize: 11.5, borderColor: PALETTE.sage, color: PALETTE.sage }}><Check size={12} /> Mark acknowledged</button>
+          {role.backup && <button onClick={onEscalate} className="btn" style={{ padding: "6px 10px", fontSize: 11.5 }}><UserCheck size={12} /> Escalate to backup</button>}
+          {n.status !== "no_response" ? (
+            <button onClick={onNoResponse} className="btn-ghost" style={{ padding: "6px 8px", fontSize: 11, color: PALETTE.inkSoft, background: "none", border: "none" }}>No response</button>
+          ) : (
+            <button onClick={onRenotify} className="btn-ghost" style={{ padding: "6px 8px", fontSize: 11, color: PALETTE.teal, background: "none", border: "none" }}>Re-notify</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------- Communications drawer (PRD M4) ---------- */
 function CommsDrawer({ incident, update, addTimelineEntry, isClosed }) {
   const comms = incident.comms || [];
@@ -1488,6 +1686,7 @@ function ExportDrawer({ incident }) {
     { k: "EMP references", v: incident.empSection },
     { k: "Policy references", v: `${(incident.policies || []).length} linked` },
     { k: "Student profile", v: incident.student ? incident.student.initials + " · attached" : "n/a" },
+    { k: "Activation", v: incident.activation ? `declared ${formatTime(incident.activation.declaredAt)} · ${ackRollup(incident)}` : "not activated" },
     { k: "Communications log", v: commsSummary(incident.comms) },
   ];
 
@@ -1595,6 +1794,22 @@ function ExportDrawer({ incident }) {
     }
     rule();
 
+    // Activation & notification
+    heading("ACTIVATION & NOTIFICATION");
+    if (!incident.activation) {
+      line("Incident not activated.", { color: [90, 102, 112] });
+    } else {
+      const a = incident.activation;
+      line(`Declared ${new Date(a.declaredAt).toLocaleString("en-AU")} by ${a.declaredBy} · channels: ${a.channels.map(channelLabel).join(", ")}`, { size: 10, gap: 13 });
+      const notified = incident.roles.filter((r) => roleIsAssigned(r) && r.notify);
+      for (const r of notified) {
+        const s = (r.notify.status || "sent");
+        const stamp = s === "acked" && r.notify.ackedAt ? ` at ${new Date(r.notify.ackedAt).toLocaleTimeString("en-AU")}` : "";
+        line(`${r.role}  —  ${r.staff}  ·  ${s.replace("_", " ")}${stamp}${r.notify.viaBackup ? "  (via backup)" : ""}`, { size: 10 });
+      }
+    }
+    rule();
+
     // Communications
     const comms = incident.comms || [];
     heading(`COMMUNICATIONS (${comms.length} ${comms.length === 1 ? "message" : "messages"})`);
@@ -1664,6 +1879,16 @@ function commsSummary(comms) {
   if (list.length === 0) return "none yet";
   const dispatched = list.filter((c) => c.status === "dispatched").length;
   return `${list.length} total · ${dispatched} dispatched`;
+}
+
+function ackRollup(incident) {
+  const notified = (incident.roles || []).filter((r) => roleIsAssigned(r) && r.notify);
+  const acked = notified.filter((r) => r.notify.status === "acked").length;
+  return `${acked}/${notified.length} ack`;
+}
+
+function initialsOf(name) {
+  return String(name || "").split(/\s+/).map((s) => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "—";
 }
 
 function triggerDownload(blob, filename) {

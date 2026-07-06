@@ -1008,3 +1008,30 @@ export const COMMS_STATUS = {
   approved: { label: "Approved", color: "#5B8C7C" },
   dispatched: { label: "Dispatched", color: "#00305E" },
 };
+
+// ============================================================
+// v6 — ACTIVATION & NOTIFICATION (PRD M2 / FR-ACT)
+// One-action declare → cascading notification to assigned role-
+// holders with acknowledgement tracking and failover to backup.
+// NFR-02/03/11: ≥2 independent activation channels, one of them
+// out-of-band (SMS) so activation survives an M365/network outage.
+// Prototype: sends are SIMULATED (no backend / SMS gateway yet).
+// ============================================================
+
+// Two independent channels — the app push AND an out-of-band SMS.
+export const ACTIVATION_CHANNELS = [
+  { id: "digistorm", label: "Trinity App push", note: "Primary · in-app alert" },
+  { id: "sms", label: "SMS (out-of-band)", note: "Independent of M365 / network" },
+];
+
+// Per-recipient acknowledgement state during an activation.
+export const NOTIFY_STATUS = {
+  sent: { label: "Notified", color: "#B89460" },
+  acked: { label: "Acknowledged", color: "#5B8C7C" },
+  no_response: { label: "No response", color: "#A85535" },
+};
+
+// A role can be notified only if a real person is assigned to it.
+export function roleIsAssigned(role) {
+  return !!role && role.status !== "unassigned" && role.staff && role.staff !== "—";
+}
