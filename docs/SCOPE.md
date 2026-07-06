@@ -65,10 +65,10 @@ Avoid feature creep and platform expansion beyond incident management.
 | Who has been notified? | Activation & acknowledgements (M2) | Built (simulated) |
 | What decisions have been made? | Decision Log | **Built** (2026-07-06) |
 | What comms have been approved? | Communications (M4) | Built (simulated) |
-| What risks remain? | **Risk / Watch register** | **Not built** |
+| What risks remain? | Risk / Watch register | **Built** (2026-07-06) |
 | Progress to resolution | Status + Recovery Readiness | Partial |
 
-Remaining unbuilt in-charter gap: the **Risk / Watch register**. (Decision Log shipped 2026-07-06.)
+All nine "immediately know" questions now have at least a prototype answer. Decision Log and Risk/Watch Register both shipped 2026-07-06.
 
 ## Capability classification (from VISION_2030.md, re-cut through this charter)
 
