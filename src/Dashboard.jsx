@@ -8,10 +8,15 @@ import {
   Send, Plus, Phone, ChevronRight, ChevronDown, ChevronUp, CheckCircle2,
   Circle, Lock, Unlock, X, BookOpen, Heart, AlertTriangle, Mail,
   Activity, Eye, Edit3, Download, ArrowLeft, RotateCcw,
-  UserCheck, UserX, UserPlus, Settings,
+  UserCheck, UserX, UserPlus, Settings, MessageSquare, Megaphone,
+  Sparkles, Check,
 } from "lucide-react";
 import { PALETTE, TopBarShell, formatTime, formatRelative, formatElapsed } from "./shared.jsx";
-import { SEVERITY, getIncident, saveIncident, listStaff, responsibilitiesFor, ROLE_DEFINITIONS } from "./data.js";
+import {
+  SEVERITY, getIncident, saveIncident, listStaff, responsibilitiesFor, ROLE_DEFINITIONS,
+  COMMS_CHANNELS, COMMS_AUDIENCES, COMMS_CATEGORIES, COMMS_STATUS,
+  templatesForIncidentType, fillTemplate, newComm, channelLabel, audienceLabel,
+} from "./data.js";
 
 export default function Dashboard({ incidentId, onBack }) {
   const [incident, setIncident] = useState(null);
@@ -131,6 +136,11 @@ export default function Dashboard({ incidentId, onBack }) {
       )}
       {drawer === "export" && (
         <Drawer onClose={() => setDrawer(null)} title="Incident Pack Export"><ExportDrawer incident={incident} /></Drawer>
+      )}
+      {drawer === "comms" && (
+        <Drawer onClose={() => setDrawer(null)} title="Communications">
+          <CommsDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />
+        </Drawer>
       )}
       {drawer && typeof drawer === "object" && drawer.kind === "role" && (
         <Drawer onClose={() => setDrawer(null)} title="Manage role assignment">
@@ -288,6 +298,7 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn" onClick={() => setDrawer("policy")}><BookOpen size={14} /> Policy</button>
+              <button className="btn" onClick={() => setDrawer("comms")}><MessageSquare size={14} /> Communications{(incident.comms || []).length ? ` · ${(incident.comms || []).length}` : ""}</button>
               <button className="btn" onClick={() => setDrawer("export")}><Download size={14} /> Export pack</button>
               {!isClosed ? (
                 <button className="btn btn-primary" onClick={closeIncident}><Lock size={14} /> Close incident</button>
@@ -1221,6 +1232,251 @@ function PolicyDrawer({ incident }) {
   );
 }
 
+/* ---------- Communications drawer (PRD M4) ---------- */
+function CommsDrawer({ incident, update, addTimelineEntry, isClosed }) {
+  const comms = incident.comms || [];
+  const [view, setView] = useState("list"); // "list" | "compose"
+  const [editing, setEditing] = useState(null); // draft comm being composed
+  const [aiState, setAiState] = useState("idle"); // idle | loading | error | done
+  const [aiNote, setAiNote] = useState("");
+
+  function persistComms(nextComms) {
+    update((prev) => ({ ...prev, comms: nextComms }));
+  }
+
+  function startFromTemplate(tpl) {
+    setAiState("idle");
+    setAiNote("");
+    setEditing({
+      templateId: tpl?.id || null,
+      name: tpl?.name || "New message",
+      audienceId: tpl?.audienceId || "parents_all",
+      channels: tpl?.channels ? [...tpl.channels] : [],
+      body: tpl ? fillTemplate(tpl.body, incident) : "",
+    });
+    setView("compose");
+  }
+
+  function toggleChannel(id) {
+    setEditing((e) => ({
+      ...e,
+      channels: e.channels.includes(id) ? e.channels.filter((c) => c !== id) : [...e.channels, id],
+    }));
+  }
+
+  async function runAIDraft() {
+    if (!editing) return;
+    setAiState("loading");
+    setAiNote("");
+    try {
+      const res = await fetch("/api/draft", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          incidentType: incident.typeLabel,
+          audience: audienceLabel(editing.audienceId),
+          channels: editing.channels.map(channelLabel),
+          seed: editing.body,
+        }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const data = await res.json();
+      if (!data.text) throw new Error("empty");
+      setEditing((e) => ({ ...e, body: data.text }));
+      setAiState("done");
+      setAiNote("AI draft generated — review and edit before approval.");
+    } catch {
+      setAiState("error");
+      setAiNote("AI drafting unavailable in this environment — the template text is kept. (Set ANTHROPIC_API_KEY on the server to enable.)");
+    }
+  }
+
+  function saveDraft() {
+    if (!editing) return;
+    const comm = newComm(editing);
+    persistComms([comm, ...comms]);
+    addTimelineEntry({ type: "comm", text: `Communication drafted — "${comm.name}" for ${audienceLabel(comm.audienceId)}.` });
+    setEditing(null);
+    setView("list");
+  }
+
+  function approve(id) {
+    const c = comms.find((x) => x.id === id);
+    persistComms(comms.map((x) => (x.id === id ? { ...x, status: "approved", approvedBy: "K. Patel", approvedAt: Date.now() } : x)));
+    addTimelineEntry({ type: "comm", text: `Communication approved by Principal — "${c.name}".` });
+  }
+
+  function dispatchComm(id) {
+    const c = comms.find((x) => x.id === id);
+    const chans = c.channels.map(channelLabel).join(", ") || "no channel selected";
+    persistComms(comms.map((x) => (x.id === id ? { ...x, status: "dispatched", dispatchedAt: Date.now() } : x)));
+    addTimelineEntry({ type: "comm", text: `Communication dispatched to ${audienceLabel(c.audienceId)} via ${chans} — "${c.name}".` });
+  }
+
+  function removeComm(id) {
+    persistComms(comms.filter((x) => x.id !== id));
+  }
+
+  // ---- Compose view ----
+  if (view === "compose" && editing) {
+    return (
+      <div>
+        <button onClick={() => { setView("list"); setEditing(null); }} className="btn-ghost" style={{ background: "none", border: "none", padding: 0, color: PALETTE.teal, fontSize: 12, display: "flex", alignItems: "center", gap: 6, marginBottom: 16 }}>
+          <ArrowLeft size={13} /> Back to messages
+        </button>
+
+        <Section title="Message name">
+          <input type="text" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+        </Section>
+
+        <Section title="Audience">
+          <select value={editing.audienceId} onChange={(e) => setEditing({ ...editing, audienceId: e.target.value })}>
+            {COMMS_AUDIENCES.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+          </select>
+        </Section>
+
+        <Section title="Channels">
+          <div style={{ display: "grid", gap: 6 }}>
+            {COMMS_CHANNELS.map((ch) => {
+              const on = editing.channels.includes(ch.id);
+              return (
+                <button key={ch.id} onClick={() => toggleChannel(ch.id)} style={{
+                  display: "flex", alignItems: "center", gap: 10, textAlign: "left",
+                  padding: "9px 12px", background: on ? PALETTE.tealMist : PALETTE.paper,
+                  border: `1px solid ${on ? PALETTE.teal : "rgba(0,48,94,0.15)"}`, cursor: "pointer",
+                }}>
+                  <div style={{ width: 16, height: 16, flexShrink: 0, border: `1.5px solid ${on ? PALETTE.teal : "rgba(0,48,94,0.3)"}`, background: on ? PALETTE.teal : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {on && <Check size={11} color={PALETTE.paper} strokeWidth={3} />}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: PALETTE.ink }}>{ch.label}</div>
+                    <div className="mono" style={{ fontSize: 9.5, letterSpacing: "0.04em", color: PALETTE.inkSoft, marginTop: 2 }}>{ch.note}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </Section>
+
+        <Section title="Message body">
+          <textarea value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })} rows={10} style={{ resize: "vertical", lineHeight: 1.55, fontSize: 13 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+            <button onClick={runAIDraft} disabled={aiState === "loading"} className="btn" style={{ fontSize: 12 }}>
+              <Sparkles size={13} /> {aiState === "loading" ? "Drafting…" : "AI draft"}
+            </button>
+            <span className="mono" style={{ fontSize: 10, color: PALETTE.inkSoft }}>Human reviews before sending</span>
+          </div>
+          {aiNote && (
+            <p style={{ fontSize: 12, lineHeight: 1.5, color: aiState === "error" ? PALETTE.rust : PALETTE.sage, marginTop: 10, marginBottom: 0 }}>{aiNote}</p>
+          )}
+        </Section>
+
+        <button onClick={saveDraft} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: 8 }}>
+          <FileText size={14} /> Save as draft
+        </button>
+      </div>
+    );
+  }
+
+  // ---- List view ----
+  return (
+    <div>
+      <div style={{ padding: 16, background: PALETTE.tealDeep, color: PALETTE.paper, marginBottom: 20 }}>
+        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.sage, marginBottom: 6 }}>MODULE M4 · COMMUNICATIONS</div>
+        <div className="display" style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.015em" }}>Draft, approve, dispatch.</div>
+        <p style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.85, marginTop: 8 }}>
+          Every message is drafted, signed off by the Principal, then released. Nothing is sent automatically.
+          {incident.isDrill && " Drill mode — dispatch is simulated."}
+        </p>
+      </div>
+
+      {isClosed && <p style={{ fontSize: 12, color: PALETTE.inkSoft, marginBottom: 16 }}>This incident is closed — messages are read-only.</p>}
+
+      {!isClosed && (
+        <>
+          <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6, marginBottom: 10 }}>START FROM A TEMPLATE</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+            {templatesForIncidentType(incident.type).map((tpl) => {
+              const cat = COMMS_CATEGORIES[tpl.category] || {};
+              const suited = tpl.suggestedTypes.includes(incident.type);
+              return (
+                <button key={tpl.id} onClick={() => startFromTemplate(tpl)} style={{
+                  textAlign: "left", padding: "10px 12px", background: PALETTE.paper,
+                  border: `1px solid rgba(0,48,94,0.15)`, borderLeft: `3px solid ${cat.color || PALETTE.teal}`, cursor: "pointer",
+                }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: PALETTE.ink, lineHeight: 1.3 }}>{tpl.name}</div>
+                  <div className="mono" style={{ fontSize: 9, letterSpacing: "0.08em", color: cat.color || PALETTE.inkSoft, marginTop: 5, textTransform: "uppercase" }}>{cat.label}</div>
+                  {tpl.owner && <div className="mono" style={{ fontSize: 9, color: PALETTE.inkSoft, marginTop: 3 }}>{tpl.owner}</div>}
+                  {suited && <div className="mono" style={{ fontSize: 8.5, letterSpacing: "0.1em", color: PALETTE.sage, marginTop: 4, textTransform: "uppercase" }}>◆ suggested</div>}
+                </button>
+              );
+            })}
+          </div>
+          <button onClick={() => startFromTemplate(null)} className="btn" style={{ width: "100%", justifyContent: "center", marginBottom: 24 }}>
+            <Plus size={13} /> Blank message
+          </button>
+        </>
+      )}
+
+      <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6, marginBottom: 10 }}>
+        MESSAGES · {comms.length}
+      </div>
+      {comms.length === 0 ? (
+        <p style={{ fontSize: 13, color: PALETTE.inkSoft, fontStyle: "italic" }}>No communications yet. Start one from a template above.</p>
+      ) : (
+        <div style={{ display: "grid", gap: 10 }}>
+          {comms.map((c) => <CommCard key={c.id} comm={c} isClosed={isClosed} onApprove={() => approve(c.id)} onDispatch={() => dispatchComm(c.id)} onDelete={() => removeComm(c.id)} isDrill={incident.isDrill} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CommCard({ comm, isClosed, onApprove, onDispatch, onDelete, isDrill }) {
+  const st = COMMS_STATUS[comm.status] || COMMS_STATUS.draft;
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ border: `1px solid rgba(0,48,94,0.14)`, background: PALETTE.paper }}>
+      <div style={{ padding: "12px 14px", borderBottom: open ? `1px solid rgba(0,48,94,0.1)` : "none" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: PALETTE.ink }}>{comm.name}</div>
+            <div className="mono" style={{ fontSize: 10, color: PALETTE.inkSoft, marginTop: 4 }}>{audienceLabel(comm.audienceId)}</div>
+          </div>
+          <span className="chip" style={{ borderColor: st.color, color: st.color, flexShrink: 0 }}>{st.label}</span>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 10 }}>
+          {comm.channels.length ? comm.channels.map((ch) => (
+            <span key={ch} className="mono" style={{ fontSize: 9, letterSpacing: "0.06em", color: PALETTE.teal, border: `1px solid rgba(0,48,94,0.2)`, padding: "2px 6px" }}>{channelLabel(ch)}</span>
+          )) : <span className="mono" style={{ fontSize: 9, color: PALETTE.rust }}>NO CHANNEL SELECTED</span>}
+        </div>
+        <button onClick={() => setOpen((o) => !o)} className="btn-ghost" style={{ background: "none", border: "none", padding: 0, color: PALETTE.teal, fontSize: 11, marginTop: 10, display: "flex", alignItems: "center", gap: 4 }}>
+          {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />} {open ? "Hide" : "Preview"} message
+        </button>
+        {open && (
+          <p style={{ fontSize: 12.5, lineHeight: 1.55, color: PALETTE.ink, marginTop: 10, marginBottom: 0, whiteSpace: "pre-wrap", background: PALETTE.parchment, padding: 12, border: `1px solid rgba(0,48,94,0.08)` }}>{comm.body}</p>
+        )}
+      </div>
+      {!isClosed && (
+        <div style={{ display: "flex", gap: 6, padding: "10px 14px", background: PALETTE.parchment }}>
+          {comm.status === "draft" && (
+            <button onClick={onApprove} className="btn btn-primary" style={{ flex: 1, justifyContent: "center", padding: "7px 10px", fontSize: 12 }}><Check size={12} /> Approve</button>
+          )}
+          {comm.status === "approved" && (
+            <button onClick={onDispatch} className="btn btn-primary" style={{ flex: 1, justifyContent: "center", padding: "7px 10px", fontSize: 12 }}><Megaphone size={12} /> {isDrill ? "Dispatch (simulated)" : "Mark dispatched"}</button>
+          )}
+          {comm.status === "dispatched" && (
+            <span style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: PALETTE.sage }}><CheckCircle2 size={13} /> Dispatched {comm.dispatchedAt ? formatTime(comm.dispatchedAt) : ""}</span>
+          )}
+          {comm.status !== "dispatched" && (
+            <button onClick={onDelete} className="btn" style={{ padding: "7px 10px", fontSize: 12 }} title="Delete draft"><X size={13} /></button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ExportDrawer({ incident }) {
   const sections = [
     { k: "Incident metadata", v: `${incident.id} · ${incident.title}` },
@@ -1232,7 +1488,7 @@ function ExportDrawer({ incident }) {
     { k: "EMP references", v: incident.empSection },
     { k: "Policy references", v: `${(incident.policies || []).length} linked` },
     { k: "Student profile", v: incident.student ? incident.student.initials + " · attached" : "n/a" },
-    { k: "Communications log", v: "drafts only · none sent" },
+    { k: "Communications log", v: commsSummary(incident.comms) },
   ];
 
   function downloadJSON() {
@@ -1339,6 +1595,23 @@ function ExportDrawer({ incident }) {
     }
     rule();
 
+    // Communications
+    const comms = incident.comms || [];
+    heading(`COMMUNICATIONS (${comms.length} ${comms.length === 1 ? "message" : "messages"})`);
+    if (comms.length === 0) {
+      line("No communications recorded.", { color: [90, 102, 112] });
+    } else {
+      for (const c of comms) {
+        const status = (c.status || "draft").charAt(0).toUpperCase() + (c.status || "draft").slice(1);
+        const chans = (c.channels || []).map(channelLabel).join(", ") || "no channel";
+        line(`${c.name}  —  ${audienceLabel(c.audienceId)}  ·  ${status}`, { size: 10, color: [0, 48, 94], bold: true, gap: 13 });
+        line(`Channels: ${chans}${c.dispatchedAt ? `  ·  dispatched ${new Date(c.dispatchedAt).toLocaleString("en-AU")}` : ""}`, { size: 9, color: [90, 102, 112], gap: 12 });
+        line(c.body, { size: 10, indent: 8, gap: 13 });
+        y += 4;
+      }
+    }
+    rule();
+
     // Policies
     heading("EMP & POLICY REFERENCES");
     if (!incident.policies || incident.policies.length === 0) {
@@ -1384,6 +1657,13 @@ function ExportDrawer({ incident }) {
       </div>
     </div>
   );
+}
+
+function commsSummary(comms) {
+  const list = comms || [];
+  if (list.length === 0) return "none yet";
+  const dispatched = list.filter((c) => c.status === "dispatched").length;
+  return `${list.length} total · ${dispatched} dispatched`;
 }
 
 function triggerDownload(blob, filename) {

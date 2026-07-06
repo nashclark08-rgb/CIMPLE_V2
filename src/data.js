@@ -856,3 +856,155 @@ export function suggestStaffForRole(roleName) {
     backup: matches[1] || null,
   };
 }
+
+// ============================================================
+// v5 — COMMUNICATIONS MODULE (PRD M4 / FR-COMM)
+// Draft → approve → dispatch, routed through the Communications
+// Lead and signed off by the Incident Commander before release.
+// Channel notes below encode TAC's real-world constraints as
+// captured in Annika Fairley's PRD review (June 2026).
+// ============================================================
+
+// Dispatch channels TAC actually has. `note` reflects the
+// current real-world state so the demo is honest about what is
+// and isn't wired up yet.
+export const COMMS_CHANNELS = [
+  { id: "digistorm", label: "Trinity App (DigiStorm)", note: "Primary parent channel · push notification" },
+  { id: "sms", label: "SMS", note: "Out-of-band · numbers sourced from DigiStorm" },
+  { id: "email", label: "Email", note: "Staff & parent distribution lists" },
+  { id: "website", label: "Website notice", note: "Holding page built & hidden — ready to publish" },
+  { id: "vivi", label: "Vivi screens", note: "On-campus screens · evac/lockdown captured (not CI levels yet)" },
+];
+
+export function channelLabel(id) {
+  return COMMS_CHANNELS.find((c) => c.id === id)?.label || id;
+}
+
+// Who a message is addressed to.
+export const COMMS_AUDIENCES = [
+  { id: "families_affected", label: "Affected families" },
+  { id: "parents_all", label: "All parents & carers" },
+  { id: "staff_all", label: "All staff" },
+  { id: "community", label: "Wider community" },
+  { id: "media", label: "Media" },
+  { id: "head_office", label: "Head office / network" },
+];
+
+export function audienceLabel(id) {
+  return COMMS_AUDIENCES.find((a) => a.id === id)?.label || id;
+}
+
+// Seeded template library. Holding & media statements are
+// attributed to MWHI (Megan Whitshed, Marketing Manager), who
+// per the PRD review already has holding statements drafted.
+// Bodies use {{tokens}} filled by fillTemplate() at draft time.
+export const COMMS_TEMPLATES = [
+  {
+    id: "tpl-holding",
+    name: "Holding statement — families",
+    category: "holding",
+    audienceId: "parents_all",
+    channels: ["digistorm", "sms", "website"],
+    owner: "MWHI — M. Whitshed",
+    suggestedTypes: ["lockdown", "evacuation", "external_threat", "hazmat", "natural_disaster", "death_oncampus", "missing"],
+    body:
+      "Trinity Anglican College is currently managing an incident at the College. The safety and wellbeing of our students and staff is our absolute priority, and our emergency procedures are in place. Please do not attend the College at this time and await official communication. A further update will follow as soon as we are able. — Trinity Anglican College",
+  },
+  {
+    id: "tpl-media-holding",
+    name: "Media holding statement",
+    category: "media",
+    audienceId: "media",
+    channels: ["email"],
+    owner: "MWHI — M. Whitshed",
+    suggestedTypes: ["external_threat", "death_oncampus", "death_offcampus", "lockdown", "hazmat", "natural_disaster"],
+    body:
+      "Trinity Anglican College can confirm it is responding to an incident today, {{date}}. The College's priority is the safety and wellbeing of its students and staff, and established emergency procedures have been followed. The College is cooperating with emergency services and will provide further information as appropriate. Media enquiries: Marketing Manager, M. Whitshed. — Trinity Anglican College",
+  },
+  {
+    id: "tpl-parent-notify",
+    name: "Parent notification",
+    category: "parent",
+    audienceId: "families_affected",
+    channels: ["digistorm", "email"],
+    owner: null,
+    suggestedTypes: [],
+    body:
+      "Dear Parents and Carers,\n\nWe are writing to inform you of an incident involving {{incident_type}} at Trinity Anglican College today, {{date}}. Our staff responded in line with the College's emergency management procedures and all students are safe and accounted for.\n\n[Add specific, factual detail here — do not speculate.]\n\nIf you have any concerns, please contact the College office. We will provide any further updates as needed.\n\nKind regards,\n{{principal}}\nPrincipal, Trinity Anglican College",
+  },
+  {
+    id: "tpl-staff-notice",
+    name: "Staff notice",
+    category: "staff",
+    audienceId: "staff_all",
+    channels: ["email", "vivi"],
+    owner: null,
+    suggestedTypes: ["lockdown", "evacuation", "external_threat", "hazmat", "natural_disaster", "death_offcampus"],
+    body:
+      "STAFF NOTICE — {{incident_type}}\n\nAn incident is currently being managed at {{location}}. Please follow the instructions of your Floor Warden and the Incident Commander. Do not speak with media or post on social media. Await the all-clear via this channel.\n\n— Incident Commander",
+  },
+  {
+    id: "tpl-all-clear",
+    name: "All-clear",
+    category: "allclear",
+    audienceId: "parents_all",
+    channels: ["digistorm", "sms", "website"],
+    owner: null,
+    suggestedTypes: ["lockdown", "evacuation", "external_threat", "hazmat", "natural_disaster"],
+    body:
+      "ALL CLEAR — The incident at Trinity Anglican College has now been resolved and normal operations have resumed. Thank you for your patience and cooperation. Any families needing further information can contact the College office. — {{principal}}, Principal",
+  },
+];
+
+export const COMMS_CATEGORIES = {
+  holding: { label: "Holding statement", color: "#B89460" },
+  parent: { label: "Parent notification", color: "#00305E" },
+  staff: { label: "Staff notice", color: "#5B8C7C" },
+  allclear: { label: "All-clear", color: "#5B8C7C" },
+  media: { label: "Media", color: "#A85535" },
+};
+
+// Templates suggested for a given incident type, best matches first.
+export function templatesForIncidentType(typeId) {
+  const suited = COMMS_TEMPLATES.filter((t) => t.suggestedTypes.includes(typeId));
+  const rest = COMMS_TEMPLATES.filter((t) => !t.suggestedTypes.includes(typeId));
+  return [...suited, ...rest];
+}
+
+// Substitute {{tokens}} in a template body against an incident.
+export function fillTemplate(body, incident) {
+  const settings = loadAll().settings || {};
+  const now = new Date();
+  const tokens = {
+    incident_type: (incident?.typeLabel || "an incident").toLowerCase(),
+    location: incident?.location || "the College",
+    date: now.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+    time: `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`,
+    principal: settings.principalName || "K. Patel",
+    school: "Trinity Anglican College",
+  };
+  return String(body).replace(/\{\{(\w+)\}\}/g, (m, key) => (key in tokens ? tokens[key] : m));
+}
+
+// Factory for a new communication (starts as a draft).
+export function newComm({ templateId = null, name, audienceId, channels = [], body }) {
+  return {
+    id: `cm${Date.now()}`,
+    ts: Date.now(),
+    templateId,
+    name: name || "Untitled message",
+    audienceId: audienceId || "parents_all",
+    channels,
+    body: body || "",
+    status: "draft", // draft → approved → dispatched
+    approvedBy: null,
+    approvedAt: null,
+    dispatchedAt: null,
+  };
+}
+
+export const COMMS_STATUS = {
+  draft: { label: "Draft", color: "#4A5664" },
+  approved: { label: "Approved", color: "#5B8C7C" },
+  dispatched: { label: "Dispatched", color: "#00305E" },
+};
