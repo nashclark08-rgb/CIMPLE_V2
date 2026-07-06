@@ -174,7 +174,7 @@ export default function Dashboard({ incidentId, onBack }) {
         </Drawer>
       )}
       {drawer === "copilot" && (
-        <Drawer onClose={() => setDrawer(null)} title="Crisis Copilot">
+        <Drawer onClose={() => setDrawer(null)} title="Blind Spots">
           <CopilotDrawer incident={incident} addTimelineEntry={addTimelineEntry} setDrawer={setDrawer} now={now} />
         </Drawer>
       )}
@@ -291,7 +291,7 @@ function TopBarPresence({ incident, now }) {
    RED FOLDER MODE (CORE · command under pressure)
    Stress-optimised full-screen view. Only: situation · critical
    actions · active risks · latest decisions · key contacts.
-   Composes the Decision Log, Risk register, Copilot, tasks &
+   Composes the Decision Log, Risk register, Blind Spots, tasks &
    roles already built — one calm, high-contrast surface.
    ============================================================ */
 function RedFolderView({ incident, now, isClosed, onExit, onToggleTask, onActivate, onOpen }) {
@@ -515,7 +515,7 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
                 </button>
               ) : null}
               <button className="btn" onClick={() => setDrawer("copilot")} style={copilotFindings.length ? { borderColor: copilotCrit ? PALETTE.crimson : PALETTE.rust, color: copilotCrit ? PALETTE.crimson : PALETTE.rust } : undefined}>
-                <Lightbulb size={14} /> Copilot{copilotFindings.length ? ` · ${copilotFindings.length}` : ""}
+                <Lightbulb size={14} /> Blind Spots{copilotFindings.length ? ` · ${copilotFindings.length}` : ""}
               </button>
               <button className="btn" onClick={() => setDrawer("policy")}><BookOpen size={14} /> Policy</button>
               <button className="btn" onClick={() => setDrawer("decisions")}><Scale size={14} /> Decisions{(incident.decisions || []).length ? ` · ${(incident.decisions || []).length}` : ""}</button>
@@ -1516,7 +1516,7 @@ function PolicyDrawer({ incident }) {
   );
 }
 
-/* ---------- Crisis Copilot drawer (CORE · decision support) ---------- */
+/* ---------- Blind Spots drawer (CORE · decision support) ---------- */
 const COPILOT_TARGET_LABEL = {
   comms: "Communications", activation: "Activation", decisions: "Decision Log", risks: "Risk register", pir: "Post-incident review",
 };
@@ -1528,16 +1528,16 @@ function CopilotDrawer({ incident, addTimelineEntry, setDrawer, now }) {
   const adv = findings.filter((f) => f.severity === "advisory").length;
 
   function logReview() {
-    addTimelineEntry({ type: "system", text: `Crisis Copilot review — ${findings.length} finding(s)${findings.length ? ` (${crit} critical, ${imp} important, ${adv} advisory)` : ""}.` });
+    addTimelineEntry({ type: "system", text: `Blind Spots review — ${findings.length} finding(s)${findings.length ? ` (${crit} critical, ${imp} important, ${adv} advisory)` : ""}.` });
   }
 
   return (
     <div>
       <div style={{ padding: 16, background: PALETTE.tealDeep, color: PALETTE.paper, marginBottom: 18 }}>
-        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.amber, marginBottom: 6 }}>CRISIS COPILOT · WHAT MIGHT BE MISSED</div>
+        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.amber, marginBottom: 6 }}>BLIND SPOTS · WHAT MIGHT BE MISSED</div>
         <div className="display" style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.015em" }}>Have we forgotten anything?</div>
         <p style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.85, marginTop: 8 }}>
-          Suggestions only. The Copilot highlights what may have been overlooked against the response pattern for this incident — it never decides, instructs, or acts.
+          Suggestions only. This check highlights what may have been overlooked against the response pattern for this incident — it never decides, instructs, or acts.
         </p>
       </div>
 
@@ -2566,7 +2566,7 @@ function ExportDrawer({ incident }) {
     { k: "Risk / watch register", v: risksSummary(incident) },
     { k: "Communications log", v: commsSummary(incident.comms) },
     { k: "Post-incident review", v: incident.pir ? `${(PIR_STATUS[incident.pir.status] || {}).label || "Draft"} · ${(incident.pir.correctiveActions || []).length} actions` : "not started" },
-    { k: "Copilot findings", v: copilotSummary(incident) },
+    { k: "Blind spots", v: copilotSummary(incident) },
   ];
 
   function downloadJSON() {
@@ -2747,9 +2747,9 @@ function ExportDrawer({ incident }) {
     }
     rule();
 
-    // Copilot findings (open at export time)
+    // Blind Spots findings (open at export time)
     const copilotFindings = runCopilot(incident);
-    heading(`COPILOT FINDINGS (${copilotFindings.length} open at export)`);
+    heading(`BLIND SPOTS — POTENTIAL GAPS (${copilotFindings.length} open at export)`);
     if (copilotFindings.length === 0) {
       line("No findings — no obvious gaps detected at export time.", { color: [90, 102, 112] });
     } else {
@@ -2760,7 +2760,7 @@ function ExportDrawer({ incident }) {
         line(`Evidence: ${f.evidence}`, { size: 9, color: [90, 102, 112], indent: 8, gap: 12 });
         y += 3;
       }
-      line("Copilot findings are advisory prompts, not instructions. Human judgement governs the response.", { size: 8.5, color: [90, 102, 112], gap: 12 });
+      line("Blind Spots are advisory prompts, not instructions. Human judgement governs the response.", { size: 8.5, color: [90, 102, 112], gap: 12 });
     }
     rule();
 

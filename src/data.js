@@ -1143,7 +1143,7 @@ export function newDecision({ decision, rationale, options, evidence, reviewBy }
 //
 // Model is shaped for zero-rework reuse by:
 //  • Red Folder Mode  → openRisks() gives {severity,title} to show.
-//  • Crisis Copilot   → open/severity/aging/unowned/escalated all
+//  • Blind Spots      → open/severity/aging/unowned/escalated all
 //                       derive from fields (no schema change needed).
 // ============================================================
 
@@ -1151,7 +1151,7 @@ export const RISK_CATEGORIES = [
   "Safety", "Welfare", "Communications", "Operational", "Facilities", "IT", "External Agency", "Other",
 ];
 
-// rank: higher = more severe (for sorting / Copilot thresholds).
+// rank: higher = more severe (for sorting / Blind Spots thresholds).
 export const RISK_SEVERITY = {
   low: { label: "Low", color: "#5B8C7C", rank: 1 },
   medium: { label: "Medium", color: "#B89460", rank: 2 },
