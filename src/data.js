@@ -234,7 +234,7 @@ export function tasksForIncidentType(typeId) {
 }
 
 // ---------- Create new incident ----------
-export function createIncident({ type, severity, title, location, isDrill = false }) {
+export function createIncident({ type, severity, title, location, isDrill = false, roles = null }) {
   const typeMeta = INCIDENT_TYPES.find((t) => t.id === type);
   const allIncidents = loadAll().incidents;
   const id = nextIncidentId(allIncidents);
@@ -254,7 +254,7 @@ export function createIncident({ type, severity, title, location, isDrill = fals
     empSection: typeMeta.emp,
     policies: defaultPoliciesForType(type),
     student: null,
-    roles: rolesForIncidentType(type),
+    roles: roles || rolesForIncidentType(type),
     timeline: [
       {
         id: `t${Date.now()}`,
@@ -1100,6 +1100,103 @@ export function recommendAlternate(incident, roleId) {
     best.alreadyAssigned && !best.conflict ? "already assigned elsewhere" : null,
   ].filter(Boolean).join(" · ");
   return { staff: best.staff, reason, conflict: best.conflict, alreadyAssigned: best.alreadyAssigned };
+}
+
+// ============================================================
+// Increment B — Automated role allocation (used in triage/create)
+// Determine required roles → auto-allocate best available staff →
+// (UI) review & override → create. One person = one role at auto
+// stage, so role conflicts can't arise here (handled in Increment C).
+// ============================================================
+
+// Lower number = higher priority. Drives fill order + escalation.
+export const ROLE_PRIORITY = {
+  "Incident Commander": 1,
+  "Deputy Commander": 2,
+  "Police Liaison": 3,
+  "Search Coordinator": 3,
+  "Wellbeing Lead": 4,
+  "Communications Lead": 4,
+  "Family Liaison": 5,
+  "First Aid": 5,
+  "Headcount Officer": 6,
+  "Floor Wardens": 6,
+  "Front Office Lead": 6,
+  "Documenter": 7,
+  "Counsellor (External)": 8,
+};
+
+// Extra roles pulled in at higher severities (deduped against the template).
+export const SEVERITY_ROLE_ADDONS = {
+  3: ["Communications Lead"],
+  4: ["Deputy Commander", "Communications Lead"],
+};
+
+// Required roles for a type at a given severity = template + severity add-ons.
+export function requiredRolesFor(typeId, severity = 1) {
+  const template = (ROLE_TEMPLATES[typeId] || COMMON_ROLES).map((t) => ({ ...t }));
+  for (let lvl = 1; lvl <= severity; lvl++) {
+    for (const rn of (SEVERITY_ROLE_ADDONS[lvl] || [])) {
+      if (!template.some((t) => t.role === rn)) template.push({ role: rn, required: true });
+    }
+  }
+  return template;
+}
+
+// How well this person fits the role: 0 primary, 1 backup, 2 other-qualified.
+export function rolePreferenceRank(staff, role) {
+  if (staff.primaryRole === role) return 0;
+  if ((staff.secondaryRoles || []).includes(role)) return 1;
+  if ((staff.otherQualifiedRoles || []).includes(role)) return 2;
+  if ((staff.qualifiedFor || []).includes(role)) return 2;
+  return 9;
+}
+export const PREF_LABEL = { 0: "primary role", 1: "backup role", 2: "also qualified" };
+
+// Available, qualified staff for a role, best-fit first (for override menus).
+export function availableQualifiedStaff(role) {
+  return listStaff()
+    .filter((s) => s.available && (s.qualifiedFor || []).includes(role))
+    .map((s) => ({ id: s.id, name: s.name, initials: s.initials, pref: rolePreferenceRank(s, role) }))
+    .sort((a, b) => a.pref - b.pref || a.name.localeCompare(b.name));
+}
+
+// Auto-allocate staff to the required roles. Returns incident-role objects.
+export function autoAllocate(typeId, severity = 1) {
+  const required = requiredRolesFor(typeId, severity);
+  const pool = listStaff().filter((s) => s.available);
+  // Fill highest-priority roles first so the best people land in critical roles.
+  const order = required.map((rt, i) => ({ rt, i })).sort((a, b) => (ROLE_PRIORITY[a.rt.role] || 50) - (ROLE_PRIORITY[b.rt.role] || 50));
+  const taken = new Set();
+  const chosen = {};
+  for (const { rt } of order) {
+    const best = pool
+      .filter((s) => (s.qualifiedFor || []).includes(rt.role) && !taken.has(s.id))
+      .map((s) => ({ s, pref: rolePreferenceRank(s, rt.role) }))
+      .sort((a, b) => a.pref - b.pref || a.s.name.localeCompare(b.s.name))[0];
+    if (best) { taken.add(best.s.id); chosen[rt.role] = best; }
+  }
+  const stamp = Date.now();
+  return required.map((rt, i) => {
+    const c = chosen[rt.role];
+    const backup = pool
+      .filter((s) => (s.qualifiedFor || []).includes(rt.role) && (!c || s.id !== c.s.id) && !taken.has(s.id))
+      .map((s) => ({ s, pref: rolePreferenceRank(s, rt.role) }))
+      .sort((a, b) => a.pref - b.pref || a.s.name.localeCompare(b.s.name))[0];
+    return {
+      id: `r${stamp}-${i}`,
+      role: rt.role,
+      required: !!rt.required,
+      isPrincipal: rt.isPrincipal || false,
+      staff: c ? c.s.name : "—",
+      staffId: c ? c.s.id : null,
+      initials: c ? c.s.initials : "—",
+      status: c ? "confirmed" : "unassigned",
+      allocPref: c ? PREF_LABEL[c.pref] : null,
+      backup: backup ? backup.s.name : undefined,
+      backupStaffId: backup ? backup.s.id : undefined,
+    };
+  });
 }
 
 // Find best available staff for a role.
