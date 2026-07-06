@@ -140,7 +140,7 @@ Status colour = activation state. Also feeds Red Folder ("Key contacts") and Bli
 
 **Increment B — Auto-allocation in triage/new-incident (no backend): ✅ SHIPPED 2026-07-06.** `ROLE_PRIORITY` + `SEVERITY_ROLE_ADDONS` → `requiredRolesFor()`; `autoAllocate()` (priority-first, prefers primary>secondary>other, no double-booking, excludes unavailable, backups); step-3 **Review team** screen in `NewIncident` with per-role override dropdowns; `createIncident({roles})`. Verified end-to-end.
 
-**Increment C — Escalation & activation states (no backend):** `promoteToRole()` conflict-resolution + evolve `notify` → 5-state `activation`; **Role Status Board**; briefing pack view; simulated notifications via the provider abstraction.
+**Increment C — Escalation & activation states (no backend): ✅ SHIPPED 2026-07-06.** `promoteToRole()` (vacate + backfill, verified) + `reassignRoleToAlternate()`; 5-state board (`roleBoardState`/`ROLE_BOARD_STATE`: unassigned/assigned/notified/acknowledged/declined); **Team Status Board** drawer ("Team" command view) with assign-replace (runs the conflict engine), notify/ack/decline/escalate; **role briefing pack** (summary + description + reporting line + responsibilities + tasks + escalation pathway); `simulateNotification()` provider abstraction.
 
 **Increment D — Production (after backend):** real email/SMS/push providers; real-time multi-user acknowledgements from assignees' own devices; shared immutable audit log; RBAC.
 
