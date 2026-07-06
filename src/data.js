@@ -811,8 +811,162 @@ export function responsibilitiesFor(roleName, incidentType) {
 // ============================================================
 // Staff CRUD
 // ============================================================
+// ============================================================
+// Increment A — Enhanced staff model + bulk import
+// Primary / Secondary / Other role preference. qualifiedFor stays
+// DERIVED so the existing allocation engine keeps working untouched.
+// ============================================================
+
+export const ALL_ROLES = Object.keys(ROLE_DEFINITIONS);
+
+function initialsFromName(name) {
+  return String(name || "").split(/\s+/).map((s) => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "?";
+}
+
+// Case-insensitive canonical role match → known role name, or trimmed input if unknown.
+export function matchRole(str) {
+  const t = String(str || "").trim();
+  if (!t) return "";
+  return ALL_ROLES.find((r) => r.toLowerCase() === t.toLowerCase()) || t;
+}
+
+function deriveQualifiedFor({ primaryRole, secondaryRoles, otherQualifiedRoles, existing }) {
+  const all = [primaryRole, ...(secondaryRoles || []), ...(otherQualifiedRoles || [])].filter(Boolean);
+  const uniq = [...new Set(all)];
+  return uniq.length ? uniq : (existing || []);
+}
+
+// Bring any staff record (old or new schema) up to the current shape.
+export function normalizeStaff(s) {
+  if (!s) return s;
+  const firstName = s.firstName != null ? s.firstName : (s.name ? s.name.split(/\s+/)[0] : "");
+  const lastName = s.lastName != null ? s.lastName : (s.name ? s.name.split(/\s+/).slice(1).join(" ") : "");
+  const name = (s.name && s.name.trim()) || `${firstName} ${lastName}`.trim();
+  const primaryRole = s.primaryRole != null ? s.primaryRole : (s.qualifiedFor?.[0] || "");
+  const secondaryRoles = s.secondaryRoles || [];
+  const otherQualifiedRoles = s.otherQualifiedRoles != null ? s.otherQualifiedRoles : (s.qualifiedFor ? s.qualifiedFor.slice(1) : []);
+  const qualifiedFor = deriveQualifiedFor({ primaryRole, secondaryRoles, otherQualifiedRoles, existing: s.qualifiedFor });
+  const availabilityStatus = s.availabilityStatus || (s.available === false ? "unavailable" : "available");
+  const mobile = s.mobile != null ? s.mobile : (s.phone || "");
+  const jobTitle = s.jobTitle != null ? s.jobTitle : (s.role || "");
+  return {
+    ...s,
+    firstName, lastName, name,
+    initials: s.initials || initialsFromName(name),
+    email: s.email || "",
+    mobile, phone: mobile,
+    jobTitle, role: jobTitle,
+    department: s.department || "",
+    availabilityStatus,
+    available: availabilityStatus === "available",
+    primaryRole, secondaryRoles, otherQualifiedRoles,
+    qualifiedFor,
+    notes: s.notes || "",
+    verifiedAt: s.verifiedAt || Date.now(),
+  };
+}
+
+// ---- Bulk CSV import ----
+export const STAFF_CSV_HEADERS = [
+  "First Name", "Last Name", "Email", "Mobile Number", "Job Title",
+  "Department", "Availability Status", "Preferred Incident Role", "Backup Incident Role(s)",
+];
+
+function csvCell(v) {
+  const s = String(v == null ? "" : v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+export function staffCsvTemplate() {
+  const rows = [
+    ["Adrian", "Johnson", "ajohnson@school.edu.au", "0412 000 001", "Principal", "Executive", "available", "Incident Commander", "Police Liaison; Deputy Commander"],
+    ["Annika", "Fairley", "afairley@school.edu.au", "0412 000 002", "Risk & Compliance Officer", "Operations", "available", "Search Coordinator", "Documenter"],
+  ];
+  return STAFF_CSV_HEADERS.join(",") + "\n" + rows.map((r) => r.map(csvCell).join(",")).join("\n") + "\n";
+}
+
+function parseCSV(text) {
+  const rows = []; let row = [], field = "", inQuotes = false;
+  const s = String(text).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inQuotes) {
+      if (c === '"') { if (s[i + 1] === '"') { field += '"'; i++; } else inQuotes = false; }
+      else field += c;
+    } else if (c === '"') inQuotes = true;
+    else if (c === ",") { row.push(field); field = ""; }
+    else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+    else field += c;
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter((r) => r.some((c) => String(c).trim() !== ""));
+}
+
+// Parse CSV text → { staff:[], errors:[], warnings:[] }. Does NOT save.
+export function parseStaffImport(text) {
+  const out = { staff: [], errors: [], warnings: [] };
+  const rows = parseCSV(text);
+  if (rows.length === 0) { out.errors.push({ row: 0, message: "No rows found." }); return out; }
+  const header = rows[0].map((h) => h.trim().toLowerCase());
+  const col = (n) => header.indexOf(n.toLowerCase());
+  const idx = {
+    firstName: col("First Name"), lastName: col("Last Name"), email: col("Email"),
+    mobile: col("Mobile Number"), jobTitle: col("Job Title"), department: col("Department"),
+    availability: col("Availability Status"), primary: col("Preferred Incident Role"),
+    backup: col("Backup Incident Role(s)"),
+  };
+  if (idx.firstName < 0 && idx.lastName < 0) {
+    out.errors.push({ row: 1, message: "Header must include 'First Name' and/or 'Last Name'." });
+    return out;
+  }
+  for (let r = 1; r < rows.length; r++) {
+    const cells = rows[r];
+    const get = (i) => (i >= 0 && i < cells.length ? String(cells[i]).trim() : "");
+    const firstName = get(idx.firstName), lastName = get(idx.lastName);
+    if (!firstName && !lastName) { out.errors.push({ row: r + 1, message: "Missing name — row skipped." }); continue; }
+    const availRaw = get(idx.availability).toLowerCase();
+    const availabilityStatus = ["unavailable", "off", "off duty", "offduty", "no"].includes(availRaw) ? "unavailable"
+      : ["offsite", "off-site", "off site"].includes(availRaw) ? "offsite" : "available";
+    const primaryRaw = get(idx.primary);
+    const primaryRole = primaryRaw ? matchRole(primaryRaw) : "";
+    if (primaryRaw && !ALL_ROLES.includes(primaryRole)) out.warnings.push({ row: r + 1, message: `Unknown role "${primaryRaw}" kept as-is.` });
+    const backupRaw = get(idx.backup);
+    const secondaryRoles = backupRaw ? backupRaw.split(/[;,|]/).map((x) => matchRole(x)).filter(Boolean) : [];
+    for (const b of secondaryRoles) { if (!ALL_ROLES.includes(b)) out.warnings.push({ row: r + 1, message: `Unknown backup role "${b}" kept as-is.` }); }
+    out.staff.push(newStaffMember({
+      firstName, lastName, email: get(idx.email), mobile: get(idx.mobile),
+      jobTitle: get(idx.jobTitle), department: get(idx.department),
+      availabilityStatus, primaryRole, secondaryRoles, otherQualifiedRoles: [],
+    }));
+  }
+  return out;
+}
+
+// Save imported staff. mode: "append" (dedupe by email) | "replace".
+export function bulkImportStaff(staffArray, mode = "append") {
+  const state = loadAll();
+  if (mode === "replace") state.staff = [];
+  if (!state.staff) state.staff = [];
+  const byEmail = new Map(state.staff.filter((s) => s.email).map((s) => [s.email.toLowerCase(), s]));
+  let added = 0, updated = 0;
+  for (const incoming of staffArray) {
+    const email = (incoming.email || "").toLowerCase();
+    if (email && byEmail.has(email)) {
+      const existing = byEmail.get(email);
+      Object.assign(existing, incoming, { id: existing.id });
+      updated++;
+    } else {
+      state.staff.push(incoming);
+      if (email) byEmail.set(email, incoming);
+      added++;
+    }
+  }
+  saveAll(state);
+  return { added, updated, total: state.staff.length };
+}
+
 export function listStaff() {
-  return loadAll().staff || [];
+  return (loadAll().staff || []).map(normalizeStaff);
 }
 
 export function getStaff(id) {
@@ -821,10 +975,11 @@ export function getStaff(id) {
 
 export function saveStaff(staff) {
   const state = loadAll();
-  const idx = (state.staff || []).findIndex((s) => s.id === staff.id);
+  const normalized = normalizeStaff(staff); // ensures derived qualifiedFor/name are stored
+  const idx = (state.staff || []).findIndex((s) => s.id === normalized.id);
   if (!state.staff) state.staff = [];
-  if (idx >= 0) state.staff[idx] = staff;
-  else state.staff.push(staff);
+  if (idx >= 0) state.staff[idx] = normalized;
+  else state.staff.push(normalized);
   saveAll(state);
 }
 
@@ -834,26 +989,26 @@ export function deleteStaff(id) {
   saveAll(state);
 }
 
-export function newStaffMember(data) {
-  const initials = (data.name || "")
-    .split(/\s+/)
-    .map((s) => s[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-  return {
-    id: `staff-${Date.now()}`,
-    name: data.name || "",
-    initials: data.initials || initials || "?",
-    role: data.role || "",
-    qualifiedFor: data.qualifiedFor || [],
-    phone: data.phone || "",
-    email: data.email || "",
-    available: data.available !== false,
-    notes: data.notes || "",
-    verifiedAt: data.verifiedAt || Date.now(),
-  };
+export function newStaffMember(data = {}) {
+  return normalizeStaff({
+    id: data.id || `staff-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    firstName: data.firstName,
+    lastName: data.lastName,
+    name: data.name,
+    initials: data.initials,
+    email: data.email,
+    mobile: data.mobile != null ? data.mobile : data.phone,
+    jobTitle: data.jobTitle != null ? data.jobTitle : data.role,
+    department: data.department,
+    availabilityStatus: data.availabilityStatus,
+    available: data.available,
+    primaryRole: data.primaryRole,
+    secondaryRoles: data.secondaryRoles,
+    otherQualifiedRoles: data.otherQualifiedRoles,
+    qualifiedFor: data.qualifiedFor,
+    notes: data.notes,
+    verifiedAt: data.verifiedAt,
+  });
 }
 
 // Mark a staff record's contact details as freshly verified.

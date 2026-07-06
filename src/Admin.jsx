@@ -6,12 +6,13 @@ import {
   Users, Plus, Trash2, Edit3, X, Phone, Mail, ChevronRight,
   CheckCircle2, AlertCircle, ArrowLeft, BookOpen, Shield,
   Search, UserCheck, UserX, Save, RefreshCw, AlertTriangle,
+  Upload, Download, Star,
 } from "lucide-react";
 import { PALETTE, TopBarShell } from "./shared.jsx";
 import {
   listStaff, saveStaff, deleteStaff, newStaffMember,
   ROLE_DEFINITIONS, verifyStaffContact, staffContactAgeDays,
-  detectRoleConflicts,
+  detectRoleConflicts, parseStaffImport, bulkImportStaff, staffCsvTemplate,
 } from "./data.js";
 
 const VERIFY_THRESHOLD_DAYS = 90;
@@ -74,6 +75,7 @@ export default function Admin({ onBack }) {
 function StaffTab() {
   const [staff, setStaff] = useState([]);
   const [editing, setEditing] = useState(null); // staff object or null
+  const [importing, setImporting] = useState(false);
   const [search, setSearch] = useState("");
 
   function refresh() {
@@ -148,6 +150,9 @@ function StaffTab() {
               />
             </div>
           )}
+          <button className="btn" onClick={() => setImporting(true)}>
+            <Upload size={14} /> Bulk import
+          </button>
           <button className="btn btn-primary" onClick={startNew}>
             <Plus size={14} /> Add staff member
           </button>
@@ -155,7 +160,7 @@ function StaffTab() {
       </div>
 
       {staff.length === 0 ? (
-        <EmptyStaff onAdd={startNew} />
+        <EmptyStaff onAdd={startNew} onImport={() => setImporting(true)} />
       ) : (
         <div className="card">
           <div
@@ -186,6 +191,7 @@ function StaffTab() {
       )}
 
       {editing && <StaffEditor staff={editing} onSave={handleSave} onCancel={() => setEditing(null)} />}
+      {importing && <ImportModal onClose={() => setImporting(false)} onDone={() => { setImporting(false); refresh(); }} />}
     </>
   );
 }
@@ -239,11 +245,16 @@ function StaffRow({ staff, onEdit, onDelete, onVerify, isLast }) {
       </div>
       <div style={{ fontSize: 13, color: PALETTE.ink, opacity: 0.85 }}>{staff.role || "—"}</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-        {(staff.qualifiedFor || []).slice(0, 4).map((r) => (
+        {staff.primaryRole && (
+          <span className="chip" style={{ fontSize: 10, padding: "2px 8px", background: PALETTE.teal, color: PALETTE.paper, borderColor: PALETTE.teal, display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <Star size={9} fill={PALETTE.paper} /> {staff.primaryRole}
+          </span>
+        )}
+        {(staff.qualifiedFor || []).filter((r) => r !== staff.primaryRole).slice(0, 3).map((r) => (
           <span key={r} className="chip" style={{ fontSize: 10, padding: "2px 8px" }}>{r}</span>
         ))}
-        {(staff.qualifiedFor || []).length > 4 && (
-          <span className="mono" style={{ fontSize: 10, color: PALETTE.inkSoft, alignSelf: "center" }}>+{staff.qualifiedFor.length - 4}</span>
+        {(staff.qualifiedFor || []).filter((r) => r !== staff.primaryRole).length > 3 && (
+          <span className="mono" style={{ fontSize: 10, color: PALETTE.inkSoft, alignSelf: "center" }}>+{(staff.qualifiedFor || []).filter((r) => r !== staff.primaryRole).length - 3}</span>
         )}
         {(staff.qualifiedFor || []).length === 0 && (
           <span style={{ fontSize: 12, color: PALETTE.inkSoft, fontStyle: "italic" }}>No roles assigned</span>
@@ -294,171 +305,152 @@ function StaffRow({ staff, onEdit, onDelete, onVerify, isLast }) {
 }
 
 function StaffEditor({ staff, onSave, onCancel }) {
-  const [form, setForm] = useState({ ...staff });
+  const [form, setForm] = useState({
+    ...staff,
+    secondaryRoles: staff.secondaryRoles || [],
+    otherQualifiedRoles: staff.otherQualifiedRoles || [],
+  });
 
   function update(field, value) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  function updateName(field, value) {
     setForm((f) => {
       const next = { ...f, [field]: value };
-      // Auto-update initials when name changes
-      if (field === "name") {
-        const auto = (value || "")
-          .split(/\s+/)
-          .map((s) => s[0])
-          .filter(Boolean)
-          .slice(0, 2)
-          .join("")
-          .toUpperCase();
-        if (!staff.id || staff.initials === auto || !f.initials) {
-          next.initials = auto || "?";
-        }
+      const full = `${next.firstName || ""} ${next.lastName || ""}`.trim();
+      const auto = full.split(/\s+/).map((s) => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+      if (!staff.id || !f.initials || f.initials === (`${f.firstName || ""} ${f.lastName || ""}`.trim().split(/\s+/).map((s) => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase())) {
+        next.initials = auto || "?";
       }
       return next;
     });
   }
 
-  function toggleQualified(role) {
+  function setPrimary(role) {
+    setForm((f) => ({
+      ...f,
+      primaryRole: role,
+      // A role can't be primary and also secondary/other.
+      secondaryRoles: (f.secondaryRoles || []).filter((r) => r !== role),
+      otherQualifiedRoles: (f.otherQualifiedRoles || []).filter((r) => r !== role),
+    }));
+  }
+
+  function toggleIn(field, role) {
     setForm((f) => {
-      const list = f.qualifiedFor || [];
+      const list = f[field] || [];
       const has = list.includes(role);
-      return { ...f, qualifiedFor: has ? list.filter((r) => r !== role) : [...list, role] };
+      const next = { ...f, [field]: has ? list.filter((r) => r !== role) : [...list, role] };
+      // Keep the three buckets mutually exclusive.
+      if (!has) {
+        if (field === "secondaryRoles") next.otherQualifiedRoles = (f.otherQualifiedRoles || []).filter((r) => r !== role);
+        if (field === "otherQualifiedRoles") next.secondaryRoles = (f.secondaryRoles || []).filter((r) => r !== role);
+      }
+      return next;
     });
   }
 
+  const derivedQualified = [form.primaryRole, ...(form.secondaryRoles || []), ...(form.otherQualifiedRoles || [])].filter(Boolean);
+  const conflicts = detectRoleConflicts(derivedQualified);
+
   function handleSubmit() {
-    if (!form.name.trim()) {
-      alert("Please enter a name.");
+    if (!(form.firstName || "").trim() && !(form.lastName || "").trim()) {
+      alert("Please enter a first or last name.");
       return;
     }
-    onSave(form);
+    onSave(form); // saveStaff normalizes (derives name + qualifiedFor)
   }
+
+  const AVAIL = [
+    { v: "available", l: "Available", color: PALETTE.sage, Icon: UserCheck },
+    { v: "offsite", l: "Off-site", color: PALETTE.amber, Icon: UserX },
+    { v: "unavailable", l: "Unavailable", color: PALETTE.inkSoft, Icon: UserX },
+  ];
 
   return (
     <Modal onClose={onCancel} title={staff.id && listStaff().some((s) => s.id === staff.id) ? "Edit staff member" : "Add staff member"}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 100px", gap: 16, marginBottom: 20 }}>
-        <div>
-          <Label>Name</Label>
-          <input type="text" value={form.name || ""} onChange={(e) => update("name", e.target.value)} placeholder="e.g. Sarah Nguyen" />
-        </div>
-        <div>
-          <Label>Initials</Label>
-          <input type="text" value={form.initials || ""} onChange={(e) => update("initials", e.target.value.toUpperCase().slice(0, 3))} placeholder="SN" maxLength={3} />
-        </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 90px", gap: 12, marginBottom: 18 }}>
+        <div><Label>First name</Label><input type="text" value={form.firstName || ""} onChange={(e) => updateName("firstName", e.target.value)} placeholder="Sarah" /></div>
+        <div><Label>Last name</Label><input type="text" value={form.lastName || ""} onChange={(e) => updateName("lastName", e.target.value)} placeholder="Nguyen" /></div>
+        <div><Label>Initials</Label><input type="text" value={form.initials || ""} onChange={(e) => update("initials", e.target.value.toUpperCase().slice(0, 3))} placeholder="SN" maxLength={3} /></div>
       </div>
 
-      <Label>Title / Position</Label>
-      <input type="text" value={form.role || ""} onChange={(e) => update("role", e.target.value)} placeholder="e.g. Head of Wellbeing" style={{ marginBottom: 20 }} />
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
-        <div>
-          <Label>Phone</Label>
-          <input type="text" value={form.phone || ""} onChange={(e) => update("phone", e.target.value)} placeholder="0412 345 678" />
-        </div>
-        <div>
-          <Label>Email</Label>
-          <input type="text" value={form.email || ""} onChange={(e) => update("email", e.target.value)} placeholder="email@school.edu.au" />
-        </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
+        <div><Label>Job title</Label><input type="text" value={form.jobTitle || ""} onChange={(e) => update("jobTitle", e.target.value)} placeholder="Head of Wellbeing" /></div>
+        <div><Label>Department</Label><input type="text" value={form.department || ""} onChange={(e) => update("department", e.target.value)} placeholder="Student Services" /></div>
       </div>
 
-      <Label>Qualified for incident roles</Label>
-      <p style={{ fontSize: 12, color: PALETTE.inkSoft, margin: "0 0 12px", lineHeight: 1.5 }}>
-        Tick the roles this person is qualified to perform. CIMPLE will auto-suggest them when a new incident is opened.
-      </p>
-      {(() => {
-        const conflicts = detectRoleConflicts(form.qualifiedFor);
-        if (conflicts.length === 0) return null;
-        return (
-          <div style={{ padding: "10px 14px", marginBottom: 12, background: "rgba(160, 32, 41, 0.08)", borderLeft: `3px solid ${PALETTE.crimson}`, fontSize: 12, color: PALETTE.ink, lineHeight: 1.5 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, color: PALETTE.crimson, fontWeight: 600 }}>
-              <AlertTriangle size={12} /> Role conflict — one person can't do both at once
-            </div>
-            {conflicts.map((c, i) => (
-              <div key={i} style={{ marginTop: 4 }}>
-                <strong>{c.roles[0]} + {c.roles[1]}:</strong> {c.reason}
-              </div>
-            ))}
-            <div style={{ marginTop: 6, fontSize: 11, color: PALETTE.inkSoft }}>
-              You can still save — but in a real incident, name a separate primary or alternate (PRD §13.2).
-            </div>
-          </div>
-        );
-      })()}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, background: "rgba(0, 48, 94, 0.15)", border: `1px solid rgba(0, 48, 94, 0.14)`, marginBottom: 20 }}>
-        {ROLE_NAMES.map((role) => {
-          const checked = (form.qualifiedFor || []).includes(role);
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
+        <div><Label>Mobile</Label><input type="text" value={form.mobile || ""} onChange={(e) => update("mobile", e.target.value)} placeholder="0412 345 678" /></div>
+        <div><Label>Email</Label><input type="text" value={form.email || ""} onChange={(e) => update("email", e.target.value)} placeholder="email@school.edu.au" /></div>
+      </div>
+
+      <Label>Availability</Label>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        {AVAIL.map(({ v, l, color, Icon }) => {
+          const on = (form.availabilityStatus || "available") === v;
           return (
-            <label
-              key={role}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "10px 14px",
-                fontSize: 13,
-                background: checked ? PALETTE.tealMist : PALETTE.paper,
-                cursor: "pointer",
-                color: PALETTE.ink,
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() => toggleQualified(role)}
-                style={{ width: 14, height: 14, cursor: "pointer", accentColor: PALETTE.teal }}
-              />
-              {role}
-            </label>
+            <button key={v} onClick={() => update("availabilityStatus", v)} style={{ flex: 1, padding: 11, fontSize: 13, fontWeight: 500, background: on ? color : PALETTE.paper, color: on ? PALETTE.paper : PALETTE.ink, border: `1px solid ${on ? color : "rgba(0,48,94,0.18)"}` }}>
+              <Icon size={13} style={{ marginRight: 6, verticalAlign: "middle" }} />{l}
+            </button>
           );
         })}
       </div>
 
-      <Label>Currently available</Label>
-      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-        <button
-          onClick={() => update("available", true)}
-          style={{
-            flex: 1,
-            padding: 12,
-            fontSize: 13,
-            fontWeight: 500,
-            background: form.available ? PALETTE.sage : PALETTE.paper,
-            color: form.available ? PALETTE.paper : PALETTE.ink,
-            border: `1px solid ${form.available ? PALETTE.sage : "rgba(0, 48, 94, 0.18)"}`,
-          }}
-        >
-          <UserCheck size={13} style={{ marginRight: 6, verticalAlign: "middle" }} />
-          On duty
-        </button>
-        <button
-          onClick={() => update("available", false)}
-          style={{
-            flex: 1,
-            padding: 12,
-            fontSize: 13,
-            fontWeight: 500,
-            background: !form.available ? PALETTE.inkSoft : PALETTE.paper,
-            color: !form.available ? PALETTE.paper : PALETTE.ink,
-            border: `1px solid ${!form.available ? PALETTE.inkSoft : "rgba(0, 48, 94, 0.18)"}`,
-          }}
-        >
-          <UserX size={13} style={{ marginRight: 6, verticalAlign: "middle" }} />
-          Off duty
-        </button>
-      </div>
+      <Label>Primary incident role</Label>
+      <p style={{ fontSize: 12, color: PALETTE.inkSoft, margin: "0 0 8px", lineHeight: 1.5 }}>The role this person normally fills.</p>
+      <select value={form.primaryRole || ""} onChange={(e) => setPrimary(e.target.value)} style={{ marginBottom: 18 }}>
+        <option value="">— none —</option>
+        {ROLE_NAMES.map((r) => <option key={r} value={r}>{r}</option>)}
+      </select>
+
+      {conflicts.length > 0 && (
+        <div style={{ padding: "10px 14px", marginBottom: 14, background: "rgba(160, 32, 41, 0.08)", borderLeft: `3px solid ${PALETTE.crimson}`, fontSize: 12, color: PALETTE.ink, lineHeight: 1.5 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, color: PALETTE.crimson, fontWeight: 600 }}>
+            <AlertTriangle size={12} /> Role conflict — one person can't do both at once
+          </div>
+          {conflicts.map((c, i) => (<div key={i} style={{ marginTop: 4 }}><strong>{c.roles[0]} + {c.roles[1]}:</strong> {c.reason}</div>))}
+        </div>
+      )}
+
+      <Label>Backup roles</Label>
+      <p style={{ fontSize: 12, color: PALETTE.inkSoft, margin: "0 0 8px", lineHeight: 1.5 }}>Roles they can step into if required.</p>
+      <RolePickGrid roles={ROLE_NAMES} exclude={[form.primaryRole]} selected={form.secondaryRoles || []} onToggle={(r) => toggleIn("secondaryRoles", r)} />
+
+      <Label>Other qualified roles</Label>
+      <p style={{ fontSize: 12, color: PALETTE.inkSoft, margin: "0 0 8px", lineHeight: 1.5 }}>Additional roles they are qualified for.</p>
+      <RolePickGrid roles={ROLE_NAMES} exclude={[form.primaryRole, ...(form.secondaryRoles || [])]} selected={form.otherQualifiedRoles || []} onToggle={(r) => toggleIn("otherQualifiedRoles", r)} />
 
       <Label>Notes (optional)</Label>
-      <textarea rows={2} value={form.notes || ""} onChange={(e) => update("notes", e.target.value)} placeholder="Any relevant notes — e.g. on extended leave, lead first aider, etc." style={{ resize: "vertical", marginBottom: 20 }} />
+      <textarea rows={2} value={form.notes || ""} onChange={(e) => update("notes", e.target.value)} placeholder="e.g. lead first aider; on extended leave from week 4." style={{ resize: "vertical", marginBottom: 20 }} />
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 20, borderTop: `1px solid rgba(0, 48, 94, 0.12)` }}>
         <button className="btn" onClick={onCancel}>Cancel</button>
-        <button className="btn btn-primary" onClick={handleSubmit}>
-          <Save size={13} /> Save
-        </button>
+        <button className="btn btn-primary" onClick={handleSubmit}><Save size={13} /> Save</button>
       </div>
     </Modal>
   );
 }
 
-function EmptyStaff({ onAdd }) {
+function RolePickGrid({ roles, selected, onToggle, exclude = [] }) {
+  const list = roles.filter((r) => !exclude.includes(r));
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, background: "rgba(0, 48, 94, 0.15)", border: `1px solid rgba(0, 48, 94, 0.14)`, marginBottom: 18 }}>
+      {list.map((role) => {
+        const checked = (selected || []).includes(role);
+        return (
+          <label key={role} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", fontSize: 13, background: checked ? PALETTE.tealMist : PALETTE.paper, cursor: "pointer", color: PALETTE.ink }}>
+            <input type="checkbox" checked={checked} onChange={() => onToggle(role)} style={{ width: 14, height: 14, cursor: "pointer", accentColor: PALETTE.teal }} />
+            {role}
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+function EmptyStaff({ onAdd, onImport }) {
   return (
     <div className="card" style={{ padding: "60px 32px", textAlign: "center" }}>
       <Users size={36} color={PALETTE.teal} strokeWidth={1.4} style={{ margin: "0 auto", opacity: 0.5 }} />
@@ -466,13 +458,132 @@ function EmptyStaff({ onAdd }) {
         No staff added yet
       </h3>
       <p style={{ fontSize: 14, color: PALETTE.inkSoft, maxWidth: 480, margin: "0 auto 24px", lineHeight: 1.6 }}>
-        Add the staff at your school who may be involved in incident response. Set what each person is qualified for, and CIMPLE will auto-suggest them when incidents open.
+        Load your whole staff directory at once with a CSV, or add people one at a time. Set each person's primary and backup incident roles, and CIMPLE will auto-suggest them when incidents open.
       </p>
-      <button className="btn btn-primary" onClick={onAdd}>
-        <Plus size={14} /> Add your first staff member
-      </button>
+      <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+        <button className="btn btn-primary" onClick={onImport}>
+          <Upload size={14} /> Bulk import (CSV)
+        </button>
+        <button className="btn" onClick={onAdd}>
+          <Plus size={14} /> Add one manually
+        </button>
+      </div>
     </div>
   );
+}
+
+/* ============================================================
+   BULK IMPORT
+   ============================================================ */
+function ImportModal({ onClose, onDone }) {
+  const [text, setText] = useState("");
+  const [parsed, setParsed] = useState(null); // { staff, errors, warnings }
+  const [mode, setMode] = useState("append"); // "append" | "replace"
+
+  function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { setText(String(reader.result || "")); setParsed(null); };
+    reader.readAsText(file);
+  }
+
+  function preview() {
+    setParsed(parseStaffImport(text));
+  }
+
+  function downloadTemplate() {
+    triggerDownload(staffCsvTemplate(), "cimple-staff-template.csv", "text/csv");
+  }
+
+  function doImport() {
+    const res = bulkImportStaff(parsed.staff, mode);
+    alert(`Imported: ${res.added} added, ${res.updated} updated. Directory now has ${res.total} staff.`);
+    onDone();
+  }
+
+  return (
+    <Modal onClose={onClose} title="Bulk import staff">
+      <p style={{ fontSize: 13, color: PALETTE.inkSoft, lineHeight: 1.6, marginTop: 0 }}>
+        Load your whole staff list from a spreadsheet. Export it as <strong>CSV</strong>, or paste the rows below.
+        Columns: First Name, Last Name, Email, Mobile Number, Job Title, Department, Availability Status,
+        Preferred Incident Role, Backup Incident Role(s). Backup roles can be separated by <code>;</code>.
+      </p>
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        <button className="btn" onClick={downloadTemplate}><Download size={13} /> Download template</button>
+        <label className="btn" style={{ cursor: "pointer" }}>
+          <Upload size={13} /> Choose CSV file
+          <input type="file" accept=".csv,text/csv" onChange={handleFile} style={{ display: "none" }} />
+        </label>
+      </div>
+
+      <Label>Or paste CSV</Label>
+      <textarea
+        rows={6}
+        value={text}
+        onChange={(e) => { setText(e.target.value); setParsed(null); }}
+        placeholder="First Name,Last Name,Email,Mobile Number,Job Title,Department,Availability Status,Preferred Incident Role,Backup Incident Role(s)"
+        style={{ resize: "vertical", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, marginBottom: 12 }}
+      />
+
+      <button className="btn" onClick={preview} disabled={!text.trim()} style={{ marginBottom: 16, opacity: text.trim() ? 1 : 0.5 }}>
+        Preview import
+      </button>
+
+      {parsed && (
+        <div style={{ marginBottom: 16 }}>
+          {parsed.errors.length > 0 && (
+            <div style={{ padding: "8px 12px", background: "rgba(160,32,41,0.08)", borderLeft: `3px solid ${PALETTE.crimson}`, fontSize: 12, color: PALETTE.crimson, marginBottom: 8 }}>
+              {parsed.errors.map((e, i) => <div key={i}>Row {e.row}: {e.message}</div>)}
+            </div>
+          )}
+          {parsed.warnings.length > 0 && (
+            <div style={{ padding: "8px 12px", background: "rgba(184,148,96,0.12)", borderLeft: `3px solid ${PALETTE.amber}`, fontSize: 12, color: PALETTE.ink, marginBottom: 8 }}>
+              {parsed.warnings.slice(0, 6).map((w, i) => <div key={i}>Row {w.row}: {w.message}</div>)}
+              {parsed.warnings.length > 6 && <div>…and {parsed.warnings.length - 6} more.</div>}
+            </div>
+          )}
+          <div className="mono" style={{ fontSize: 11, color: PALETTE.teal, marginBottom: 8 }}>
+            {parsed.staff.length} STAFF READY TO IMPORT
+          </div>
+          {parsed.staff.length > 0 && (
+            <div style={{ border: `1px solid rgba(0,48,94,0.14)`, maxHeight: 180, overflowY: "auto" }} className="scroll-y">
+              {parsed.staff.map((s, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "7px 12px", borderBottom: i < parsed.staff.length - 1 ? `1px solid rgba(0,48,94,0.07)` : "none", fontSize: 12.5 }}>
+                  <span style={{ color: PALETTE.ink }}>{s.name}</span>
+                  <span className="mono" style={{ fontSize: 10, color: PALETTE.inkSoft }}>{s.primaryRole || "no primary role"}{s.availabilityStatus !== "available" ? ` · ${s.availabilityStatus}` : ""}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 12, marginTop: 14, alignItems: "center" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: PALETTE.ink }}>
+              <input type="radio" checked={mode === "append"} onChange={() => setMode("append")} /> Add to existing (update duplicates by email)
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: PALETTE.ink }}>
+              <input type="radio" checked={mode === "replace"} onChange={() => setMode("replace")} /> Replace all
+            </label>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 16, borderTop: `1px solid rgba(0,48,94,0.12)` }}>
+        <button className="btn" onClick={onClose}>Cancel</button>
+        <button className="btn btn-primary" onClick={doImport} disabled={!parsed || parsed.staff.length === 0} style={{ opacity: parsed && parsed.staff.length ? 1 : 0.5 }}>
+          <Upload size={13} /> Import {parsed ? parsed.staff.length : ""} staff
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function triggerDownload(content, filename, type) {
+  const blob = new Blob([content], { type: type || "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 /* ============================================================
