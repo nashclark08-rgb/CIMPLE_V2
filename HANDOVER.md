@@ -46,7 +46,7 @@ The PRD **dictates scope** — the prototype evolves _toward_ it, never caps it.
 | **M4** | Communications | ✅ Prototyped (**SIMULATED**) — template library (incl. MWHI holding statements), draft→approve→dispatch, AI drafting, channel picker |
 | **M5** | Business Continuity & Recovery | ❌ Not started |
 | **M6** | Situational Awareness | ❌ Not started |
-| **M7** | Post-Incident & Learning | ⚠️ Partial — audit-ready PDF/JSON **export** only; no proper PIR module yet |
+| **M7** | Post-Incident & Learning | ✅ Prototyped — PIR drawer: auto-assembled record → AI-drafted review (summary/worked/improve/plan-updates) → corrective-action tracker → finalise; plus audit-ready PDF/JSON export |
 | **M8** | Administration & Readiness | ⚠️ Partial — staff directory, role-conflict detection, contact-currency (90-day) checks, drill mode |
 
 **"SIMULATED" is the critical caveat:** M2 and M4 look complete but nothing actually sends. Acks are toggled by hand; dispatch just logs. Making them _real_ is the backend decision (§6).
@@ -79,6 +79,7 @@ The PRD **dictates scope** — the prototype evolves _toward_ it, never caps it.
 - An **incident** object: `{ id, title, type, severity, status, isDrill, startedAt, closedAt, location, empSection, policies[], student, roles[], timeline[], tasks[], comms[]?, activation? }`.
 - **Comms (v5):** `COMMS_CHANNELS`, `COMMS_AUDIENCES`, `COMMS_TEMPLATES` (holding statements attributed to MWHI), `COMMS_CATEGORIES`, `COMMS_STATUS`; helpers `templatesForIncidentType`, `fillTemplate`, `newComm`. A comm: `{ id, ts, templateId, name, audienceId, channels[], body, status: draft|approved|dispatched, approvedBy, approvedAt, dispatchedAt }`.
 - **Activation (v6):** `ACTIVATION_CHANNELS` (Trinity App push + out-of-band SMS), `NOTIFY_STATUS` (sent|acked|no_response), `roleIsAssigned()`. State: `incident.activation = { declaredAt, declaredBy, channels[] }` + per-role `role.notify = { status, sentAt, ackedAt, viaBackup }`.
+- **PIR (v7):** `PIR_STATUS` (draft|final), `newPIR()`, `newCorrectiveAction()`, `pirFacts(incident)` (auto-assembled stats). State: `incident.pir = { createdAt, status, summary, whatWorked, whatImprove, planUpdates, correctiveActions[] }`. AI draft via `api/draft.js` with `kind:"pir"` (returns JSON), graceful local fallback.
 
 ---
 
