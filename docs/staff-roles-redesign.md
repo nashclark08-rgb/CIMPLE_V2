@@ -138,7 +138,7 @@ Status colour = activation state. Also feeds Red Folder ("Key contacts") and Bli
 
 **Increment A — Roster & preference model (no backend): ✅ SHIPPED 2026-07-06.** enhanced staff schema (primary/secondary/other, email/mobile/jobTitle/department, availabilityStatus) with `qualifiedFor` derived (`normalizeStaff`) for back-compat; **bulk CSV import** (`parseStaffImport`/`bulkImportStaff`, preview + warnings, append-dedupe/replace, template + file/paste); reworked staff editor; safe migration (normalize on read + on `saveStaff`). _(Excel/.xlsx deferred — needs SheetJS; CSV covers the need.)_
 
-**Increment B — Auto-allocation in triage/new-incident (no backend):** `ROLE_PRIORITY` + `autoAllocate()` + a **review/override** step before "Create incident"; severity role add-ons.
+**Increment B — Auto-allocation in triage/new-incident (no backend): ✅ SHIPPED 2026-07-06.** `ROLE_PRIORITY` + `SEVERITY_ROLE_ADDONS` → `requiredRolesFor()`; `autoAllocate()` (priority-first, prefers primary>secondary>other, no double-booking, excludes unavailable, backups); step-3 **Review team** screen in `NewIncident` with per-role override dropdowns; `createIncident({roles})`. Verified end-to-end.
 
 **Increment C — Escalation & activation states (no backend):** `promoteToRole()` conflict-resolution + evolve `notify` → 5-state `activation`; **Role Status Board**; briefing pack view; simulated notifications via the provider abstraction.
 
