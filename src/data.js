@@ -1093,6 +1093,81 @@ export function newDecision({ decision, rationale, options, evidence, reviewBy }
   };
 }
 
+// ============================================================
+// v9 — RISK / WATCH REGISTER (CORE · situational awareness)
+// The second incident-command data stream alongside the Decision
+// Log. Live operational concerns only — NOT a corporate risk
+// register. Answers the command question: "What risks remain?"
+//
+// Model is shaped for zero-rework reuse by:
+//  • Red Folder Mode  → openRisks() gives {severity,title} to show.
+//  • Crisis Copilot   → open/severity/aging/unowned/escalated all
+//                       derive from fields (no schema change needed).
+// ============================================================
+
+export const RISK_CATEGORIES = [
+  "Safety", "Welfare", "Communications", "Operational", "Facilities", "IT", "External Agency", "Other",
+];
+
+// rank: higher = more severe (for sorting / Copilot thresholds).
+export const RISK_SEVERITY = {
+  low: { label: "Low", color: "#5B8C7C", rank: 1 },
+  medium: { label: "Medium", color: "#B89460", rank: 2 },
+  high: { label: "High", color: "#A85535", rank: 3 },
+  critical: { label: "Critical", color: "#7A1820", rank: 4 },
+};
+
+export const RISK_STATUS = {
+  watch: { label: "Watch", color: "#4A5664", open: true },
+  active: { label: "Active Risk", color: "#B89460", open: true },
+  escalated: { label: "Escalated", color: "#A02029", open: true },
+  resolved: { label: "Resolved", color: "#5B8C7C", open: false },
+};
+
+export function newRisk({ title, description, category, severity, owner, reviewBy, status }) {
+  const ts = Date.now();
+  return {
+    id: `risk${ts}`,
+    createdAt: ts,
+    updatedAt: ts,
+    title: title || "",
+    description: description || "",
+    category: category || "Operational",
+    severity: severity || "medium", // low | medium | high | critical
+    status: status || "watch",      // watch | active | escalated | resolved
+    owner: owner || "",
+    reviewBy: reviewBy || null,
+    resolvedAt: null,
+    resolutionNotes: "",
+  };
+}
+
+// A risk is "open" while its status is anything but resolved.
+export function riskIsOpen(risk) {
+  return !!risk && (RISK_STATUS[risk.status]?.open ?? risk.status !== "resolved");
+}
+
+// Open risks, most severe first then oldest first — the exact
+// shape Red Folder Mode will render, and Copilot will reason over.
+export function openRisks(incident) {
+  return (incident.risks || [])
+    .filter(riskIsOpen)
+    .sort((a, b) => (RISK_SEVERITY[b.severity]?.rank || 0) - (RISK_SEVERITY[a.severity]?.rank || 0) || a.createdAt - b.createdAt);
+}
+
+// Counts for the command strip + incident summary.
+export function riskCounts(incident) {
+  const risks = incident.risks || [];
+  return {
+    watch: risks.filter((r) => r.status === "watch").length,
+    active: risks.filter((r) => r.status === "active").length,
+    escalated: risks.filter((r) => r.status === "escalated").length,
+    resolved: risks.filter((r) => r.status === "resolved").length,
+    open: risks.filter(riskIsOpen).length,
+    total: risks.length,
+  };
+}
+
 // Read-only facts auto-assembled from the incident record, so the
 // reviewer (and the AI draft) work from the same evidence base.
 export function pirFacts(incident) {

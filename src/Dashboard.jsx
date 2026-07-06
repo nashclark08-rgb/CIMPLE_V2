@@ -19,6 +19,7 @@ import {
   ACTIVATION_CHANNELS, NOTIFY_STATUS, roleIsAssigned,
   PIR_STATUS, newPIR, newCorrectiveAction, pirFacts,
   DECISION_STATUS, newDecision,
+  RISK_CATEGORIES, RISK_SEVERITY, RISK_STATUS, newRisk, openRisks, riskCounts, riskIsOpen,
 } from "./data.js";
 
 export default function Dashboard({ incidentId, onBack }) {
@@ -143,6 +144,11 @@ export default function Dashboard({ incidentId, onBack }) {
       {drawer === "decisions" && (
         <Drawer onClose={() => setDrawer(null)} title="Decision Log">
           <DecisionLogDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} now={now} />
+        </Drawer>
+      )}
+      {drawer === "risks" && (
+        <Drawer onClose={() => setDrawer(null)} title="Risk / Watch Register">
+          <RiskRegisterDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} now={now} />
         </Drawer>
       )}
       {drawer === "comms" && (
@@ -324,6 +330,11 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
               ) : null}
               <button className="btn" onClick={() => setDrawer("policy")}><BookOpen size={14} /> Policy</button>
               <button className="btn" onClick={() => setDrawer("decisions")}><Scale size={14} /> Decisions{(incident.decisions || []).length ? ` · ${(incident.decisions || []).length}` : ""}</button>
+              {(() => { const open = riskCounts(incident).open; return (
+                <button className="btn" onClick={() => setDrawer("risks")} style={open ? { borderColor: PALETTE.rust, color: PALETTE.rust } : undefined}>
+                  <AlertTriangle size={14} /> Risks{open ? ` · ${open}` : ""}
+                </button>
+              ); })()}
               <button className="btn" onClick={() => setDrawer("comms")}><MessageSquare size={14} /> Communications{(incident.comms || []).length ? ` · ${(incident.comms || []).length}` : ""}</button>
               <button className="btn" onClick={() => setDrawer("pir")} style={incident.pir ? { borderColor: PALETTE.sage, color: PALETTE.sage } : undefined}><ClipboardCheck size={14} /> Review</button>
               <button className="btn" onClick={() => setDrawer("export")}><Download size={14} /> Export pack</button>
@@ -554,6 +565,7 @@ function TimelineEntry({ entry, now, isLast }) {
     note: { color: PALETTE.ink, icon: Edit3, label: "NOTE" },
     comm: { color: PALETTE.amber, icon: Mail, label: "COMM" },
     decision: { color: PALETTE.crimson, icon: Scale, label: "DECISION" },
+    risk: { color: PALETTE.rust, icon: AlertTriangle, label: "RISK" },
   }[entry.type] || { color: PALETTE.ink, icon: Circle, label: "ENTRY" };
 
   return (
@@ -775,6 +787,8 @@ function RightRail({ incident, setDrawer }) {
           <p style={{ fontSize: 12, lineHeight: 1.5, color: PALETTE.inkSoft, margin: "10px 0 0" }}>{sev.tone}.</p>
         </div>
       </div>
+
+      <RiskSummaryPanel incident={incident} setDrawer={setDrawer} />
 
       {incident.student && (
         <div className="card">
@@ -1262,6 +1276,207 @@ function PolicyDrawer({ incident }) {
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ---------- Risk / Watch Register (CORE · situational awareness) ---------- */
+
+// Main-screen panel — answers "what risks remain?" without opening a drawer.
+function RiskSummaryPanel({ incident, setDrawer }) {
+  const open = openRisks(incident);
+  const shown = open.slice(0, 5);
+  const extra = open.length - shown.length;
+  return (
+    <div className="card">
+      <div className="panel-h">
+        <span className="panel-h-label">ACTIVE RISKS · {open.length}</span>
+        <button onClick={() => setDrawer("risks")} className="btn-ghost panel-h-meta" style={{ background: "none", border: "none", padding: 0, color: PALETTE.teal, fontWeight: 500 }}>
+          MANAGE →
+        </button>
+      </div>
+      <div style={{ padding: open.length ? "6px 0" : 18 }}>
+        {open.length === 0 ? (
+          <p style={{ fontSize: 12, color: PALETTE.inkSoft, margin: 0 }}>No active risks.</p>
+        ) : (
+          <>
+            {shown.map((r) => {
+              const sv = RISK_SEVERITY[r.severity] || {};
+              return (
+                <button key={r.id} onClick={() => setDrawer("risks")} className="row-hover" style={{ width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: `1px solid rgba(0,48,94,0.06)`, padding: "9px 18px", display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: sv.color, flexShrink: 0 }} title={sv.label} />
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: PALETTE.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.title}</span>
+                  {r.status === "escalated" && <span className="mono" style={{ fontSize: 8, letterSpacing: "0.1em", color: PALETTE.crimson, fontWeight: 700 }}>ESC</span>}
+                </button>
+              );
+            })}
+            {extra > 0 && (
+              <button onClick={() => setDrawer("risks")} style={{ width: "100%", textAlign: "left", background: "none", border: "none", padding: "8px 18px", fontSize: 11.5, color: PALETTE.teal, cursor: "pointer" }}>
+                +{extra} more →
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RiskRegisterDrawer({ incident, update, addTimelineEntry, isClosed, now }) {
+  const risks = incident.risks || [];
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("Operational");
+  const [severity, setSeverity] = useState("medium");
+  const [status, setStatus] = useState("watch");
+  const [owner, setOwner] = useState("");
+  const [reviewPreset, setReviewPreset] = useState("");
+
+  function computeReviewBy() {
+    if (!reviewPreset) return null;
+    if (reviewPreset === "eod") { const d = new Date(); d.setHours(17, 0, 0, 0); return d.getTime(); }
+    return Date.now() + parseInt(reviewPreset, 10) * 60000;
+  }
+
+  function record() {
+    if (!title.trim()) return;
+    const r = newRisk({ title: title.trim(), description: description.trim(), category, severity, status, owner: owner.trim(), reviewBy: computeReviewBy() });
+    update((prev) => ({ ...prev, risks: [r, ...(prev.risks || [])] }));
+    addTimelineEntry({ type: "risk", text: `Risk logged (${RISK_SEVERITY[severity].label}): ${r.title}.` });
+    setTitle(""); setDescription(""); setCategory("Operational"); setSeverity("medium"); setStatus("watch"); setOwner(""); setReviewPreset("");
+  }
+
+  function setRiskStatus(id, next, verb) {
+    const r = risks.find((x) => x.id === id);
+    update((prev) => ({ ...prev, risks: (prev.risks || []).map((x) => (x.id === id ? { ...x, status: next, updatedAt: Date.now() } : x)) }));
+    addTimelineEntry({ type: "risk", text: `Risk ${verb}: ${r.title}.` });
+  }
+
+  function resolve(id) {
+    const r = risks.find((x) => x.id === id);
+    const notes = window.prompt("Resolution notes (optional):") || "";
+    update((prev) => ({ ...prev, risks: (prev.risks || []).map((x) => (x.id === id ? { ...x, status: "resolved", resolvedAt: Date.now(), resolutionNotes: notes, updatedAt: Date.now() } : x)) }));
+    addTimelineEntry({ type: "risk", text: `Risk resolved: ${r.title}${notes ? ` — ${notes}` : ""}.` });
+  }
+
+  const counts = riskCounts(incident);
+  const ordered = [...openRisks(incident), ...risks.filter((r) => !riskIsOpen(r)).sort((a, b) => (b.resolvedAt || 0) - (a.resolvedAt || 0))];
+  const presets = [{ v: "30", l: "30m" }, { v: "60", l: "1h" }, { v: "120", l: "2h" }, { v: "eod", l: "EOD" }];
+
+  return (
+    <div>
+      <div style={{ padding: 16, background: PALETTE.tealDeep, color: PALETTE.paper, marginBottom: 20 }}>
+        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.amber, marginBottom: 6 }}>RISK / WATCH REGISTER · WHAT REMAINS</div>
+        <div className="display" style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.015em" }}>Track what could still go wrong.</div>
+        <p style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.85, marginTop: 8 }}>
+          Live operational concerns only — watch items, active risks, and escalations, each owned and tracked to resolution.
+        </p>
+      </div>
+
+      {/* Counts summary */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6, marginBottom: 20 }}>
+        {[["Active", counts.active, RISK_STATUS.active.color], ["Watch", counts.watch, RISK_STATUS.watch.color], ["Escalated", counts.escalated, RISK_STATUS.escalated.color], ["Resolved", counts.resolved, RISK_STATUS.resolved.color]].map(([l, n, c]) => (
+          <div key={l} style={{ border: `1px solid rgba(0,48,94,0.14)`, borderTop: `2px solid ${c}`, padding: "8px 6px", textAlign: "center" }}>
+            <div className="display" style={{ fontSize: 22, color: c, fontWeight: 500, lineHeight: 1 }}>{n}</div>
+            <div className="mono" style={{ fontSize: 8.5, letterSpacing: "0.08em", color: PALETTE.inkSoft, marginTop: 4, textTransform: "uppercase" }}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      {!isClosed && (
+        <div style={{ border: `1px solid rgba(0,48,94,0.14)`, padding: 16, marginBottom: 22 }}>
+          <Section title="Risk / watch item">
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Road closure possible — access route affected" />
+          </Section>
+          <Section title="Description (optional)">
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} style={{ resize: "vertical", fontSize: 13, lineHeight: 1.5 }} placeholder="Detail on the concern." />
+          </Section>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <Section title="Category">
+              <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                {RISK_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </Section>
+            <Section title="Owner (optional)">
+              <input type="text" value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="who's watching it" />
+            </Section>
+          </div>
+          <Section title="Severity">
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {Object.entries(RISK_SEVERITY).map(([k, v]) => (
+                <button key={k} onClick={() => setSeverity(k)} style={{ ...presetStyle(severity === k), borderColor: severity === k ? v.color : "rgba(0,48,94,0.18)", background: severity === k ? v.color : PALETTE.paper, color: severity === k ? PALETTE.paper : PALETTE.ink }}>{v.label}</button>
+              ))}
+            </div>
+          </Section>
+          <Section title="Status">
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => setStatus("watch")} style={presetStyle(status === "watch")}>Watch</button>
+              <button onClick={() => setStatus("active")} style={presetStyle(status === "active")}>Active Risk</button>
+            </div>
+          </Section>
+          <Section title="Review point">
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <button onClick={() => setReviewPreset("")} style={presetStyle(reviewPreset === "")}>None</button>
+              {presets.map((p) => <button key={p.v} onClick={() => setReviewPreset(p.v)} style={presetStyle(reviewPreset === p.v)}>{p.l}</button>)}
+            </div>
+          </Section>
+          <button onClick={record} disabled={!title.trim()} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: 8, opacity: title.trim() ? 1 : 0.5 }}>
+            <AlertTriangle size={14} /> Add to register
+          </button>
+        </div>
+      )}
+
+      <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6, marginBottom: 10 }}>REGISTER · {risks.length}</div>
+      {risks.length === 0 ? (
+        <p style={{ fontSize: 13, color: PALETTE.inkSoft, fontStyle: "italic" }}>No risks or watch items yet.</p>
+      ) : (
+        <div style={{ display: "grid", gap: 10 }}>
+          {ordered.map((r) => (
+            <RiskCard key={r.id} risk={r} now={now} isClosed={isClosed}
+              onActivate={() => setRiskStatus(r.id, "active", "raised to active")}
+              onEscalate={() => setRiskStatus(r.id, "escalated", "escalated")}
+              onResolve={() => resolve(r.id)} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RiskCard({ risk, now, isClosed, onActivate, onEscalate, onResolve }) {
+  const sv = RISK_SEVERITY[risk.severity] || {};
+  const st = RISK_STATUS[risk.status] || RISK_STATUS.watch;
+  const open = riskIsOpen(risk);
+  const overdue = open && risk.reviewBy && risk.reviewBy < now;
+  return (
+    <div style={{ border: `1px solid rgba(0,48,94,0.14)`, borderLeft: `3px solid ${sv.color}`, background: PALETTE.paper, padding: "12px 14px", opacity: open ? 1 : 0.72 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: PALETTE.ink, lineHeight: 1.35, textDecoration: open ? "none" : "line-through" }}>{risk.title}</div>
+        <span className="chip" style={{ borderColor: st.color, color: st.color, flexShrink: 0 }}>{st.label}</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 7 }}>
+        <span className="mono" style={{ fontSize: 9, letterSpacing: "0.06em", color: sv.color, border: `1px solid ${sv.color}`, padding: "1px 6px" }}>{(sv.label || "").toUpperCase()}</span>
+        <span className="mono" style={{ fontSize: 9.5, color: PALETTE.inkSoft }}>{risk.category}</span>
+        <span className="mono" style={{ fontSize: 9.5, color: risk.owner ? PALETTE.inkSoft : PALETTE.rust }}>{risk.owner ? `· ${risk.owner}` : "· unowned"}</span>
+      </div>
+      {risk.description && <p style={{ fontSize: 12.5, lineHeight: 1.5, color: PALETTE.ink, marginTop: 8, marginBottom: 0, whiteSpace: "pre-wrap" }}>{risk.description}</p>}
+      {open && risk.reviewBy && (
+        <div style={{ fontSize: 11.5, marginTop: 8, color: overdue ? PALETTE.crimson : PALETTE.inkSoft, fontWeight: overdue ? 600 : 400, display: "flex", alignItems: "center", gap: 5 }}>
+          <Clock size={12} /> {overdue ? "Review overdue" : "Review by"} {formatTime(risk.reviewBy)}
+        </div>
+      )}
+      {!open && (
+        <div style={{ fontSize: 11.5, marginTop: 8, color: PALETTE.sage, display: "flex", alignItems: "center", gap: 5 }}>
+          <CheckCircle2 size={12} /> Resolved {risk.resolvedAt ? formatTime(risk.resolvedAt) : ""}{risk.resolutionNotes ? ` — ${risk.resolutionNotes}` : ""}
+        </div>
+      )}
+      {!isClosed && open && (
+        <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+          {risk.status === "watch" && <button onClick={onActivate} className="btn" style={{ padding: "6px 10px", fontSize: 11.5 }}>Raise to active</button>}
+          {risk.status !== "escalated" && <button onClick={onEscalate} className="btn" style={{ padding: "6px 10px", fontSize: 11.5, borderColor: PALETTE.crimson, color: PALETTE.crimson }}>Escalate</button>}
+          <button onClick={onResolve} className="btn" style={{ padding: "6px 10px", fontSize: 11.5, borderColor: PALETTE.sage, color: PALETTE.sage }}><Check size={12} /> Resolve</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -2021,6 +2236,7 @@ function ExportDrawer({ incident }) {
     { k: "Student profile", v: incident.student ? incident.student.initials + " · attached" : "n/a" },
     { k: "Activation", v: incident.activation ? `declared ${formatTime(incident.activation.declaredAt)} · ${ackRollup(incident)}` : "not activated" },
     { k: "Decisions logged", v: decisionsSummary(incident.decisions) },
+    { k: "Risk / watch register", v: risksSummary(incident) },
     { k: "Communications log", v: commsSummary(incident.comms) },
     { k: "Post-incident review", v: incident.pir ? `${(PIR_STATUS[incident.pir.status] || {}).label || "Draft"} · ${(incident.pir.correctiveActions || []).length} actions` : "not started" },
   ];
@@ -2126,6 +2342,27 @@ function ExportDrawer({ incident }) {
       line(`${stamp}  ·  ${(e.type || "entry").toUpperCase()}  ·  ${e.actor}`, { size: 9, color: [0, 48, 94], bold: true, gap: 12 });
       line(e.text, { size: 10, indent: 8, gap: 13 });
       y += 4;
+    }
+    rule();
+
+    // Risks / watch register
+    const risks = incident.risks || [];
+    const rc = riskCounts(incident);
+    heading(`RISK / WATCH REGISTER (${rc.open} open · ${rc.resolved} resolved)`);
+    if (risks.length === 0) {
+      line("No risks or watch items recorded.", { color: [90, 102, 112] });
+    } else {
+      // Chronological (register stores newest-first).
+      for (const r of [...risks].reverse()) {
+        const sLabel = (RISK_STATUS[r.status] || {}).label || "Watch";
+        const svLabel = (RISK_SEVERITY[r.severity] || {}).label || "Medium";
+        line(`${new Date(r.createdAt).toLocaleString("en-AU")} · ${svLabel} · ${r.category} · ${sLabel}${r.owner ? ` · owner ${r.owner}` : " · unowned"}`, { size: 9, color: [0, 48, 94], bold: true, gap: 12 });
+        line(r.title, { size: 10, indent: 8, gap: 13 });
+        if (r.description) line(r.description, { size: 10, indent: 8, gap: 13 });
+        if (r.reviewBy && r.status !== "resolved") line(`Review by: ${new Date(r.reviewBy).toLocaleString("en-AU")}`, { size: 9, color: [90, 102, 112], indent: 8, gap: 12 });
+        if (r.status === "resolved") line(`Resolved ${r.resolvedAt ? new Date(r.resolvedAt).toLocaleString("en-AU") : ""}${r.resolutionNotes ? ` — ${r.resolutionNotes}` : ""}`, { size: 9, color: [91, 140, 124], indent: 8, gap: 12 });
+        y += 4;
+      }
     }
     rule();
 
@@ -2270,6 +2507,12 @@ function decisionsSummary(decisions) {
   if (list.length === 0) return "none yet";
   const open = list.filter((d) => d.status === "open").length;
   return `${list.length} logged${open ? ` · ${open} open` : ""}`;
+}
+
+function risksSummary(incident) {
+  const c = riskCounts(incident);
+  if (c.total === 0) return "none yet";
+  return `${c.open} open${c.escalated ? ` · ${c.escalated} escalated` : ""} · ${c.resolved} resolved`;
 }
 
 function ackRollup(incident) {
