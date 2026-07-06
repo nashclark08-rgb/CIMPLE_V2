@@ -1384,7 +1384,117 @@ export const NOTIFY_STATUS = {
   sent: { label: "Notified", color: "#B89460" },
   acked: { label: "Acknowledged", color: "#5B8C7C" },
   no_response: { label: "No response", color: "#A85535" },
+  declined: { label: "Declined", color: "#A02029" },
 };
+
+// ---- Increment C: Role Status Board states (derived from assignment + notify) ----
+export const ROLE_BOARD_STATE = {
+  acknowledged: { label: "Acknowledged", color: "#5B8C7C" },
+  notified: { label: "Notified — awaiting ack", color: "#B89460" },
+  assigned: { label: "Assigned", color: "#00305E" },
+  declined: { label: "Declined", color: "#A02029" },
+  unassigned: { label: "Unassigned", color: "#A85535" },
+};
+
+export function roleBoardState(role) {
+  if (!roleIsAssigned(role)) return "unassigned";
+  const s = role.notify?.status;
+  if (s === "acked") return "acknowledged";
+  if (s === "declined") return "declined";
+  if (s === "sent" || s === "no_response") return "notified";
+  return "assigned";
+}
+
+// Reporting/escalation chain for a role, walking reportsTo while it's a known role.
+export function escalationPathwayFor(roleName) {
+  const chain = [];
+  const seen = new Set();
+  let current = roleName;
+  while (current && ROLE_DEFINITIONS[current] && !seen.has(current)) {
+    seen.add(current);
+    const rt = ROLE_DEFINITIONS[current].reportsTo;
+    if (!rt) break;
+    chain.push(rt);
+    current = ROLE_DEFINITIONS[rt] ? rt : null;
+  }
+  return chain;
+}
+
+// Simulated notification dispatch (provider abstraction — real email/SMS/push swap in later).
+export function simulateNotification(role, incident) {
+  return {
+    at: Date.now(),
+    ok: true,
+    channels: ["Trinity App", "SMS"],
+    to: role.staff,
+    role: role.role,
+    payload: {
+      incidentId: incident.id,
+      title: incident.title,
+      role: role.role,
+      severity: SEVERITY[incident.severity]?.label,
+      location: incident.location,
+      action: "Open CIMPLE and acknowledge activation.",
+    },
+  };
+}
+
+// Escalation / conflict-resolution engine.
+// Promote a staff member INTO targetRoleId; if they already hold another role
+// in this incident, vacate it and backfill via recommendAlternate. Returns
+// { roles, log } — the UI applies roles via update() and writes log to timeline.
+export function promoteToRole(incident, staffId, targetRoleId) {
+  const roles = (incident.roles || []).map((r) => ({ ...r }));
+  const target = roles.find((r) => r.id === targetRoleId);
+  const staff = getStaff(staffId) || listStaff().find((s) => s.id === staffId);
+  if (!target || !staff) return { roles: incident.roles, log: [] };
+  const log = [];
+  const wasActivated = !!incident.activation;
+
+  // Any OTHER role this person currently holds (match by id or name).
+  const prev = roles.find((r) => r.id !== targetRoleId && roleIsAssigned(r) && (r.staffId === staffId || r.staff === staff.name));
+
+  Object.assign(target, {
+    staff: staff.name, staffId: staff.id, initials: staff.initials, status: "confirmed", suggested: undefined,
+    notify: wasActivated ? { status: "sent", sentAt: Date.now(), viaBackup: false } : target.notify,
+  });
+  log.push(`${staff.name} assigned as ${target.role}${wasActivated ? " — notified" : ""}.`);
+
+  if (prev) {
+    log.push(`${staff.name} removed from ${prev.role} — no one holds two active roles at once.`);
+    const alt = recommendAlternate({ ...incident, roles }, prev.id);
+    if (alt && !alt.conflict) {
+      Object.assign(prev, {
+        staff: alt.staff.name, staffId: alt.staff.id, initials: alt.staff.initials, status: "confirmed", backup: undefined,
+        notify: wasActivated ? { status: "sent", sentAt: Date.now(), viaBackup: true } : prev.notify,
+      });
+      log.push(`${prev.role} reassigned to ${alt.staff.name}${wasActivated ? " — notified" : ""}.`);
+    } else {
+      Object.assign(prev, { staff: "—", staffId: null, initials: "—", status: "unassigned", notify: undefined });
+      log.push(`${prev.role} is now unassigned — no qualified alternate available.`);
+    }
+  }
+  return { roles, log };
+}
+
+// Reassign a role to its backup / next alternate (used on decline or no-response).
+export function reassignRoleToAlternate(incident, roleId) {
+  const roles = (incident.roles || []).map((r) => ({ ...r }));
+  const role = roles.find((r) => r.id === roleId);
+  if (!role) return { roles: incident.roles, log: [] };
+  const wasActivated = !!incident.activation;
+  const prevName = role.staff;
+  const alt = recommendAlternate(incident, roleId);
+  if (!alt) {
+    Object.assign(role, { staff: "—", staffId: null, initials: "—", status: "unassigned", notify: undefined });
+    return { roles, log: [`${role.role} vacated — no qualified alternate available.`] };
+  }
+  Object.assign(role, {
+    staff: alt.staff.name, staffId: alt.staff.id, initials: alt.staff.initials, status: "confirmed", backup: undefined,
+    notify: wasActivated ? { status: "sent", sentAt: Date.now(), viaBackup: true } : { status: undefined },
+  });
+  return { roles, log: [`${role.role} reassigned from ${prevName} to ${alt.staff.name}${wasActivated ? " — notified" : ""}.`] };
+}
 
 // A role can be notified only if a real person is assigned to it.
 export function roleIsAssigned(role) {

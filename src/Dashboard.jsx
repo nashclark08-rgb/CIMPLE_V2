@@ -23,6 +23,8 @@ import {
   RISK_CATEGORIES, RISK_SEVERITY, RISK_STATUS, newRisk, openRisks, riskCounts, riskIsOpen,
   COPILOT_SEVERITY, COPILOT_RULES, runCopilot,
   recommendAlternate,
+  ROLE_BOARD_STATE, roleBoardState, escalationPathwayFor, simulateNotification,
+  promoteToRole, reassignRoleToAlternate, availableQualifiedStaff, PREF_LABEL,
 } from "./data.js";
 
 export default function Dashboard({ incidentId, onBack }) {
@@ -186,6 +188,11 @@ export default function Dashboard({ incidentId, onBack }) {
       {drawer === "activation" && (
         <Drawer onClose={() => setDrawer(null)} title="Activation & Notification">
           <ActivationDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />
+        </Drawer>
+      )}
+      {drawer === "team" && (
+        <Drawer onClose={() => setDrawer(null)} title="Team Status Board">
+          <TeamBoardDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />
         </Drawer>
       )}
       {drawer === "pir" && (
@@ -517,6 +524,7 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
               <button className="btn" onClick={() => setDrawer("copilot")} style={copilotFindings.length ? { borderColor: copilotCrit ? PALETTE.crimson : PALETTE.rust, color: copilotCrit ? PALETTE.crimson : PALETTE.rust } : undefined}>
                 <Lightbulb size={14} /> Blind Spots{copilotFindings.length ? ` · ${copilotFindings.length}` : ""}
               </button>
+              <button className="btn" onClick={() => setDrawer("team")}><Users size={14} /> Team</button>
               <button className="btn" onClick={() => setDrawer("policy")}><BookOpen size={14} /> Policy</button>
               <button className="btn" onClick={() => setDrawer("decisions")}><Scale size={14} /> Decisions{(incident.decisions || []).length ? ` · ${(incident.decisions || []).length}` : ""}</button>
               {(() => { const open = riskCounts(incident).open; return (
@@ -2123,6 +2131,175 @@ function PIRField({ label, value, onChange }) {
     <Section title={label}>
       <textarea value={value || ""} onChange={(e) => onChange(e.target.value)} rows={4} style={{ resize: "vertical", lineHeight: 1.55, fontSize: 13 }} />
     </Section>
+  );
+}
+
+/* ---------- Team Status Board (Increment C · command view) ---------- */
+function TeamBoardDrawer({ incident, update, addTimelineEntry, isClosed }) {
+  const roles = incident.roles || [];
+  const [briefingId, setBriefingId] = useState(null);
+
+  function applyRoles(nextRoles, log) {
+    update((prev) => ({ ...prev, roles: nextRoles }));
+    (log || []).forEach((t) => addTimelineEntry({ type: "system", text: t }));
+  }
+
+  function assignOrReplace(roleId, staffId) {
+    const role = roles.find((r) => r.id === roleId);
+    if (!staffId) {
+      update((prev) => ({ ...prev, roles: prev.roles.map((r) => (r.id === roleId ? { ...r, staff: "—", staffId: null, initials: "—", status: "unassigned", notify: undefined } : r)) }));
+      addTimelineEntry({ type: "system", text: `${role.role} unassigned.` });
+      return;
+    }
+    const { roles: next, log } = promoteToRole(incident, staffId, roleId);
+    applyRoles(next, log);
+  }
+
+  function notify(roleId) {
+    const role = roles.find((r) => r.id === roleId);
+    const res = simulateNotification(role, incident);
+    update((prev) => ({ ...prev, roles: prev.roles.map((r) => (r.id === roleId ? { ...r, notify: { status: "sent", sentAt: res.at, viaBackup: r.notify?.viaBackup || false } } : r)) }));
+    addTimelineEntry({ type: "comm", text: `Notification sent to ${role.staff} as ${role.role} via ${res.channels.join(" + ")} (simulated).` });
+  }
+
+  function setNotify(roleId, status, verb) {
+    const role = roles.find((r) => r.id === roleId);
+    update((prev) => ({ ...prev, roles: prev.roles.map((r) => (r.id === roleId ? { ...r, notify: { ...r.notify, status, [status === "acked" ? "ackedAt" : "declinedAt"]: Date.now() } } : r)) }));
+    addTimelineEntry({ type: status === "acked" ? "action" : "system", text: `${role.staff} ${verb} ${role.role}.` });
+  }
+
+  function escalate(roleId) {
+    const { roles: next, log } = reassignRoleToAlternate(incident, roleId);
+    applyRoles(next, log);
+  }
+
+  if (briefingId) {
+    const role = roles.find((r) => r.id === briefingId);
+    return <BriefingView incident={incident} role={role} onBack={() => setBriefingId(null)} />;
+  }
+
+  // Summary counts by board state.
+  const counts = roles.reduce((acc, r) => { const s = roleBoardState(r); acc[s] = (acc[s] || 0) + 1; return acc; }, {});
+
+  return (
+    <div>
+      <div style={{ padding: 16, background: PALETTE.tealDeep, color: PALETTE.paper, marginBottom: 18 }}>
+        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.sage, marginBottom: 6 }}>INCIDENT TEAM · STATUS BOARD</div>
+        <div className="display" style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.015em" }}>Who holds what — and where they stand.</div>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
+        {["acknowledged", "notified", "assigned", "declined", "unassigned"].map((s) => (
+          counts[s] ? (
+            <span key={s} className="mono" style={{ fontSize: 10, letterSpacing: "0.06em", color: ROLE_BOARD_STATE[s].color, border: `1px solid ${ROLE_BOARD_STATE[s].color}`, padding: "3px 8px" }}>
+              {counts[s]} {ROLE_BOARD_STATE[s].label.split(" ")[0].toUpperCase()}
+            </span>
+          ) : null
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gap: 10 }}>
+        {roles.map((r) => {
+          const state = roleBoardState(r);
+          const meta = ROLE_BOARD_STATE[state];
+          const candidates = availableQualifiedStaff(r.role);
+          const assigned = roleIsAssigned(r);
+          return (
+            <div key={r.id} style={{ border: `1px solid rgba(0,48,94,0.14)`, borderLeft: `3px solid ${meta.color}`, background: PALETTE.paper, padding: "11px 14px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: PALETTE.ink }}>{r.role}</span>
+                    {r.required && <span className="mono" style={{ fontSize: 8, letterSpacing: "0.1em", color: PALETTE.rust, fontWeight: 700 }}>REQUIRED</span>}
+                  </div>
+                  <div style={{ fontSize: 12.5, color: assigned ? PALETTE.ink : PALETTE.inkSoft, marginTop: 3 }}>
+                    {assigned ? r.staff : "—"}{r.notify?.viaBackup && <span className="mono" style={{ fontSize: 8.5, color: PALETTE.rust, marginLeft: 6 }}>BACKUP</span>}
+                  </div>
+                </div>
+                <span className="chip" style={{ borderColor: meta.color, color: meta.color, flexShrink: 0 }}>{meta.label}</span>
+              </div>
+
+              {/* Assign / replace */}
+              {!isClosed && (
+                <select value={r.staffId || ""} onChange={(e) => assignOrReplace(r.id, e.target.value || null)} style={{ marginTop: 10, fontSize: 12.5 }}>
+                  <option value="">— Unassigned —</option>
+                  {candidates.map((c) => <option key={c.id} value={c.id}>{c.name} · {PREF_LABEL[c.pref]}</option>)}
+                </select>
+              )}
+
+              {/* Activation actions */}
+              {!isClosed && assigned && (
+                <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+                  {(state === "assigned") && <button onClick={() => notify(r.id)} className="btn" style={{ padding: "6px 10px", fontSize: 11.5 }}><Bell size={12} /> Notify</button>}
+                  {(state === "notified") && <button onClick={() => setNotify(r.id, "acked", "acknowledged")} className="btn" style={{ padding: "6px 10px", fontSize: 11.5, borderColor: PALETTE.sage, color: PALETTE.sage }}><Check size={12} /> Acknowledge</button>}
+                  {(state === "notified") && <button onClick={() => setNotify(r.id, "declined", "declined")} className="btn" style={{ padding: "6px 10px", fontSize: 11.5, borderColor: PALETTE.crimson, color: PALETTE.crimson }}>Decline</button>}
+                  {(state === "declined") && <button onClick={() => escalate(r.id)} className="btn" style={{ padding: "6px 10px", fontSize: 11.5, borderColor: PALETTE.crimson, color: PALETTE.crimson }}><UserCheck size={12} /> Escalate to alternate</button>}
+                  <button onClick={() => setBriefingId(r.id)} className="btn-ghost" style={{ background: "none", border: "none", padding: "6px 4px", fontSize: 11.5, color: PALETTE.teal, fontWeight: 500 }}><BookOpen size={12} /> Briefing</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function BriefingView({ incident, role, onBack }) {
+  const def = role ? ROLE_DEFINITIONS[role.role] : null;
+  const responsibilities = role ? responsibilitiesFor(role.role, incident.type) : null;
+  const tasks = (incident.tasks || []).filter((t) => role && t.owner && t.owner === role.initials);
+  const pathway = role ? escalationPathwayFor(role.role) : [];
+  const sev = SEVERITY[incident.severity];
+
+  if (!role) return <p style={{ fontSize: 14, color: PALETTE.inkSoft }}>Role not found.</p>;
+
+  return (
+    <div>
+      <button onClick={onBack} className="btn-ghost" style={{ background: "none", border: "none", padding: 0, color: PALETTE.teal, fontSize: 12, display: "flex", alignItems: "center", gap: 6, marginBottom: 16 }}>
+        <ArrowLeft size={13} /> Back to board
+      </button>
+
+      <div style={{ padding: 16, background: PALETTE.tealDeep, color: PALETTE.paper, marginBottom: 18 }}>
+        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.sage, marginBottom: 6 }}>ROLE BRIEFING</div>
+        <div className="display" style={{ fontSize: 24, fontWeight: 500 }}>{role.role}</div>
+        <div style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>{role.staff && role.staff !== "—" ? role.staff : "Unassigned"}</div>
+      </div>
+
+      <Section title="Incident">
+        <div style={{ fontSize: 13.5, color: PALETTE.ink, fontWeight: 500 }}>{incident.title}</div>
+        <div className="mono" style={{ fontSize: 11, color: PALETTE.inkSoft, marginTop: 4 }}>{sev.label} · {incident.location}</div>
+      </Section>
+
+      {def && (
+        <Section title="Role">
+          <p style={{ fontSize: 13, lineHeight: 1.55, color: PALETTE.ink, margin: 0 }}>{def.description}</p>
+          <div style={{ fontSize: 12, color: PALETTE.inkSoft, marginTop: 8 }}><strong style={{ color: PALETTE.teal }}>Reports to:</strong> {def.reportsTo}</div>
+        </Section>
+      )}
+
+      <Section title="Immediate responsibilities">
+        {responsibilities && responsibilities.length ? (
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            {responsibilities.map((r, i) => <li key={i} style={{ fontSize: 13, lineHeight: 1.6, color: PALETTE.ink }}>{r}</li>)}
+          </ul>
+        ) : <p style={{ fontSize: 13, color: PALETTE.inkSoft, margin: 0 }}>Follow the Incident Commander's direction and this incident's task list.</p>}
+      </Section>
+
+      <Section title={`Assigned tasks (${tasks.length})`}>
+        {tasks.length ? tasks.map((t) => (
+          <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: PALETTE.ink, padding: "4px 0" }}>
+            {t.done ? <CheckCircle2 size={13} color={PALETTE.sage} /> : <Circle size={13} color={PALETTE.inkSoft} />} {t.text}
+          </div>
+        )) : <p style={{ fontSize: 13, color: PALETTE.inkSoft, margin: 0 }}>No tasks assigned to this role yet — tasks owned by these initials will appear here.</p>}
+      </Section>
+
+      <Section title="Escalation pathway">
+        <div style={{ fontSize: 13, color: PALETTE.ink }}>
+          {role.role}{pathway.map((p, i) => <span key={i}> → <strong style={{ color: PALETTE.teal }}>{p}</strong></span>)}
+        </div>
+      </Section>
+    </div>
   );
 }
 
