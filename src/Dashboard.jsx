@@ -9,7 +9,7 @@ import {
   Circle, Lock, Unlock, X, BookOpen, Heart, AlertTriangle, Mail,
   Activity, Eye, Edit3, Download, ArrowLeft, RotateCcw,
   UserCheck, UserX, UserPlus, Settings, MessageSquare, Megaphone,
-  Sparkles, Check, Radio, Bell, ClipboardCheck, Trash2,
+  Sparkles, Check, Radio, Bell, ClipboardCheck, Trash2, Scale,
 } from "lucide-react";
 import { PALETTE, TopBarShell, formatTime, formatRelative, formatElapsed } from "./shared.jsx";
 import {
@@ -18,6 +18,7 @@ import {
   templatesForIncidentType, fillTemplate, newComm, channelLabel, audienceLabel,
   ACTIVATION_CHANNELS, NOTIFY_STATUS, roleIsAssigned,
   PIR_STATUS, newPIR, newCorrectiveAction, pirFacts,
+  DECISION_STATUS, newDecision,
 } from "./data.js";
 
 export default function Dashboard({ incidentId, onBack }) {
@@ -138,6 +139,11 @@ export default function Dashboard({ incidentId, onBack }) {
       )}
       {drawer === "export" && (
         <Drawer onClose={() => setDrawer(null)} title="Incident Pack Export"><ExportDrawer incident={incident} /></Drawer>
+      )}
+      {drawer === "decisions" && (
+        <Drawer onClose={() => setDrawer(null)} title="Decision Log">
+          <DecisionLogDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} now={now} />
+        </Drawer>
       )}
       {drawer === "comms" && (
         <Drawer onClose={() => setDrawer(null)} title="Communications">
@@ -317,6 +323,7 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
                 </button>
               ) : null}
               <button className="btn" onClick={() => setDrawer("policy")}><BookOpen size={14} /> Policy</button>
+              <button className="btn" onClick={() => setDrawer("decisions")}><Scale size={14} /> Decisions{(incident.decisions || []).length ? ` · ${(incident.decisions || []).length}` : ""}</button>
               <button className="btn" onClick={() => setDrawer("comms")}><MessageSquare size={14} /> Communications{(incident.comms || []).length ? ` · ${(incident.comms || []).length}` : ""}</button>
               <button className="btn" onClick={() => setDrawer("pir")} style={incident.pir ? { borderColor: PALETTE.sage, color: PALETTE.sage } : undefined}><ClipboardCheck size={14} /> Review</button>
               <button className="btn" onClick={() => setDrawer("export")}><Download size={14} /> Export pack</button>
@@ -546,6 +553,7 @@ function TimelineEntry({ entry, now, isLast }) {
     action: { color: PALETTE.sage, icon: CheckCircle2, label: "ACTION" },
     note: { color: PALETTE.ink, icon: Edit3, label: "NOTE" },
     comm: { color: PALETTE.amber, icon: Mail, label: "COMM" },
+    decision: { color: PALETTE.crimson, icon: Scale, label: "DECISION" },
   }[entry.type] || { color: PALETTE.ink, icon: Circle, label: "ENTRY" };
 
   return (
@@ -1258,6 +1266,151 @@ function PolicyDrawer({ incident }) {
   );
 }
 
+/* ---------- Decision Log drawer (CORE · defensibility) ---------- */
+function DecisionLogDrawer({ incident, update, addTimelineEntry, isClosed, now }) {
+  const decisions = incident.decisions || [];
+  const [decision, setDecision] = useState("");
+  const [rationale, setRationale] = useState("");
+  const [options, setOptions] = useState("");
+  const [evidence, setEvidence] = useState("");
+  const [reviewPreset, setReviewPreset] = useState(""); // "" | "30" | "60" | "120" | "eod"
+
+  function computeReviewBy() {
+    if (!reviewPreset) return null;
+    if (reviewPreset === "eod") {
+      const d = new Date();
+      d.setHours(17, 0, 0, 0);
+      return d.getTime();
+    }
+    return Date.now() + parseInt(reviewPreset, 10) * 60000;
+  }
+
+  function record() {
+    if (!decision.trim()) return;
+    const d = newDecision({ decision: decision.trim(), rationale: rationale.trim(), options: options.trim(), evidence: evidence.trim(), reviewBy: computeReviewBy() });
+    update((prev) => ({ ...prev, decisions: [d, ...(prev.decisions || [])] }));
+    addTimelineEntry({ type: "decision", text: `Decision: ${d.decision}` });
+    setDecision(""); setRationale(""); setOptions(""); setEvidence(""); setReviewPreset("");
+  }
+
+  function markReviewed(id) {
+    const d = decisions.find((x) => x.id === id);
+    const outcome = window.prompt("Outcome / note on review (optional):") || "";
+    update((prev) => ({
+      ...prev,
+      decisions: (prev.decisions || []).map((x) => (x.id === id ? { ...x, status: "reviewed", reviewedAt: Date.now(), outcome } : x)),
+    }));
+    addTimelineEntry({ type: "decision", text: `Decision reviewed: ${d.decision}${outcome ? ` — ${outcome}` : ""}.` });
+  }
+
+  const presets = [{ v: "30", l: "30m" }, { v: "60", l: "1h" }, { v: "120", l: "2h" }, { v: "eod", l: "EOD" }];
+
+  return (
+    <div>
+      <div style={{ padding: 16, background: PALETTE.tealDeep, color: PALETTE.paper, marginBottom: 20 }}>
+        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: "#E39199", marginBottom: 6 }}>DECISION LOG · COMMAND RECORD</div>
+        <div className="display" style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.015em" }}>Record the decision — and why.</div>
+        <p style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.85, marginTop: 8 }}>
+          Capture what was decided, the reasoning, and what was known at the time. Records are immutable once saved — the defensible account for any later review.
+        </p>
+      </div>
+
+      {!isClosed && (
+        <div style={{ border: `1px solid rgba(0,48,94,0.14)`, padding: 16, marginBottom: 22 }}>
+          <Section title="Decision">
+            <input type="text" value={decision} onChange={(e) => setDecision(e.target.value)} placeholder="e.g. Hold parent notification pending police advice" />
+          </Section>
+          <Section title="Rationale — why this call">
+            <textarea value={rationale} onChange={(e) => setRationale(e.target.value)} rows={3} style={{ resize: "vertical", fontSize: 13, lineHeight: 1.5 }} placeholder="The reasoning behind the decision." />
+          </Section>
+          <Section title="Options considered (optional)">
+            <textarea value={options} onChange={(e) => setOptions(e.target.value)} rows={2} style={{ resize: "vertical", fontSize: 13, lineHeight: 1.5 }} placeholder="Alternatives weighed and set aside." />
+          </Section>
+          <Section title="Evidence / what was known (optional)">
+            <textarea value={evidence} onChange={(e) => setEvidence(e.target.value)} rows={2} style={{ resize: "vertical", fontSize: 13, lineHeight: 1.5 }} placeholder="The information relied on at the time." />
+          </Section>
+          <Section title="Review point">
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <button onClick={() => setReviewPreset("")} style={presetStyle(reviewPreset === "")}>None</button>
+              {presets.map((p) => (
+                <button key={p.v} onClick={() => setReviewPreset(p.v)} style={presetStyle(reviewPreset === p.v)}>{p.l}</button>
+              ))}
+            </div>
+          </Section>
+          <button onClick={record} disabled={!decision.trim()} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: 8, opacity: decision.trim() ? 1 : 0.5 }}>
+            <Scale size={14} /> Record decision
+          </button>
+        </div>
+      )}
+
+      <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6, marginBottom: 10 }}>
+        DECISIONS · {decisions.length}
+      </div>
+      {decisions.length === 0 ? (
+        <p style={{ fontSize: 13, color: PALETTE.inkSoft, fontStyle: "italic" }}>No decisions recorded yet.</p>
+      ) : (
+        <div style={{ display: "grid", gap: 10 }}>
+          {decisions.map((d) => (
+            <DecisionCard key={d.id} d={d} now={now} isClosed={isClosed} onReview={() => markReviewed(d.id)} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function presetStyle(active) {
+  return {
+    padding: "6px 12px", fontSize: 12, fontWeight: 500,
+    border: `1px solid ${active ? PALETTE.teal : "rgba(0,48,94,0.18)"}`,
+    background: active ? PALETTE.teal : PALETTE.paper,
+    color: active ? PALETTE.paper : PALETTE.ink, cursor: "pointer",
+  };
+}
+
+function DecisionCard({ d, now, isClosed, onReview }) {
+  const st = DECISION_STATUS[d.status] || DECISION_STATUS.open;
+  const overdue = d.status === "open" && d.reviewBy && d.reviewBy < now;
+  return (
+    <div style={{ border: `1px solid rgba(0,48,94,0.14)`, borderLeft: `3px solid ${PALETTE.crimson}`, background: PALETTE.paper, padding: "12px 14px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: PALETTE.ink, lineHeight: 1.35 }}>{d.decision}</div>
+        <span className="chip" style={{ borderColor: st.color, color: st.color, flexShrink: 0 }}>{st.label}</span>
+      </div>
+      <div className="mono" style={{ fontSize: 9.5, letterSpacing: "0.06em", color: PALETTE.inkSoft, marginTop: 6 }}>
+        {d.decidedBy.toUpperCase()} · {formatTime(d.ts)}
+      </div>
+      {d.rationale && <DecisionField label="Rationale" value={d.rationale} />}
+      {d.options && <DecisionField label="Options considered" value={d.options} />}
+      {d.evidence && <DecisionField label="What was known" value={d.evidence} />}
+      {d.status === "open" && d.reviewBy && (
+        <div style={{ fontSize: 11.5, marginTop: 8, color: overdue ? PALETTE.crimson : PALETTE.inkSoft, fontWeight: overdue ? 600 : 400, display: "flex", alignItems: "center", gap: 5 }}>
+          <Clock size={12} /> {overdue ? "Review overdue" : "Review by"} {formatTime(d.reviewBy)}
+        </div>
+      )}
+      {d.status === "reviewed" && (
+        <div style={{ fontSize: 11.5, marginTop: 8, color: PALETTE.sage, display: "flex", alignItems: "center", gap: 5 }}>
+          <CheckCircle2 size={12} /> Reviewed {d.reviewedAt ? formatTime(d.reviewedAt) : ""}{d.outcome ? ` — ${d.outcome}` : ""}
+        </div>
+      )}
+      {!isClosed && d.status === "open" && (
+        <button onClick={onReview} className="btn" style={{ marginTop: 10, padding: "6px 10px", fontSize: 11.5, borderColor: PALETTE.sage, color: PALETTE.sage }}>
+          <Check size={12} /> Mark reviewed
+        </button>
+      )}
+    </div>
+  );
+}
+
+function DecisionField({ label, value }) {
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div className="mono" style={{ fontSize: 8.5, letterSpacing: "0.12em", color: PALETTE.teal, opacity: 0.6, textTransform: "uppercase" }}>{label}</div>
+      <div style={{ fontSize: 12.5, lineHeight: 1.5, color: PALETTE.ink, marginTop: 2, whiteSpace: "pre-wrap" }}>{value}</div>
+    </div>
+  );
+}
+
 /* ---------- Post-Incident Review drawer (PRD M7) ---------- */
 function PIRDrawer({ incident, update, addTimelineEntry }) {
   const pir = incident.pir || null;
@@ -1867,6 +2020,7 @@ function ExportDrawer({ incident }) {
     { k: "Policy references", v: `${(incident.policies || []).length} linked` },
     { k: "Student profile", v: incident.student ? incident.student.initials + " · attached" : "n/a" },
     { k: "Activation", v: incident.activation ? `declared ${formatTime(incident.activation.declaredAt)} · ${ackRollup(incident)}` : "not activated" },
+    { k: "Decisions logged", v: decisionsSummary(incident.decisions) },
     { k: "Communications log", v: commsSummary(incident.comms) },
     { k: "Post-incident review", v: incident.pir ? `${(PIR_STATUS[incident.pir.status] || {}).label || "Draft"} · ${(incident.pir.correctiveActions || []).length} actions` : "not started" },
   ];
@@ -1972,6 +2126,26 @@ function ExportDrawer({ incident }) {
       line(`${stamp}  ·  ${(e.type || "entry").toUpperCase()}  ·  ${e.actor}`, { size: 9, color: [0, 48, 94], bold: true, gap: 12 });
       line(e.text, { size: 10, indent: 8, gap: 13 });
       y += 4;
+    }
+    rule();
+
+    // Decisions
+    const decisions = incident.decisions || [];
+    heading(`DECISIONS (${decisions.length} logged)`);
+    if (decisions.length === 0) {
+      line("No decisions recorded.", { color: [90, 102, 112] });
+    } else {
+      // Chronological order for the record (log stores newest-first).
+      for (const d of [...decisions].reverse()) {
+        line(`${new Date(d.ts).toLocaleString("en-AU")} · ${d.decidedBy} · ${(DECISION_STATUS[d.status] || {}).label || "Open"}`, { size: 9, color: [0, 48, 94], bold: true, gap: 12 });
+        line(`Decision: ${d.decision}`, { size: 10, indent: 8, gap: 13 });
+        if (d.rationale) line(`Rationale: ${d.rationale}`, { size: 10, indent: 8, gap: 13 });
+        if (d.options) line(`Options considered: ${d.options}`, { size: 10, indent: 8, gap: 13 });
+        if (d.evidence) line(`What was known: ${d.evidence}`, { size: 10, indent: 8, gap: 13 });
+        if (d.reviewBy) line(`Review by: ${new Date(d.reviewBy).toLocaleString("en-AU")}`, { size: 9, color: [90, 102, 112], indent: 8, gap: 12 });
+        if (d.status === "reviewed") line(`Reviewed ${d.reviewedAt ? new Date(d.reviewedAt).toLocaleString("en-AU") : ""}${d.outcome ? ` — ${d.outcome}` : ""}`, { size: 9, color: [91, 140, 124], indent: 8, gap: 12 });
+        y += 4;
+      }
     }
     rule();
 
@@ -2089,6 +2263,13 @@ function commsSummary(comms) {
   if (list.length === 0) return "none yet";
   const dispatched = list.filter((c) => c.status === "dispatched").length;
   return `${list.length} total · ${dispatched} dispatched`;
+}
+
+function decisionsSummary(decisions) {
+  const list = decisions || [];
+  if (list.length === 0) return "none yet";
+  const open = list.filter((d) => d.status === "open").length;
+  return `${list.length} logged${open ? ` · ${open} open` : ""}`;
 }
 
 function ackRollup(incident) {

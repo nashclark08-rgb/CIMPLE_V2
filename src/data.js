@@ -1064,6 +1064,35 @@ export function newCorrectiveAction(text) {
   return { id: `ca${Date.now()}`, text: text || "", owner: "", done: false };
 }
 
+// ============================================================
+// v8 — DECISION LOG (CORE · decision-making + accountability)
+// Records leadership DECISIONS with rationale, options, the
+// evidence/what-was-known, and a review point — not just actions.
+// The single most valuable artefact for post-incident defensibility.
+// Answers the command question: "What decisions have been made?"
+// ============================================================
+
+export const DECISION_STATUS = {
+  open: { label: "Open", color: "#B89460" },
+  reviewed: { label: "Reviewed", color: "#5B8C7C" },
+};
+
+export function newDecision({ decision, rationale, options, evidence, reviewBy }) {
+  return {
+    id: `dec${Date.now()}`,
+    ts: Date.now(),
+    decidedBy: "K. Patel",
+    decision: decision || "",
+    rationale: rationale || "",
+    options: options || "",   // options considered
+    evidence: evidence || "", // evidence relied on / what was known at the time
+    reviewBy: reviewBy || null,
+    reviewedAt: null,
+    outcome: "",
+    status: "open", // open → reviewed
+  };
+}
+
 // Read-only facts auto-assembled from the incident record, so the
 // reviewer (and the AI draft) work from the same evidence base.
 export function pirFacts(incident) {
