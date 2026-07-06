@@ -9,7 +9,7 @@ import {
   Circle, Lock, Unlock, X, BookOpen, Heart, AlertTriangle, Mail,
   Activity, Eye, Edit3, Download, ArrowLeft, RotateCcw,
   UserCheck, UserX, UserPlus, Settings, MessageSquare, Megaphone,
-  Sparkles, Check, Radio, Bell,
+  Sparkles, Check, Radio, Bell, ClipboardCheck, Trash2,
 } from "lucide-react";
 import { PALETTE, TopBarShell, formatTime, formatRelative, formatElapsed } from "./shared.jsx";
 import {
@@ -17,6 +17,7 @@ import {
   COMMS_CHANNELS, COMMS_AUDIENCES, COMMS_CATEGORIES, COMMS_STATUS,
   templatesForIncidentType, fillTemplate, newComm, channelLabel, audienceLabel,
   ACTIVATION_CHANNELS, NOTIFY_STATUS, roleIsAssigned,
+  PIR_STATUS, newPIR, newCorrectiveAction, pirFacts,
 } from "./data.js";
 
 export default function Dashboard({ incidentId, onBack }) {
@@ -146,6 +147,11 @@ export default function Dashboard({ incidentId, onBack }) {
       {drawer === "activation" && (
         <Drawer onClose={() => setDrawer(null)} title="Activation & Notification">
           <ActivationDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />
+        </Drawer>
+      )}
+      {drawer === "pir" && (
+        <Drawer onClose={() => setDrawer(null)} title="Post-Incident Review">
+          <PIRDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} />
         </Drawer>
       )}
       {drawer && typeof drawer === "object" && drawer.kind === "role" && (
@@ -312,6 +318,7 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
               ) : null}
               <button className="btn" onClick={() => setDrawer("policy")}><BookOpen size={14} /> Policy</button>
               <button className="btn" onClick={() => setDrawer("comms")}><MessageSquare size={14} /> Communications{(incident.comms || []).length ? ` · ${(incident.comms || []).length}` : ""}</button>
+              <button className="btn" onClick={() => setDrawer("pir")} style={incident.pir ? { borderColor: PALETTE.sage, color: PALETTE.sage } : undefined}><ClipboardCheck size={14} /> Review</button>
               <button className="btn" onClick={() => setDrawer("export")}><Download size={14} /> Export pack</button>
               {!isClosed ? (
                 <button className="btn btn-primary" onClick={closeIncident}><Lock size={14} /> Close incident</button>
@@ -1251,6 +1258,179 @@ function PolicyDrawer({ incident }) {
   );
 }
 
+/* ---------- Post-Incident Review drawer (PRD M7) ---------- */
+function PIRDrawer({ incident, update, addTimelineEntry }) {
+  const pir = incident.pir || null;
+  const facts = pirFacts(incident);
+  const [aiState, setAiState] = useState("idle");
+  const [aiNote, setAiNote] = useState("");
+  const [caText, setCaText] = useState("");
+
+  function setPir(changes) {
+    update((prev) => ({ ...prev, pir: { ...prev.pir, ...changes } }));
+  }
+
+  function startReview() {
+    update((prev) => ({ ...prev, pir: newPIR() }));
+    addTimelineEntry({ type: "system", text: "Post-incident review started." });
+  }
+
+  async function aiDraft() {
+    setAiState("loading");
+    setAiNote("");
+    try {
+      const timeline = (incident.timeline || []).slice(-15).map((e) => `${formatTime(e.ts)} ${e.type}: ${e.text}`);
+      const res = await fetch("/api/draft", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind: "pir", facts, timeline }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const data = await res.json();
+      const parsed = JSON.parse(String(data.text || "").replace(/```json|```/g, "").trim());
+      setPir({
+        summary: parsed.summary || pir.summary,
+        whatWorked: parsed.whatWorked || pir.whatWorked,
+        whatImprove: parsed.whatImprove || pir.whatImprove,
+        planUpdates: parsed.planUpdates || pir.planUpdates,
+      });
+      setAiState("done");
+      setAiNote("AI draft generated from the incident record — review and edit before finalising.");
+    } catch {
+      // Graceful fallback: assemble a factual summary locally.
+      const dur = formatElapsed(facts.durationMs);
+      const local =
+        `${facts.title} (${facts.type}, ${facts.severity}) was managed over ${dur}. ` +
+        `${facts.rolesAssigned} of ${facts.rolesTotal} roles were assigned and ${facts.tasksDone}/${facts.tasksTotal} tasks completed. ` +
+        `${facts.activated ? `The incident was activated with ${facts.ackRate} acknowledgements. ` : "The incident was not formally activated. "}` +
+        `${facts.commsTotal ? `${facts.commsSent} of ${facts.commsTotal} communications were dispatched. ` : "No communications were recorded. "}` +
+        `[Reviewer to add narrative detail.]`;
+      setPir({ summary: pir.summary || local });
+      setAiState("error");
+      setAiNote("AI drafting unavailable in this environment — a factual summary was assembled from the record instead. (Set ANTHROPIC_API_KEY on the server to enable full AI drafting.)");
+    }
+  }
+
+  function addCA() {
+    if (!caText.trim()) return;
+    setPir({ correctiveActions: [...(pir.correctiveActions || []), newCorrectiveAction(caText.trim())] });
+    setCaText("");
+  }
+  function toggleCA(id) {
+    setPir({ correctiveActions: pir.correctiveActions.map((c) => (c.id === id ? { ...c, done: !c.done } : c)) });
+  }
+  function setCAOwner(id, owner) {
+    setPir({ correctiveActions: pir.correctiveActions.map((c) => (c.id === id ? { ...c, owner } : c)) });
+  }
+  function removeCA(id) {
+    setPir({ correctiveActions: pir.correctiveActions.filter((c) => c.id !== id) });
+  }
+
+  function finalise() {
+    setPir({ status: "final" });
+    addTimelineEntry({ type: "system", text: "Post-incident review finalised." });
+  }
+  function reopenReview() {
+    setPir({ status: "draft" });
+    addTimelineEntry({ type: "system", text: "Post-incident review reopened." });
+  }
+
+  const factRows = [
+    ["Duration", formatElapsed(facts.durationMs)],
+    ["Severity", facts.severity],
+    ["Roles assigned", `${facts.rolesAssigned} / ${facts.rolesTotal}`],
+    ["Tasks complete", `${facts.tasksDone} / ${facts.tasksTotal}`],
+    ["Activation", facts.activated ? `yes · ${facts.ackRate} ack` : "not activated"],
+    ["Comms dispatched", `${facts.commsSent} / ${facts.commsTotal}`],
+    ["Timeline entries", String(facts.timelineEntries)],
+  ];
+
+  return (
+    <div>
+      <div style={{ padding: 16, background: PALETTE.tealDeep, color: PALETTE.paper, marginBottom: 20 }}>
+        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.sage, marginBottom: 6 }}>MODULE M7 · POST-INCIDENT REVIEW</div>
+        <div className="display" style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.015em" }}>Learn from the record.</div>
+        <p style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.85, marginTop: 8 }}>
+          The incident record is assembled below. Draft a review, capture corrective actions, and suggest plan updates.
+        </p>
+      </div>
+
+      {/* Auto-assembled facts */}
+      <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6, marginBottom: 8 }}>ASSEMBLED FROM THE RECORD</div>
+      <div style={{ border: `1px solid rgba(0,48,94,0.14)`, marginBottom: 20 }}>
+        {factRows.map(([k, v], i) => (
+          <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "9px 14px", borderBottom: i < factRows.length - 1 ? `1px solid rgba(0,48,94,0.08)` : "none", fontSize: 13 }}>
+            <span style={{ color: PALETTE.inkSoft }}>{k}</span>
+            <span className="mono" style={{ fontSize: 11.5, color: PALETTE.ink }}>{v}</span>
+          </div>
+        ))}
+      </div>
+
+      {!pir ? (
+        <button onClick={startReview} className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }}>
+          <ClipboardCheck size={15} /> Start post-incident review
+        </button>
+      ) : (
+        <>
+          {pir.status === "final" && (
+            <div style={{ padding: "10px 12px", background: PALETTE.tealMist, border: `1px solid rgba(0,48,94,0.2)`, marginBottom: 16, fontSize: 12.5, color: PALETTE.teal, display: "flex", alignItems: "center", gap: 8 }}>
+              <CheckCircle2 size={14} /> This review is finalised.
+            </div>
+          )}
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+            <button onClick={aiDraft} disabled={aiState === "loading"} className="btn" style={{ fontSize: 12 }}>
+              <Sparkles size={13} /> {aiState === "loading" ? "Drafting…" : "AI draft review"}
+            </button>
+            <span className="mono" style={{ fontSize: 10, color: PALETTE.inkSoft }}>Human edits & finalises</span>
+          </div>
+          {aiNote && <p style={{ fontSize: 12, lineHeight: 1.5, color: aiState === "error" ? PALETTE.rust : PALETTE.sage, marginTop: 0, marginBottom: 16 }}>{aiNote}</p>}
+
+          <PIRField label="What happened (summary)" value={pir.summary} onChange={(v) => setPir({ summary: v })} />
+          <PIRField label="What worked well" value={pir.whatWorked} onChange={(v) => setPir({ whatWorked: v })} />
+          <PIRField label="What could be improved" value={pir.whatImprove} onChange={(v) => setPir({ whatImprove: v })} />
+          <PIRField label="Suggested plan updates" value={pir.planUpdates} onChange={(v) => setPir({ planUpdates: v })} />
+
+          <Section title={`Corrective actions · ${(pir.correctiveActions || []).length}`}>
+            <div style={{ display: "grid", gap: 8, marginBottom: 10 }}>
+              {(pir.correctiveActions || []).map((c) => (
+                <div key={c.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "9px 11px", border: `1px solid rgba(0,48,94,0.14)`, background: PALETTE.paper }}>
+                  <button onClick={() => toggleCA(c.id)} style={{ background: "none", border: "none", padding: 0, marginTop: 1, cursor: "pointer" }}>
+                    {c.done ? <CheckCircle2 size={16} color={PALETTE.sage} /> : <Circle size={16} color={PALETTE.inkSoft} />}
+                  </button>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: c.done ? PALETTE.inkSoft : PALETTE.ink, textDecoration: c.done ? "line-through" : "none" }}>{c.text}</div>
+                    <input type="text" value={c.owner} onChange={(e) => setCAOwner(c.id, e.target.value)} placeholder="owner…" style={{ marginTop: 6, padding: "4px 8px", fontSize: 11.5, width: 140 }} />
+                  </div>
+                  <button onClick={() => removeCA(c.id)} className="btn-ghost" style={{ background: "none", border: "none", padding: 2, color: PALETTE.inkSoft, cursor: "pointer" }}><Trash2 size={13} /></button>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input type="text" value={caText} onChange={(e) => setCaText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addCA()} placeholder="Add a corrective action…" />
+              <button onClick={addCA} className="btn" style={{ padding: "8px 12px" }}><Plus size={13} /></button>
+            </div>
+          </Section>
+
+          {pir.status === "final" ? (
+            <button onClick={reopenReview} className="btn" style={{ width: "100%", justifyContent: "center", marginTop: 8 }}><RotateCcw size={14} /> Reopen review</button>
+          ) : (
+            <button onClick={finalise} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: 8 }}><Check size={14} /> Finalise review</button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function PIRField({ label, value, onChange }) {
+  return (
+    <Section title={label}>
+      <textarea value={value || ""} onChange={(e) => onChange(e.target.value)} rows={4} style={{ resize: "vertical", lineHeight: 1.55, fontSize: 13 }} />
+    </Section>
+  );
+}
+
 /* ---------- Activation & Notification drawer (PRD M2) ---------- */
 function ActivationDrawer({ incident, update, addTimelineEntry, isClosed }) {
   const roles = incident.roles || [];
@@ -1688,6 +1868,7 @@ function ExportDrawer({ incident }) {
     { k: "Student profile", v: incident.student ? incident.student.initials + " · attached" : "n/a" },
     { k: "Activation", v: incident.activation ? `declared ${formatTime(incident.activation.declaredAt)} · ${ackRollup(incident)}` : "not activated" },
     { k: "Communications log", v: commsSummary(incident.comms) },
+    { k: "Post-incident review", v: incident.pir ? `${(PIR_STATUS[incident.pir.status] || {}).label || "Draft"} · ${(incident.pir.correctiveActions || []).length} actions` : "not started" },
   ];
 
   function downloadJSON() {
@@ -1826,6 +2007,35 @@ function ExportDrawer({ incident }) {
       }
     }
     rule();
+
+    // Post-incident review
+    if (incident.pir) {
+      const p = incident.pir;
+      heading(`POST-INCIDENT REVIEW (${(PIR_STATUS[p.status] || {}).label || "Draft"})`);
+      const parts = [
+        ["What happened", p.summary],
+        ["What worked well", p.whatWorked],
+        ["What could be improved", p.whatImprove],
+        ["Suggested plan updates", p.planUpdates],
+      ];
+      for (const [k, v] of parts) {
+        if (v && v.trim()) {
+          line(k, { size: 10, color: [0, 48, 94], bold: true, gap: 13 });
+          line(v, { size: 10, indent: 8, gap: 13 });
+          y += 2;
+        }
+      }
+      const cas = p.correctiveActions || [];
+      line(`Corrective actions (${cas.filter((c) => c.done).length}/${cas.length} complete):`, { size: 10, color: [0, 48, 94], bold: true, gap: 13 });
+      if (cas.length === 0) {
+        line("None recorded.", { color: [90, 102, 112] });
+      } else {
+        for (const c of cas) {
+          line(`${c.done ? "[x]" : "[ ]"}  ${c.text}${c.owner ? `  · owner ${c.owner}` : ""}`, { size: 10, indent: 8 });
+        }
+      }
+      rule();
+    }
 
     // Policies
     heading("EMP & POLICY REFERENCES");

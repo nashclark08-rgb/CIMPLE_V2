@@ -24,25 +24,50 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { incidentType, audience, channels, seed, instruction } = req.body || {};
+    const body = req.body || {};
+    const kind = body.kind || "comms";
 
-    const system =
-      "You are assisting the Communications Lead at Trinity Anglican College (an Australian K–12 school) " +
-      "to draft a critical-incident communication. Write in clear, calm, factual Australian English. " +
-      "Be reassuring but never speculate on facts, causes, injuries or blame — leave a bracketed placeholder " +
-      "where specific facts are needed. Keep it appropriate for the stated audience and channel length " +
-      "(SMS must be short). This is a DRAFT for human review; do not add commentary, only the message body.";
+    let system;
+    let user;
+    let maxTokens = 700;
 
-    const user = [
-      `Incident type: ${incidentType || "unspecified"}`,
-      `Audience: ${audience || "parents & carers"}`,
-      `Channel(s): ${(channels || []).join(", ") || "app / email"}`,
-      instruction ? `Instruction: ${instruction}` : "",
-      seed ? `\nStarting point / house style to follow:\n${seed}` : "",
-      "\nDraft the message body now.",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    if (kind === "pir") {
+      // Post-incident review drafting (PRD M7).
+      system =
+        "You are assisting a school leader at Trinity Anglican College (an Australian K–12 school) to draft a " +
+        "post-incident review (PIR) of a critical incident. Work ONLY from the facts provided — do not invent " +
+        "events, names, causes or outcomes. Where a judgement needs information you don't have, note it as a " +
+        "gap for the reviewer. Write in clear, professional Australian English, constructive and non-blaming. " +
+        "This is a DRAFT for human review and finalisation. " +
+        'Respond with ONLY a JSON object (no markdown, no commentary) with exactly these string keys: ' +
+        '"summary" (what happened, factual), "whatWorked" (what went well), "whatImprove" (what could be improved), ' +
+        '"planUpdates" (suggested changes to the plan/procedures). Keep each to a short paragraph.';
+      user =
+        "Incident facts:\n" +
+        JSON.stringify(body.facts || {}, null, 2) +
+        "\n\nRecent timeline entries:\n" +
+        (Array.isArray(body.timeline) ? body.timeline.map((t) => `- ${t}`).join("\n") : "(none provided)") +
+        "\n\nDraft the PIR JSON now.";
+      maxTokens = 1200;
+    } else {
+      const { incidentType, audience, channels, seed, instruction } = body;
+      system =
+        "You are assisting the Communications Lead at Trinity Anglican College (an Australian K–12 school) " +
+        "to draft a critical-incident communication. Write in clear, calm, factual Australian English. " +
+        "Be reassuring but never speculate on facts, causes, injuries or blame — leave a bracketed placeholder " +
+        "where specific facts are needed. Keep it appropriate for the stated audience and channel length " +
+        "(SMS must be short). This is a DRAFT for human review; do not add commentary, only the message body.";
+      user = [
+        `Incident type: ${incidentType || "unspecified"}`,
+        `Audience: ${audience || "parents & carers"}`,
+        `Channel(s): ${(channels || []).join(", ") || "app / email"}`,
+        instruction ? `Instruction: ${instruction}` : "",
+        seed ? `\nStarting point / house style to follow:\n${seed}` : "",
+        "\nDraft the message body now.",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    }
 
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -53,7 +78,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 700,
+        max_tokens: maxTokens,
         system,
         messages: [{ role: "user", content: user }],
       }),

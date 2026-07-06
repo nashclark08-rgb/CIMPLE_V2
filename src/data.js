@@ -1035,3 +1035,60 @@ export const NOTIFY_STATUS = {
 export function roleIsAssigned(role) {
   return !!role && role.status !== "unassigned" && role.staff && role.staff !== "—";
 }
+
+// ============================================================
+// v7 — POST-INCIDENT REVIEW (PRD M7 / FR-PIR)
+// Auto-assemble the record → AI-drafted review → corrective
+// actions → plan-update suggestions. AI drafts only; a human
+// edits and finalises (PRD §9.2).
+// ============================================================
+
+export const PIR_STATUS = {
+  draft: { label: "Draft", color: "#4A5664" },
+  final: { label: "Finalised", color: "#00305E" },
+};
+
+export function newPIR() {
+  return {
+    createdAt: Date.now(),
+    status: "draft", // draft → final
+    summary: "",
+    whatWorked: "",
+    whatImprove: "",
+    planUpdates: "",
+    correctiveActions: [],
+  };
+}
+
+export function newCorrectiveAction(text) {
+  return { id: `ca${Date.now()}`, text: text || "", owner: "", done: false };
+}
+
+// Read-only facts auto-assembled from the incident record, so the
+// reviewer (and the AI draft) work from the same evidence base.
+export function pirFacts(incident) {
+  const roles = incident.roles || [];
+  const tasks = incident.tasks || [];
+  const comms = incident.comms || [];
+  const notified = roles.filter((r) => roleIsAssigned(r) && r.notify);
+  const acked = notified.filter((r) => r.notify.status === "acked").length;
+  const durationMs = (incident.closedAt || Date.now()) - incident.startedAt;
+  return {
+    id: incident.id,
+    title: incident.title,
+    type: incident.typeLabel,
+    severity: SEVERITY[incident.severity]?.label || "—",
+    status: incident.status,
+    isDrill: !!incident.isDrill,
+    durationMs,
+    rolesAssigned: roles.filter(roleIsAssigned).length,
+    rolesTotal: roles.length,
+    tasksDone: tasks.filter((t) => t.done).length,
+    tasksTotal: tasks.length,
+    timelineEntries: (incident.timeline || []).length,
+    activated: !!incident.activation,
+    ackRate: notified.length ? `${acked}/${notified.length}` : "n/a",
+    commsSent: comms.filter((c) => c.status === "dispatched").length,
+    commsTotal: comms.length,
+  };
+}
