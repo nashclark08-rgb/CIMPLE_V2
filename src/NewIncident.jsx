@@ -5,6 +5,7 @@ import React, { useState } from "react";
 import {
   Heart, Brain, AlertTriangle, UserX, Users, Lock, Flame,
   AlertOctagon, CloudLightning, UserCheck, Shield, Bus, AlertCircle,
+  ShieldCheck, ServerCrash, Activity, Tent, Zap,
   ArrowLeft, ArrowRight, ChevronRight,
 } from "lucide-react";
 import { PALETTE, TopBarShell } from "./shared.jsx";
@@ -13,6 +14,7 @@ import { INCIDENT_TYPES, TYPE_CATEGORIES, SEVERITY, createIncident, saveIncident
 const ICON_MAP = {
   Heart, Brain, AlertTriangle, UserX, Users, Lock, Flame,
   AlertOctagon, CloudLightning, UserCheck, Shield, Bus, AlertCircle,
+  ShieldCheck, ServerCrash, Activity, Tent, Zap,
 };
 
 export default function NewIncident({ onCancel, onCreated }) {

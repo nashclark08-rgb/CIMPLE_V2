@@ -20,20 +20,26 @@ export const INCIDENT_TYPES = [
   { id: "behavioural", label: "Behavioural / Violent Incident", category: "student", icon: "AlertTriangle", emp: "EMP §5.2 — Behavioural Crisis Response", defaultSeverity: 2 },
   { id: "missing", label: "Missing Student", category: "student", icon: "UserX", emp: "EMP §6.1 — Missing Student Procedure", defaultSeverity: 3 },
   { id: "bullying", label: "Bullying / Harassment", category: "student", icon: "Users", emp: "EMP §5.4 — Bullying Response", defaultSeverity: 2 },
+  { id: "child_protection", label: "Child Protection / Serious Allegation", category: "student", icon: "ShieldCheck", emp: "EMP §2.2 — Child Protection Response", defaultSeverity: 3 },
   { id: "lockdown", label: "Lockdown", category: "school", icon: "Lock", emp: "EMP §1.1 — Lockdown Procedure", defaultSeverity: 4 },
   { id: "evacuation", label: "Fire / Evacuation", category: "school", icon: "Flame", emp: "EMP §1.2 — Evacuation Procedure", defaultSeverity: 3 },
   { id: "hazmat", label: "Hazardous Material", category: "school", icon: "AlertOctagon", emp: "EMP §1.4 — Hazmat Response", defaultSeverity: 3 },
   { id: "natural_disaster", label: "Natural Disaster", category: "school", icon: "CloudLightning", emp: "EMP §1.5 — Natural Disaster Response", defaultSeverity: 3 },
-  { id: "parent_aggression", label: "Parent Aggression", category: "external", icon: "UserCheck", emp: "EMP §7.3 — Parent Conflict Response", defaultSeverity: 2 },
+  { id: "disease_outbreak", label: "Disease Outbreak / Public Health", category: "school", icon: "Activity", emp: "EMP §12.1 — Public Health / Outbreak Response", defaultSeverity: 2 },
+  { id: "cyber", label: "Cyber / Data Incident", category: "tech", icon: "ServerCrash", emp: "EMP §11.1 — Cyber & Data Incident Response", defaultSeverity: 3 },
+  { id: "infrastructure", label: "Utilities / Infrastructure Failure", category: "tech", icon: "Zap", emp: "EMP §13.1 — Utilities & Infrastructure Failure", defaultSeverity: 2 },
+  { id: "parent_aggression", label: "Parent / Visitor Aggression", category: "external", icon: "UserCheck", emp: "EMP §7.3 — Parent & Visitor Conflict Response", defaultSeverity: 2 },
   { id: "external_threat", label: "External Threat / Police", category: "external", icon: "Shield", emp: "EMP §1.3 — External Threat Response", defaultSeverity: 4 },
   { id: "transport", label: "Transport Accident", category: "external", icon: "Bus", emp: "EMP §8.2 — Transport Incident Response", defaultSeverity: 3 },
+  { id: "excursion", label: "Excursion / Off-Site Incident", category: "external", icon: "Tent", emp: "EMP §8.4 — Off-Site / Excursion Incident", defaultSeverity: 3 },
   { id: "death_oncampus", label: "Death — On Campus", category: "death", icon: "AlertCircle", emp: "EMP §9.1 — Critical Incident: Death", defaultSeverity: 4 },
-  { id: "death_offcampus", label: "Death — Off Campus", category: "death", icon: "AlertCircle", emp: "EMP §9.2 — Off-Campus Death Response", defaultSeverity: 4 },
+  { id: "death_offcampus", label: "Death — Off-Campus / Community Tragedy", category: "death", icon: "AlertCircle", emp: "EMP §9.2 — Off-Campus Death & Community Tragedy Response", defaultSeverity: 4 },
 ];
 
 export const TYPE_CATEGORIES = {
   student: { label: "Student-Related", color: "#00305E" },
   school: { label: "School-Wide", color: "#B85C3C" },
+  tech: { label: "Facilities & Technology", color: "#4F6D8F" },
   external: { label: "Community / External", color: "#C9A961" },
   death: { label: "Death", color: "#8B2E1A" },
 };
@@ -128,6 +134,34 @@ const ROLE_TEMPLATES = {
     { role: "Communications Lead", required: true },
     { role: "Counsellor (External)", required: true },
   ],
+  child_protection: [
+    ...COMMON_ROLES,
+    { role: "Wellbeing Lead", required: true },
+    { role: "Family Liaison", required: true },
+    { role: "Police Liaison", required: false },
+  ],
+  disease_outbreak: [
+    ...COMMON_ROLES,
+    { role: "First Aid", required: true },
+    { role: "Communications Lead", required: true },
+    { role: "Family Liaison", required: false },
+  ],
+  cyber: [
+    ...COMMON_ROLES,
+    { role: "Communications Lead", required: true },
+    { role: "Front Office Lead", required: false },
+  ],
+  infrastructure: [
+    ...COMMON_ROLES,
+    { role: "Floor Wardens", required: true },
+    { role: "Communications Lead", required: true },
+  ],
+  excursion: [
+    ...COMMON_ROLES,
+    { role: "First Aid", required: true },
+    { role: "Family Liaison", required: true },
+    { role: "Communications Lead", required: false },
+  ],
 };
 
 export function rolesForIncidentType(typeId) {
@@ -181,6 +215,11 @@ const DEFAULT_TASKS = {
   transport: ["Confirm welfare of all students", "Contact parents of affected students", "Document accident details", "Notify head office"],
   death_oncampus: ["Call 000 — confirm services en route", "Restrict area", "Notify head office immediately", "Designate spokesperson"],
   death_offcampus: ["Notify staff via wellbeing channel", "Prepare communications for community", "Coordinate counsellor support", "Family liaison"],
+  child_protection: ["Ensure the child's immediate safety", "Notify Principal / Child Protection lead", "Limit who is told — protect information", "Determine reporting obligations (do not investigate)"],
+  disease_outbreak: ["Isolate affected individual(s)", "Notify Public Health Unit if required", "Communicate with families", "Arrange enhanced cleaning of affected areas"],
+  cyber: ["Isolate affected systems (disconnect, do not power off)", "Notify IT and Principal immediately", "Preserve evidence — do not delete anything", "Prepare holding communication for families"],
+  infrastructure: ["Make the affected area safe", "Assess impact on operations", "Decide on relocation or closure", "Notify affected staff and families"],
+  excursion: ["Confirm welfare and headcount of all students", "Contact base / Principal immediately", "Contact parents of affected students", "Coordinate with local emergency services if required"],
 };
 
 export function tasksForIncidentType(typeId) {
@@ -253,6 +292,28 @@ function defaultPoliciesForType(typeId) {
       { id: "p1", name: "Critical Incident: Death", section: "§9.1", type: "emp" },
       { id: "p2", name: "Media & Communications", section: "§7.5", type: "policy" },
       { id: "p3", name: "Post-Incident Wellbeing", section: "§10", type: "emp" },
+    ],
+    child_protection: [
+      { id: "p1", name: "Child Protection Response", section: "§2.2", type: "emp" },
+      { id: "p2", name: "Mandatory Reporting Procedure", section: "§2.1", type: "policy" },
+      { id: "p3", name: "Allegations Against Staff", section: "§2.4", type: "policy" },
+    ],
+    disease_outbreak: [
+      { id: "p1", name: "Public Health / Outbreak Response", section: "§12.1", type: "emp" },
+      { id: "p2", name: "Infection Control Guidelines", section: "§12.2", type: "policy" },
+    ],
+    cyber: [
+      { id: "p1", name: "Cyber & Data Incident Response", section: "§11.1", type: "emp" },
+      { id: "p2", name: "Data Breach Notification", section: "§11.3", type: "policy" },
+      { id: "p3", name: "IT Disaster Recovery Plan", section: "§11.4", type: "emp" },
+    ],
+    infrastructure: [
+      { id: "p1", name: "Utilities & Infrastructure Failure", section: "§13.1", type: "emp" },
+      { id: "p2", name: "Business Continuity Plan", section: "§13.2", type: "policy" },
+    ],
+    excursion: [
+      { id: "p1", name: "Off-Site / Excursion Incident", section: "§8.4", type: "emp" },
+      { id: "p2", name: "Excursion Risk Management", section: "§8.5", type: "policy" },
     ],
   };
   return policies[typeId] || [
