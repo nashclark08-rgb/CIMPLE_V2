@@ -22,6 +22,7 @@ import {
   DECISION_STATUS, newDecision,
   RISK_CATEGORIES, RISK_SEVERITY, RISK_STATUS, newRisk, openRisks, riskCounts, riskIsOpen,
   COPILOT_SEVERITY, COPILOT_RULES, runCopilot,
+  recommendAlternate,
 } from "./data.js";
 
 export default function Dashboard({ incidentId, onBack }) {
@@ -1115,6 +1116,32 @@ function RoleAssignDrawer({ incident, roleId, update, addTimelineEntry, isClosed
     setShowStaffPicker(false);
   }
 
+  function replaceWithAlternate(alt) {
+    const oldStaff = role.staff;
+    const wasActivated = !!incident.activation;
+    update((prev) => ({
+      ...prev,
+      roles: prev.roles.map((r) =>
+        r.id === roleId
+          ? {
+              ...r,
+              staff: alt.name,
+              initials: alt.initials,
+              status: "confirmed",
+              suggestedStaffId: alt.id,
+              suggested: undefined,
+              // If the incident is activated, the new holder needs notifying.
+              notify: wasActivated ? { status: "sent", sentAt: Date.now(), viaBackup: false } : r.notify,
+            }
+          : r
+      ),
+    }));
+    addTimelineEntry({
+      type: "system",
+      text: `${role.role}: ${oldStaff} replaced by ${alt.name}${wasActivated ? " — re-notified" : ""}.`,
+    });
+  }
+
   function clearAssignment() {
     if (!confirm(`Remove ${role.staff} from ${role.role}?`)) return;
     const oldStaff = role.staff;
@@ -1277,6 +1304,27 @@ function RoleAssignDrawer({ incident, roleId, update, addTimelineEntry, isClosed
           </button>
         )}
       </Section>
+
+      {/* Dynamic role replacement — recommended alternate */}
+      {!isClosed && role.staff && role.staff !== "—" && (() => {
+        const alt = recommendAlternate(incident, roleId);
+        if (!alt) return null;
+        return (
+          <div style={{ border: `1px solid ${alt.conflict ? "rgba(168,85,53,0.4)" : "rgba(0,48,94,0.16)"}`, borderLeft: `3px solid ${alt.conflict ? PALETTE.rust : PALETTE.sage}`, padding: "12px 14px", marginBottom: 20, background: PALETTE.parchment }}>
+            <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6, marginBottom: 8 }}>IF UNAVAILABLE · RECOMMENDED ALTERNATE</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: alt.conflict ? PALETTE.rust : PALETTE.sage, color: PALETTE.paper, fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{alt.staff.initials}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: PALETTE.ink }}>{alt.staff.name}</div>
+                <div style={{ fontSize: 11, color: alt.conflict ? PALETTE.rust : PALETTE.inkSoft, marginTop: 2 }}>{alt.reason}</div>
+              </div>
+            </div>
+            <button onClick={() => replaceWithAlternate(alt.staff)} className="btn" style={{ width: "100%", justifyContent: "center", marginTop: 10, fontSize: 12.5, borderColor: PALETTE.teal, color: PALETTE.teal }}>
+              <UserCheck size={14} /> Replace{incident.activation ? " & re-notify" : ""}
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Backup */}
       <Section title="Backup">

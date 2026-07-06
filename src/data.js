@@ -844,6 +844,48 @@ export function detectRoleConflicts(qualifiedFor) {
     .map(([a, b, reason]) => ({ roles: [a, b], reason }));
 }
 
+// ============================================================
+// v11 — DYNAMIC ROLE REPLACEMENT (SUPPORTING · coordination)
+// When a role-holder is unavailable, recommend the best qualified,
+// available, non-conflicted alternate — reusing the existing
+// qualifications, availability and role-conflict engine.
+// ============================================================
+
+// Recommend the best alternate for a role in THIS incident.
+// Ranking: no conflict first, then not-already-assigned, then name.
+// Returns { staff, reason, conflict, alreadyAssigned } or null.
+export function recommendAlternate(incident, roleId) {
+  const role = (incident.roles || []).find((r) => r.id === roleId);
+  if (!role) return null;
+  const currentHolder = role.staff;
+  const assignedElsewhere = new Map(); // name → [roles they hold here]
+  for (const r of (incident.roles || []).filter(roleIsAssigned)) {
+    if (!assignedElsewhere.has(r.staff)) assignedElsewhere.set(r.staff, []);
+    assignedElsewhere.get(r.staff).push(r.role);
+  }
+  const conflictsForCandidate = (name) => {
+    const theirRoles = assignedElsewhere.get(name) || [];
+    return theirRoles.some((rn) =>
+      ROLE_CONFLICTS.some(([a, b]) => (a === role.role && b === rn) || (b === role.role && a === rn))
+    );
+  };
+
+  const candidates = listStaff()
+    .filter((s) => s.qualifiedFor?.includes(role.role) && s.available && s.name !== currentHolder)
+    .map((s) => ({ staff: s, conflict: conflictsForCandidate(s.name), alreadyAssigned: assignedElsewhere.has(s.name) }))
+    .sort((a, b) => (a.conflict - b.conflict) || (a.alreadyAssigned - b.alreadyAssigned) || a.staff.name.localeCompare(b.staff.name));
+
+  const best = candidates[0];
+  if (!best) return null;
+  const reason = [
+    "Qualified",
+    "available",
+    best.conflict ? "⚠ has a conflicting role" : "no role conflicts",
+    best.alreadyAssigned && !best.conflict ? "already assigned elsewhere" : null,
+  ].filter(Boolean).join(" · ");
+  return { staff: best.staff, reason, conflict: best.conflict, alreadyAssigned: best.alreadyAssigned };
+}
+
 // Find best available staff for a role.
 // Returns { primary, backup } where backup is the next best match.
 export function suggestStaffForRole(roleName) {
