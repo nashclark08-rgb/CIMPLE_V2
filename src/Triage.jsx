@@ -4,7 +4,11 @@
 import React, { useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, Lock, Sparkles } from "lucide-react";
 import { PALETTE, TopBarShell } from "./shared.jsx";
-import { SEVERITY, INCIDENT_TYPES, createIncident, saveIncident } from "./data.js";
+import AllocationReview from "./AllocationReview.jsx";
+import {
+  SEVERITY, INCIDENT_TYPES, createIncident, saveIncident,
+  autoAllocate, availableQualifiedStaff, PREF_LABEL,
+} from "./data.js";
 
 const QUESTIONS = [
   {
@@ -79,14 +83,31 @@ function calculateSeverity(answers) {
 }
 
 export default function Triage({ onCancel, onCreated }) {
-  const [step, setStep] = useState(0); // 0..4 questions, 5 result
+  const [step, setStep] = useState(0); // 0..4 questions, 5 result, 6 review team
   const [answers, setAnswers] = useState({});
   const [details, setDetails] = useState("");
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
+  const [allocation, setAllocation] = useState([]);
 
   const total = QUESTIONS.length;
   const progress = step >= total ? 100 : (step / total) * 100;
+
+  function goToReview() {
+    const type = answers.category || "behavioural";
+    setAllocation(autoAllocate(type, calculateSeverity(answers)));
+    setStep(total + 1);
+  }
+
+  function setRoleStaff(roleId, staffId) {
+    setAllocation((alloc) => alloc.map((r) => {
+      if (r.id !== roleId) return r;
+      if (!staffId) return { ...r, staff: "—", staffId: null, initials: "—", status: "unassigned", allocPref: null };
+      const cand = availableQualifiedStaff(r.role).find((c) => c.id === staffId);
+      if (!cand) return r;
+      return { ...r, staff: cand.name, staffId: cand.id, initials: cand.initials, status: "confirmed", allocPref: PREF_LABEL[cand.pref] };
+    }));
+  }
 
   function pick(qid, value) {
     const next = { ...answers, [qid]: value };
@@ -110,6 +131,7 @@ export default function Triage({ onCancel, onCreated }) {
       severity: recommendedSeverity,
       title: title.trim() || "Triage-initiated incident",
       location: location.trim() || "Location not specified",
+      roles: allocation.length ? allocation : null,
     });
     // Add a system note about triage
     incident.timeline.push({
@@ -147,7 +169,7 @@ export default function Triage({ onCancel, onCreated }) {
 
           <div className="card" style={{ padding: 40, minHeight: 480 }}>
             {step < total && <Question key={step} q={QUESTIONS[step]} index={step} total={total} value={answers[QUESTIONS[step].id]} onPick={pick} onBack={back} canBack={step > 0} />}
-            {step >= total && (
+            {step === total && (
               <Result
                 severity={recommendedSeverity}
                 answers={answers}
@@ -158,8 +180,16 @@ export default function Triage({ onCancel, onCreated }) {
                 details={details}
                 setDetails={setDetails}
                 onBack={() => setStep(total - 1)}
-                onCreate={createFromTriage}
+                onCreate={goToReview}
                 recommendedType={recommendedType}
+              />
+            )}
+            {step === total + 1 && (
+              <TeamReview
+                allocation={allocation}
+                onChange={setRoleStaff}
+                onBack={() => setStep(total)}
+                onCreate={createFromTriage}
               />
             )}
           </div>
@@ -284,7 +314,37 @@ function Result({ severity, answers, title, setTitle, location, setLocation, det
 
       <div style={{ marginTop: 32, paddingTop: 24, borderTop: `1px solid rgba(0, 48, 94, 0.12)`, display: "flex", justifyContent: "flex-end" }}>
         <button onClick={onCreate} className="btn btn-primary">
-          <Sparkles size={14} /> Open incident with these settings
+          Review team <ArrowRight size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TeamReview({ allocation, onChange, onBack, onCreate }) {
+  return (
+    <div className="fade-in">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <span className="mono" style={{ fontSize: 11, letterSpacing: "0.16em", color: PALETTE.sage, display: "flex", alignItems: "center", gap: 8 }}>
+          <CheckCircle2 size={13} /> TEAM ALLOCATION
+        </span>
+        <button onClick={onBack} className="btn-ghost" style={{ background: "none", border: "none", color: PALETTE.teal, fontSize: 13, display: "flex", alignItems: "center", gap: 6, opacity: 0.7 }}>
+          <ArrowLeft size={14} /> Back to recommendation
+        </button>
+      </div>
+
+      <h2 className="display" style={{ fontSize: 32, lineHeight: 1.1, color: PALETTE.teal, fontWeight: 500, margin: "0 0 8px", letterSpacing: "-0.02em" }}>
+        Review the team
+      </h2>
+      <p style={{ fontSize: 14, color: PALETTE.inkSoft, margin: "0 0 24px", lineHeight: 1.6 }}>
+        CIMPLE auto-allocated available staff to the roles this incident needs — filling the most critical roles first, and preferring each person's primary role. Override anyone below, then open the incident.
+      </p>
+
+      <AllocationReview allocation={allocation} onChange={onChange} />
+
+      <div style={{ marginTop: 32, paddingTop: 24, borderTop: `1px solid rgba(0, 48, 94, 0.12)`, display: "flex", justifyContent: "flex-end" }}>
+        <button onClick={onCreate} className="btn btn-primary">
+          <Sparkles size={14} /> Open incident with this team
         </button>
       </div>
     </div>
