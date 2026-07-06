@@ -136,7 +136,7 @@ Status colour = activation state. Also feeds Red Folder ("Key contacts") and Bli
 
 ## 10. Implementation plan
 
-**Increment A — Roster & preference model (no backend):** enhanced staff schema (primary/secondary/other, email/mobile/jobTitle/department, availabilityStatus) with `qualifiedFor` derived for back-compat; **bulk CSV import** + bulk edit + manual entry; migration of existing staff. _(Excel/.xlsx deferred — needs SheetJS; CSV covers the need.)_
+**Increment A — Roster & preference model (no backend): ✅ SHIPPED 2026-07-06.** enhanced staff schema (primary/secondary/other, email/mobile/jobTitle/department, availabilityStatus) with `qualifiedFor` derived (`normalizeStaff`) for back-compat; **bulk CSV import** (`parseStaffImport`/`bulkImportStaff`, preview + warnings, append-dedupe/replace, template + file/paste); reworked staff editor; safe migration (normalize on read + on `saveStaff`). _(Excel/.xlsx deferred — needs SheetJS; CSV covers the need.)_
 
 **Increment B — Auto-allocation in triage/new-incident (no backend):** `ROLE_PRIORITY` + `autoAllocate()` + a **review/override** step before "Create incident"; severity role add-ons.
 
