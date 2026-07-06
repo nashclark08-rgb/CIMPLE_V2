@@ -53,7 +53,7 @@ Priority key: **Now** (≤ next 2 build cycles, mostly no backend) · **Next** (
 **D. Data required.** Incident type playbooks, historical incident stage-progressions, current elapsed time and severity.
 **E. Risks.** False confidence / anchoring. Must present as *"situations like this often next involve…"* scenario prompts with confidence and sources, never "this will happen" (Principle 2).
 **F. MVP.** Rules-based, per-incident-type "next-stage checklist" surfaced at stage transitions — no ML, just codified expertise from the 110-page plan.
-**G. Advanced.** Learns stage-progression patterns from CIMPLE's own incident corpus across schools; recommends pre-staging actions tied to Crisis Copilot.
+**G. Advanced.** Learns stage-progression patterns from CIMPLE's own incident corpus across schools; recommends pre-staging actions tied to Blind Spots.
 **H. School alignment.** Encodes the plan's escalation logic as live foresight; deeply school-specific if built on TAC's own EMPs.
 **I. Priority. Next.** The MVP (rules-based) could even be Now; the learning version needs a data corpus (multi-incident, likely multi-school).
 
@@ -79,7 +79,7 @@ Priority key: **Now** (≤ next 2 build cycles, mostly no backend) · **Next** (
 **H. School alignment.** Serves the learning loop and defensibility; drills become evidence for Child Safe Standards / AISNSW.
 **I. Priority. Next.** Builds directly on the immutable log; low technical risk, high recurring value.
 
-### 6. Crisis Copilot ("What are we forgetting?") — _Now_ ★ flagship
+### 6. Blind Spots ("What are we forgetting?") — _Now_ ★ flagship
 **A. Purpose.** Continuous, incident-type-aware gap detection against the plan: the platform quietly asks "given this is a Missing Student at 14:20, have you… checked CCTV / notified police / assigned a searcher / contacted parents?"
 **B. Operational value.** This is the core promise — it makes the unreadable 110-page plan *execute itself* as prompts, catching the omissions that hindsight punishes.
 **C. User stories.** _As a Principal mid-incident, a calm panel shows "3 expected actions not yet done for this incident type" without nagging._
@@ -138,7 +138,7 @@ Priority key: **Now** (≤ next 2 build cycles, mostly no backend) · **Next** (
 **A. Purpose.** A radically stripped interface for peak stress: only the current severity, the next 3 actions, who to call, and the one-tap declare/comms — nothing else.
 **B. Operational value.** Embodies Principle 4 (simplicity under pressure). Under acute stress, cognitive bandwidth collapses; feature-rich screens become unusable. This is the anti-feature that wins.
 **C. User stories.** _As a Principal in the first five minutes of a lockdown, one giant screen tells me exactly the next three things to do and the one number to call._
-**D. Data required.** Current incident state, next-actions (from Crisis Copilot), emergency contacts — all already present.
+**D. Data required.** Current incident state, next-actions (from Blind Spots), emergency contacts — all already present.
 **E. Risks.** Hiding information can also hide something needed; the mode must be one tap away from full detail.
 **F. MVP.** A toggle that switches the dashboard to a high-contrast, large-type, 3-action view.
 **G. Advanced.** Auto-engages at L4; voice-driven ("what's next?"); works fully offline on a phone.
@@ -152,7 +152,7 @@ Priority key: **Now** (≤ next 2 build cycles, mostly no backend) · **Next** (
 **D. Data required.** Deep, sensitive integration: SEQTA/Synergetic (students, families, medical, custody/AVO flags), staff directory, contractor register, governance list. **The hardest and most sensitive data problem in the platform.**
 **E. Risks (highest).** Child-safeguarding and privacy are paramount (Principle 7). Custody/AVO/medical data demands strict access control, purpose limitation, retention policy, and consent/governance sign-off. Get this wrong and it's a catastrophe, not a feature.
 **F. MVP.** Manual, per-incident "linked people" (sibling, contacts, medical, do-not-contact flags) attached to the incident — no live integration yet.
-**G. Advanced.** Live, permissioned graph from school systems with safeguarding flags, powering Crisis Copilot ("check the sibling"), Reunification, and Forecasting.
+**G. Advanced.** Live, permissioned graph from school systems with safeguarding flags, powering Blind Spots ("check the sibling"), Reunification, and Forecasting.
 **H. School alignment.** This is the deepest school-specific moat — impossible for a generic EM vendor to replicate without a school's own data model and safeguarding posture.
 **I. Priority. Later (MVP could be Next).** The strategic long-term differentiator, but gated on backend + integrations + a serious data-governance framework.
 
@@ -179,19 +179,19 @@ These are, in my assessment, as important as anything above — and more school-
 Hard-to-copy because they are defensibility- and school-data-specific:
 1. **Incident Intelligence Graph** — the deepest moat; a generic vendor cannot replicate a school's own relationship + safeguarding data model.
 2. **Decision Log** — built for the inquest; the clearest philosophical break from enterprise EM tools.
-3. **Crisis Copilot** — makes the school's *own* 110-page plan execute itself; the core promise.
+3. **Blind Spots** — makes the school's *own* 110-page plan execute itself; the core promise.
 4. **Reunification & Custody-Safe Release** (from Part 2) — a legally critical, uniquely school workflow nobody else has.
 5. **Red Folder Mode** — simplicity as a feature; the anti-enterprise UX that wins hearts in a demo and in the first five minutes.
 
 ### Q2 · Greatest value in the first hour of a crisis (top 5)
 1. **Red Folder Mode** — usable when cognitive bandwidth has collapsed.
-2. **Crisis Copilot** — catches the omissions that hindsight punishes.
+2. **Blind Spots** — catches the omissions that hindsight punishes.
 3. **Real-time Accountability / Roll-Call** (Part 2) — "is everyone safe?" is question one.
 4. **Dynamic Role Replacement** — fills the "half the plan isn't here today" gap instantly.
 5. **Decision Log** — captures rationale while it's fresh and defensible (and Incident Forecasting's rules-based next-stage prompts are a close sixth).
 
 ### Q3 · Greatest long-term strategic value
-**The learning loop** — Live Lessons + Timeline Replay + PIR + Drill Simulator feeding amendments back into the plan and Crisis Copilot. Individually modest; together they turn CIMPLE from an incident tool into **"the plan that learns"** — the thing that compounds in value every year and every drill, and the reason a school can never leave. The Intelligence Graph is the deepest *moat*; the learning loop is the deepest *lock-in*.
+**The learning loop** — Live Lessons + Timeline Replay + PIR + Drill Simulator feeding amendments back into the plan and Blind Spots. Individually modest; together they turn CIMPLE from an incident tool into **"the plan that learns"** — the thing that compounds in value every year and every drill, and the reason a school can never leave. The Intelligence Graph is the deepest *moat*; the learning loop is the deepest *lock-in*.
 
 ### Q4 · What makes CIMPLE fundamentally different from traditional EM software
 **The Decision Log, paired with Red Folder Mode.** Enterprise EM software is a dashboard for a professional operations centre. CIMPLE is built for a lone, emotionally-involved Principal making defensible decisions about children in degraded conditions. Recording *reasoning for the coroner* and *stripping the interface to three actions for the panicking human* are both unthinkable in enterprise EM and exactly right for schools. That is the identity.
@@ -205,7 +205,7 @@ See Part 2 in full. The standouts: **Reunification & Custody-Safe Release**, **R
 
 **By 2030, CIMPLE is the operating system for school crisis management — the standard K-12 schools around the world are measured against.** Not because it has the most features, but because it changed what the category is for.
 
-**It is the plan, alive.** Schools no longer maintain a 110-page document nobody reads. They maintain CIMPLE. The plan lives as executable playbooks, and every drill and real incident refines it automatically. "Updating the plan" and "using the platform" are the same act. Crisis Copilot means the plan runs itself as calm, timely prompts; the binder in the cupboard is a museum piece.
+**It is the plan, alive.** Schools no longer maintain a 110-page document nobody reads. They maintain CIMPLE. The plan lives as executable playbooks, and every drill and real incident refines it automatically. "Updating the plan" and "using the platform" are the same act. Blind Spots means the plan runs itself as calm, timely prompts; the binder in the cupboard is a museum piece.
 
 **It is defensible by design.** Every incident produces, automatically, a decision log, a minute-by-minute replayable record, a statutory-obligations trail, and a governance pack. When the coroner, the regulator or the insurer asks "what did you decide, when, and why?", the school answers in minutes with evidence — because CIMPLE was built for that question first. This is why boards and insurers *require* it.
 
@@ -228,7 +228,7 @@ The competitive position in one line: **traditional emergency-management softwar
 | Concept | Priority | Backend needed? |
 |---|---|---|
 | Decision Log | **Now** ★ | No |
-| Crisis Copilot | **Now** ★ | No (MVP) |
+| Blind Spots | **Now** ★ | No (MVP) |
 | Red Folder Mode | **Now** ★ | No |
 | Dynamic Role Replacement | **Now** | No (deeper w/ roster) |
 | Live Lessons Learned | **Now** | No |

@@ -1,0 +1,97 @@
+{
+  "task": "Rename the 'Crisis Copilot' feature in CIMPLE",
+  "raisedBy": "Nash Clark",
+  "date": "2026-07-06",
+  "reason": [
+    "'Copilot' is strongly associated with Microsoft Copilot and GitHub Copilot. At a school running Microsoft 365, users will assume it is Microsoft AI.",
+    "The name implies AI decision-making, which contradicts the feature's actual nature: a transparent, rules-based check that recommends only and never decides (charter principle: human-in-command).",
+    "A misleading name undermines the trust the feature is designed to earn."
+  ],
+  "what_the_feature_actually_is": "A rules-based gap detector. It compares the incident (type, severity, roles, tasks, decisions, comms, risks, activation) against expected response patterns and surfaces what may have been overlooked. Every finding traces to a named rule. It is not AI and makes no decisions.",
+  "decision_required": {
+    "question": "What should the feature be renamed to?",
+    "recommended": "Gap Check",
+    "options": [
+      {
+        "name": "Gap Check",
+        "buttonLabel": "Gaps",
+        "drawerTitle": "Gap Check",
+        "tagline": "What might be missed",
+        "pros": ["Plain English, no jargon", "Describes exactly what it does", "No AI or Microsoft association", "Short — fits the command strip"],
+        "cons": ["Slightly utilitarian"]
+      },
+      {
+        "name": "Blind Spots",
+        "buttonLabel": "Blind Spots",
+        "drawerTitle": "Blind Spots",
+        "tagline": "What are we forgetting?",
+        "pros": ["Memorable and evocative", "Clearly conveys 'what have we overlooked'", "No AI association"],
+        "cons": ["Slightly informal for a formal record"]
+      },
+      {
+        "name": "Command Check",
+        "buttonLabel": "Command Check",
+        "drawerTitle": "Command Check",
+        "tagline": "Have we missed anything?",
+        "pros": ["Professional", "Ties to incident command", "No AI association"],
+        "cons": ["Less immediately obvious what it checks"]
+      },
+      {
+        "name": "Second Set of Eyes",
+        "buttonLabel": "2nd Eyes",
+        "drawerTitle": "Second Set of Eyes",
+        "tagline": "What might have been overlooked",
+        "pros": ["Captures the assistant-not-decider role perfectly", "Warm, human framing"],
+        "cons": ["Long", "Button abbreviation is awkward"]
+      }
+    ]
+  },
+  "instruction_to_claude": "Once Nash picks a name, apply it to all USER-FACING strings below. Internal code identifiers are optional (rename for consistency, or leave to avoid churn — they are not user-visible). Then rebuild, commit, push, and update the docs + memory.",
+  "scope_of_change": {
+    "user_facing_strings": {
+      "file": "src/Dashboard.jsx",
+      "items": [
+        "Command-strip button label: 'Copilot' + count -> new button label",
+        "Drawer branch title: 'Crisis Copilot' -> new drawer title",
+        "Drawer header eyebrow: 'CRISIS COPILOT · WHAT MIGHT BE MISSED' -> new tagline",
+        "Drawer header line: 'Have we forgotten anything?' -> keep or align to new name",
+        "Disclaimer copy referencing 'the Copilot' -> new name (keep the recommend-only wording)",
+        "Timeline log text: 'Crisis Copilot review — N finding(s)...' -> new name",
+        "Export section heading: 'COPILOT FINDINGS' -> new name in caps",
+        "Export summary label: 'Copilot findings' -> new name",
+        "Footer: 'N RULES EVALUATED · EVERY FINDING TRACES TO A RULE' (no name; keep)"
+      ]
+    },
+    "internal_identifiers_optional": {
+      "note": "Not user-visible. Rename for consistency OR leave as-is. If renaming, keep it a pure mechanical find/replace and rebuild.",
+      "file_data_js": ["COPILOT_SEVERITY", "buildCopilotContext", "COPILOT_RULES", "runCopilot"],
+      "file_dashboard_jsx": ["CopilotDrawer", "FindingCard", "COPILOT_TARGET_LABEL", "copilotSummary", "copilotFindings/copilotCrit vars", "drawer key string 'copilot'"]
+    },
+    "docs_and_memory": {
+      "note": "Replace 'Crisis Copilot' / 'Copilot' references with the chosen name.",
+      "files": [
+        "docs/SCOPE.md",
+        "docs/ROADMAP.md",
+        "docs/VISION_2030.md",
+        "HANDOVER.md",
+        "memory: feedback_cimple_scope_charter.md",
+        "memory: project_tac_cimple_prototype.md"
+      ]
+    }
+  },
+  "must_not_change": [
+    "The rule engine behaviour (17 rules, severities, evidence).",
+    "The recommend-only / human-in-command framing.",
+    "Finding classifications: Critical / Important / Advisory."
+  ],
+  "acceptance_test": [
+    "Open an incident on cimple-v2.vercel.app.",
+    "Confirm the command-strip button shows the NEW name (no 'Copilot' anywhere).",
+    "Open the drawer: header, disclaimer and footer show the new name and still say it recommends only / never decides.",
+    "Trigger 'Log review' and confirm the timeline entry uses the new name.",
+    "Export the Audit PDF and confirm the findings section header uses the new name.",
+    "Search the codebase and docs for 'Copilot' — zero user-facing matches remain."
+  ],
+  "estimated_effort": "~15 minutes (mostly string replacement + rebuild + docs).",
+  "next_step": "Nash: reply with the chosen name (or 'go with Gap Check'). Claude will then execute the full rename, rebuild, push (auto-deploy), and update docs + memory."
+}

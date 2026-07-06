@@ -27,10 +27,10 @@ Single test applied to everything below: **"Does this materially improve the man
 - **E. Complexity.** Low. No backend.
 - **F. Risks.** List bloat; needs a crisp close/escalate path; resist over-engineering a formal risk matrix.
 - **G. MVP.** A Risks panel on the incident: add / assign / close risk items; open count in the command strip; included in export.
-- **H. Future.** Link risks → tasks/decisions; escalate a risk into a severity change; Crisis Copilot suggests likely risks by incident type.
+- **H. Future.** Link risks → tasks/decisions; escalate a risk into a severity change; Blind Spots suggests likely risks by incident type.
 - **I. Scope.** **Core** — situational awareness; fills an unbuilt "immediately know" gap.
 
-### 3. Crisis Copilot — **CORE**
+### 3. Blind Spots — **CORE**
 - **A. Purpose.** Context-aware assistant that flags likely omissions and incomplete expected actions for the incident type. Recommends, never decides.
 - **B. Incident-management value.** Answers *"What needs to happen next?"* Catches the omissions hindsight punishes; decision support at the point of action.
 - **C. User story.** _As Principal in a Missing Student incident, a quiet panel notes "CCTV not checked, police not notified" — I act on it or dismiss it._
@@ -45,7 +45,7 @@ Single test applied to everything below: **"Does this materially improve the man
 - **A. Purpose.** A stress-optimised interface showing only: current situation, key contacts, critical actions, latest decisions, active risks.
 - **B. Incident-management value.** Makes the entire command picture graspable and actionable when cognitive bandwidth collapses; command and control distilled.
 - **C. User story.** _As Principal in the first five minutes of a lockdown, one high-contrast screen shows the next three actions and the one number to call._
-- **D. Data required.** Current incident state, next-actions (Crisis Copilot), key contacts, latest decisions (Decision Log), active risks (Risk Register) — all in-app.
+- **D. Data required.** Current incident state, next-actions (Blind Spots), key contacts, latest decisions (Decision Log), active risks (Risk Register) — all in-app.
 - **E. Complexity.** Low–Medium (front-end composition). No backend. **Depends on Decision Log + Risk Register for its content.**
 - **F. Risks.** Hiding information can hide something needed — full detail must be one tap away; picking the right five elements is the whole design.
 - **G. MVP.** A toggle switching the dashboard to a large-type, high-contrast, five-block view.
@@ -107,10 +107,10 @@ Per charter, and reconfirmed here: student management, custody management (beyon
 ## Final questions
 
 **1. Which capability should be built next, and why?**
-**Decision Log.** It fills an unbuilt Core "immediately know" gap (*what decisions have been made?*), is Low complexity with no backend, carries the highest defensibility payoff, and is a **content prerequisite** for Red Folder Mode ("latest decisions"). It also strengthens the M7 review already shipped. Build **Risk/Watch Register** immediately after — together they supply the two data streams Red Folder and Crisis Copilot both consume.
+**Decision Log.** It fills an unbuilt Core "immediately know" gap (*what decisions have been made?*), is Low complexity with no backend, carries the highest defensibility payoff, and is a **content prerequisite** for Red Folder Mode ("latest decisions"). It also strengthens the M7 review already shipped. Build **Risk/Watch Register** immediately after — together they supply the two data streams Red Folder and Blind Spots both consume.
 
 **2. Highest operational value with no backend?**
-**Crisis Copilot (rules-based MVP).** It actively changes what gets done in the incident by catching missed critical actions — the highest operational lift achievable with zero backend, using data the app already holds. (Red Folder Mode is a very close second for usability value.)
+**Blind Spots (rules-based MVP).** It actively changes what gets done in the incident by catching missed critical actions — the highest operational lift achievable with zero backend, using data the app already holds. (Red Folder Mode is a very close second for usability value.)
 
 **3. Best support for the Principal in the first 60 minutes?**
 **Red Folder Mode.** In the acute phase, cognitive bandwidth collapses; a stripped, high-contrast view of situation + contacts + critical actions + latest decisions + active risks is exactly what a lone, overwhelmed Principal can actually use.
@@ -119,11 +119,11 @@ Per charter, and reconfirmed here: student management, custody management (beyon
 **Decision Log.** Recording decisions *with rationale and what was known at the time* is the single most valuable artefact in a coronial inquest, insurance claim, or regulator review — precisely what traditional records omit.
 
 **5. Which most improves command and control?**
-**Crisis Copilot.** Command and control fails through omission and loss of grip; a quiet assistant that keeps the response complete and maintains momentum most directly improves the *control* of an unfolding incident. (Red Folder most improves the *exercise* of command under stress; the two are complementary.)
+**Blind Spots.** Command and control fails through omission and loss of grip; a quiet assistant that keeps the response complete and maintains momentum most directly improves the *control* of an unfolding incident. (Red Folder most improves the *exercise* of command under stress; the two are complementary.)
 
 **6. Strategic value ranking (highest → lowest).**
 1. **Decision Log** — foundational, defensibility, no backend, feeds Red Folder.
-2. **Crisis Copilot** — highest decision-support ceiling and differentiation.
+2. **Blind Spots** — highest decision-support ceiling and differentiation.
 3. **Red Folder Mode** — signature command-and-control surface.
 4. **Risk / Watch Register** — core situational awareness; fills a gap.
 5. **Dynamic Role Replacement** — coordination; extends shipped capability.
@@ -144,7 +144,7 @@ Incident creation · triage · role assignment (with conflict detection) · task
 Sequenced by value, dependency, and complexity:
 1. **Decision Log** _(Core)_ — the decision + accountability spine. ✅ **Shipped 2026-07-06.**
 2. **Risk / Watch Register** _(Core)_ — the "what risks remain?" stream. ✅ **Shipped 2026-07-06.**
-3. **Crisis Copilot — rules-based MVP** _(Core)_ — gap detection from existing per-type templates. ✅ **Shipped 2026-07-06.**
+3. **Blind Spots — rules-based MVP** _(Core)_ — gap detection from existing per-type templates. ✅ **Shipped 2026-07-06.**
 4. **Red Folder Mode** _(Core)_ — composes situation + contacts + actions + latest decisions + active risks into one stress-proof view. ✅ **Shipped 2026-07-06.**
 5. **Dynamic Role Replacement — MVP** _(Supporting)_ — extends the existing conflict/backup/failover engine. ✅ **Shipped 2026-07-06.**
 6. **Live Lessons Capture** _(Supporting, optional)_ — cheap feed into the built PIR; only if it proves wanted. _(deferred — build only if PIR use proves demand)_
@@ -154,7 +154,7 @@ Sequenced by value, dependency, and complexity:
 ### Phase 3 — After backend _(shared audit log, real dispatch, multi-user, integrations)_
 - **Shared, multi-user immutable audit log** — makes the Decision Log, timeline and Risk Register legally real across devices and users (the true defensibility unlock).
 - **Real activation dispatch + acknowledgement** — push + independent SMS gateway; M2 stops being simulated.
-- **Crisis Copilot — advanced** — reasons over the live multi-user timeline; infers gaps beyond the static list.
+- **Blind Spots — advanced** — reasons over the live multi-user timeline; infers gaps beyond the static list.
 - **Parent Communication Demand Monitor — integrated** — live volume from DigiStorm/phone; FAQ-gap detection.
 - **Media Exposure Radar — automated** — permissioned public-source monitoring with human triage (only as an in-incident comms input).
 - **Dynamic Role Replacement — advanced** — live roster/absence integration (SEQTA/iCHRIS).

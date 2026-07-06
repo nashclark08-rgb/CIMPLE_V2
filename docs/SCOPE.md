@@ -61,7 +61,7 @@ Avoid feature creep and platform expansion beyond incident management.
 |---|---|---|
 | What is happening? | Incident overview, severity, live timeline | Built |
 | Who is responsible? | Roles rail (assign / confirm / conflicts) | Built |
-| What needs to happen next? | Tasks → Crisis Copilot (gap detection) | Partial — Copilot not built |
+| What needs to happen next? | Tasks → Blind Spots (gap detection) | Partial — Blind Spots not built |
 | Who has been notified? | Activation & acknowledgements (M2) | Built (simulated) |
 | What decisions have been made? | Decision Log | **Built** (2026-07-06) |
 | What comms have been approved? | Communications (M4) | Built (simulated) |
@@ -73,7 +73,7 @@ All nine "immediately know" questions now have at least a prototype answer. Deci
 ## Capability classification (from VISION_2030.md, re-cut through this charter)
 
 **In scope**
-- Decision Log · Crisis Copilot · Red Folder Mode · Dynamic Role Replacement
+- Decision Log · Blind Spots · Red Folder Mode · Dynamic Role Replacement
 - Reunification & Custody-Safe Release · Real-time Roll-Call / Accountability · Emergency-Services Handoff Pack
 - Incident Forecasting (live next-stage decision support) · Recovery Readiness Score
 - Incident Intelligence Graph — **in-incident slice only** ("who is affected / who not to contact")
@@ -95,7 +95,7 @@ All nine "immediately know" questions now have at least a prototype answer. Deci
 The highest-leverage in-scope, no-backend builds are:
 1. **Decision Log** — fills question 5; the defensibility spine.
 2. **Risk / Watch register** — fills question 7; currently absent.
-3. **Crisis Copilot (MVP)** — completes question 3.
+3. **Blind Spots (MVP)** — completes question 3.
 4. **Red Folder Mode** — makes all eight answerable under peak stress.
 
 Backend-gated in-scope capabilities (Roll-Call, Reunification at scale, Intelligence Graph, live Parent-demand) wait behind the backend decision — but each still answers one of the eight questions, so they remain on-charter.
