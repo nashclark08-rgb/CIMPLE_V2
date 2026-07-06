@@ -1,6 +1,6 @@
 # CIMPLE — Task Library: sources & grounding
 
-_Design-time research, 2026-07-06. The task library (`PLAYBOOK_TASKS` in `src/data.js`) is CIMPLE's **permanent offline knowledge base**. It is NOT fetched live during an incident — the source of truth during an incident remains TAC's Critical Incident & Business Continuity Plan and EMPs. This document records the authoritative guidance used to build and validate the six priority incident playbooks._
+_Design-time research, 2026-07-06. The task library (`PLAYBOOK_TASKS` in `src/data.js`) is CIMPLE's **permanent offline knowledge base**. It is NOT fetched live during an incident — the source of truth during an incident remains TAC's Critical Incident & Business Continuity Plan and EMPs. This document records the authoritative guidance used to build and validate the incident playbooks. **All 19 incident types are now covered**; the 6 priority types (Missing Student, Child Protection, Medical, Lockdown, Death On Campus, Cyber) were validated in depth against the sources below, and the remaining 13 reuse the same statutory hooks and structure._
 
 ## Important context: independent school
 Trinity Anglican College is an **independent** school. NSW Department of Education *internal* mechanisms (e.g. the DoE Incident Report & Support Hotline **1800 811 523**, DoE policy codes) do **not** bind TAC — its critical-incident support body is **AISNSW**. All **statutory** obligations below apply regardless of sector.
