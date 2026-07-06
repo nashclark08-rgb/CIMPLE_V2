@@ -10,6 +10,7 @@ import {
   Activity, Eye, Edit3, Download, ArrowLeft, RotateCcw,
   UserCheck, UserX, UserPlus, Settings, MessageSquare, Megaphone,
   Sparkles, Check, Radio, Bell, ClipboardCheck, Trash2, Scale, Lightbulb,
+  AlertOctagon, Minimize2,
 } from "lucide-react";
 import { PALETTE, TopBarShell, formatTime, formatRelative, formatElapsed } from "./shared.jsx";
 import {
@@ -28,6 +29,7 @@ export default function Dashboard({ incidentId, onBack }) {
   const [now, setNow] = useState(Date.now());
   const [drawer, setDrawer] = useState(null);
   const [notFound, setNotFound] = useState(false);
+  const [redFolder, setRedFolder] = useState(false);
 
   // Load
   useEffect(() => {
@@ -121,11 +123,29 @@ export default function Dashboard({ incidentId, onBack }) {
     update({ status: "active", closedAt: null });
   }
 
+  function toggleTask(id) {
+    update((prev) => ({ ...prev, tasks: prev.tasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t)) }));
+  }
+
+  if (redFolder) {
+    return (
+      <RedFolderView
+        incident={incident}
+        now={now}
+        isClosed={isClosed}
+        onExit={() => setRedFolder(false)}
+        onToggleTask={toggleTask}
+        onActivate={() => { setRedFolder(false); setDrawer("activation"); }}
+        onOpen={(d) => { setRedFolder(false); setDrawer(d); }}
+      />
+    );
+  }
+
   return (
     <div style={{ background: PALETTE.bone, minHeight: "100vh" }}>
       <TopBarPresence incident={incident} now={now} />
       {incident.isDrill && <DrillBanner />}
-      <CommandStrip incident={incident} changeSeverity={changeSeverity} setDrawer={setDrawer} closeIncident={closeIncident} reopenIncident={reopenIncident} onBack={onBack} />
+      <CommandStrip incident={incident} changeSeverity={changeSeverity} setDrawer={setDrawer} closeIncident={closeIncident} reopenIncident={reopenIncident} onBack={onBack} onRedFolder={() => setRedFolder(true)} />
 
       <div style={{ maxWidth: 1480, margin: "0 auto", padding: "24px 32px", display: "grid", gridTemplateColumns: "260px 1fr 320px", gap: 24, alignItems: "start" }}>
         <LeftRail incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} setDrawer={setDrawer} />
@@ -266,7 +286,163 @@ function TopBarPresence({ incident, now }) {
 }
 
 /* ---------- Command strip ---------- */
-function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reopenIncident, onBack }) {
+/* ============================================================
+   RED FOLDER MODE (CORE · command under pressure)
+   Stress-optimised full-screen view. Only: situation · critical
+   actions · active risks · latest decisions · key contacts.
+   Composes the Decision Log, Risk register, Copilot, tasks &
+   roles already built — one calm, high-contrast surface.
+   ============================================================ */
+function RedFolderView({ incident, now, isClosed, onExit, onToggleTask, onActivate, onOpen }) {
+  const sev = SEVERITY[incident.severity];
+  const findings = runCopilot(incident, now).filter((f) => f.severity === "critical" || f.severity === "important");
+  const risks = openRisks(incident).slice(0, 6);
+  const decisions = (incident.decisions || []).slice(0, 3);
+  const openT = sortTasks((incident.tasks || []).filter((t) => !t.done), now).slice(0, 6);
+  const contacts = incident.student?.emergencyContacts || [];
+  const keyRoles = (incident.roles || []).filter(roleIsAssigned).slice(0, 6);
+  const needsActivation = !incident.activation && incident.severity >= 3 && !isClosed;
+
+  const C = { bg: "#04182E", card: "rgba(255,255,255,0.05)", line: "rgba(255,255,255,0.13)", text: "#F4F7FB", soft: "rgba(255,255,255,0.6)" };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: C.bg, color: C.text, zIndex: 200, overflowY: "auto", fontFamily: "'IBM Plex Sans', system-ui, sans-serif" }}>
+      {/* Header */}
+      <div style={{ position: "sticky", top: 0, background: C.bg, borderBottom: `1px solid ${C.line}`, padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 5 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <AlertOctagon size={22} color={PALETTE.crimson} />
+          <div>
+            <div className="mono" style={{ fontSize: 13, letterSpacing: "0.22em", fontWeight: 700, color: C.text }}>RED FOLDER</div>
+            <div className="mono" style={{ fontSize: 10, letterSpacing: "0.1em", color: C.soft, marginTop: 2 }}>{incident.id}{incident.isDrill ? " · DRILL" : ""}</div>
+          </div>
+        </div>
+        <button onClick={onExit} style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 20px", background: "rgba(255,255,255,0.1)", border: `1px solid ${C.line}`, color: C.text, fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
+          <Minimize2 size={16} /> Full detail
+        </button>
+      </div>
+
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px" }}>
+        {/* SITUATION */}
+        <div style={{ background: C.card, border: `1px solid ${C.line}`, borderLeft: `5px solid ${sev.color}`, padding: "24px 26px", marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 16, flexWrap: "wrap" }}>
+            <span className="display" style={{ fontSize: 46, fontWeight: 600, color: sev.color, lineHeight: 1, letterSpacing: "-0.02em" }}>{sev.label}</span>
+            <span style={{ fontSize: 15, color: C.soft }}>{isClosed ? "CLOSED" : "ACTIVE"} · {formatElapsed(now - incident.startedAt)} elapsed</span>
+          </div>
+          <div style={{ fontSize: 26, fontWeight: 600, color: C.text, marginTop: 14, lineHeight: 1.2 }}>{incident.title}</div>
+          <div style={{ fontSize: 15, color: C.soft, marginTop: 10, display: "flex", gap: 18, flexWrap: "wrap" }}>
+            <span>📍 {incident.location}</span>
+            <span>{incident.empSection}</span>
+          </div>
+          {needsActivation && (
+            <button onClick={onActivate} style={{ marginTop: 18, width: "100%", padding: "16px", background: PALETTE.crimson, color: "#fff", border: "none", fontSize: 18, fontWeight: 700, letterSpacing: "0.02em", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+              <Radio size={20} /> ACTIVATE — NOTIFY THE TEAM
+            </button>
+          )}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
+          {/* CRITICAL ACTIONS */}
+          <RFBlock title="CRITICAL ACTIONS" accent={PALETTE.rust} C={C}>
+            {findings.length === 0 && openT.length === 0 ? (
+              <RFEmpty C={C} text="No outstanding actions flagged." />
+            ) : (
+              <>
+                {findings.map((f) => (
+                  <div key={f.ruleId} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+                    <AlertTriangle size={17} color={f.severity === "critical" ? PALETTE.crimson : PALETTE.rust} style={{ flexShrink: 0, marginTop: 1 }} />
+                    <span style={{ fontSize: 15.5, color: C.text, lineHeight: 1.35 }}>{f.issue}</span>
+                  </div>
+                ))}
+                {openT.map((t) => {
+                  const overdue = t.dueAt && t.dueAt < now;
+                  return (
+                    <button key={t.id} onClick={() => onToggleTask(t.id)} style={{ width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: `1px solid ${C.line}`, padding: "10px 0", display: "flex", gap: 11, alignItems: "center", cursor: "pointer" }}>
+                      <Circle size={18} color={C.soft} style={{ flexShrink: 0 }} />
+                      <span style={{ flex: 1, fontSize: 15.5, color: C.text, lineHeight: 1.3 }}>{t.text}</span>
+                      {overdue && <span className="mono" style={{ fontSize: 10, color: PALETTE.crimson, fontWeight: 700 }}>OVERDUE</span>}
+                    </button>
+                  );
+                })}
+              </>
+            )}
+          </RFBlock>
+
+          {/* ACTIVE RISKS */}
+          <RFBlock title={`ACTIVE RISKS · ${openRisks(incident).length}`} accent={PALETTE.amber} C={C}>
+            {risks.length === 0 ? (
+              <RFEmpty C={C} text="No active risks." />
+            ) : (
+              risks.map((r) => {
+                const sv = RISK_SEVERITY[r.severity] || {};
+                return (
+                  <div key={r.id} style={{ display: "flex", gap: 11, alignItems: "center", padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+                    <span style={{ width: 11, height: 11, borderRadius: "50%", background: sv.color, flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: 15.5, color: C.text, lineHeight: 1.3 }}>{r.title}</span>
+                    {r.status === "escalated" && <span className="mono" style={{ fontSize: 10, color: PALETTE.crimson, fontWeight: 700 }}>ESC</span>}
+                  </div>
+                );
+              })
+            )}
+          </RFBlock>
+
+          {/* LATEST DECISIONS */}
+          <RFBlock title="LATEST DECISIONS" accent="#E39199" C={C}>
+            {decisions.length === 0 ? (
+              <RFEmpty C={C} text="No decisions recorded." />
+            ) : (
+              decisions.map((d) => (
+                <div key={d.id} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+                  <div style={{ fontSize: 15.5, color: C.text, lineHeight: 1.35 }}>{d.decision}</div>
+                  <div className="mono" style={{ fontSize: 10, color: C.soft, marginTop: 4 }}>{formatTime(d.ts)} · {d.decidedBy}</div>
+                </div>
+              ))
+            )}
+          </RFBlock>
+
+          {/* KEY CONTACTS */}
+          <RFBlock title="KEY CONTACTS" accent={PALETTE.sage} C={C}>
+            <a href="tel:000" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: "rgba(160,32,41,0.22)", border: `1px solid ${PALETTE.crimson}`, marginBottom: 10, textDecoration: "none" }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>Emergency</span>
+              <span className="mono" style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>000</span>
+            </a>
+            {keyRoles.map((r) => (
+              <div key={r.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.line}`, fontSize: 14.5 }}>
+                <span className="mono" style={{ fontSize: 10.5, color: C.soft, letterSpacing: "0.08em" }}>{r.role.toUpperCase()}</span>
+                <span style={{ color: C.text, fontWeight: 500 }}>{r.staff}</span>
+              </div>
+            ))}
+            {contacts.map((c) => (
+              <div key={c.name} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.line}`, fontSize: 14.5 }}>
+                <span style={{ color: C.soft }}>{c.relation}</span>
+                <span className="mono" style={{ color: C.text }}>{c.phone}</span>
+              </div>
+            ))}
+            {keyRoles.length === 0 && contacts.length === 0 && <RFEmpty C={C} text="No contacts assigned." />}
+          </RFBlock>
+        </div>
+
+        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.1em", color: C.soft, textAlign: "center", marginTop: 24, opacity: 0.7 }}>
+          RED FOLDER · ESSENTIALS ONLY · TAP “FULL DETAIL” FOR THE COMPLETE WORKSPACE
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RFBlock({ title, accent, C, children }) {
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.line}`, borderTop: `3px solid ${accent}`, padding: "18px 20px" }}>
+      <div className="mono" style={{ fontSize: 11, letterSpacing: "0.2em", color: accent, fontWeight: 700, marginBottom: 12 }}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function RFEmpty({ C, text }) {
+  return <div style={{ fontSize: 14, color: C.soft, padding: "6px 0" }}>{text}</div>;
+}
+
+function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reopenIncident, onBack, onRedFolder }) {
   const sev = SEVERITY[incident.severity];
   const isClosed = incident.status === "closed";
   const copilotFindings = runCopilot(incident);
@@ -329,6 +505,7 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <button className="btn" onClick={onRedFolder} style={{ borderColor: PALETTE.crimson, color: PALETTE.crimson, fontWeight: 600 }}><AlertOctagon size={14} /> Red Folder</button>
               {!incident.activation && !isClosed ? (
                 <button className="btn btn-danger" onClick={() => setDrawer("activation")}><Radio size={14} /> Activate</button>
               ) : incident.activation ? (
