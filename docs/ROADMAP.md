@@ -146,10 +146,10 @@ Sequenced by value, dependency, and complexity:
 2. **Risk / Watch Register** _(Core)_ — the "what risks remain?" stream. ✅ **Shipped 2026-07-06.**
 3. **Crisis Copilot — rules-based MVP** _(Core)_ — gap detection from existing per-type templates. ✅ **Shipped 2026-07-06.**
 4. **Red Folder Mode** _(Core)_ — composes situation + contacts + actions + latest decisions + active risks into one stress-proof view. ✅ **Shipped 2026-07-06.**
-5. **Dynamic Role Replacement — MVP** _(Supporting)_ — extends the existing conflict/backup/failover engine. ◀ next (final Phase-2 item)
-6. **Live Lessons Capture** _(Supporting, optional)_ — cheap feed into the built PIR; only if it proves wanted.
+5. **Dynamic Role Replacement — MVP** _(Supporting)_ — extends the existing conflict/backup/failover engine. ✅ **Shipped 2026-07-06.**
+6. **Live Lessons Capture** _(Supporting, optional)_ — cheap feed into the built PIR; only if it proves wanted. _(deferred — build only if PIR use proves demand)_
 
-Outcome of Phase 2: all nine "immediately know" questions are answerable on one prototype, no backend required.
+**Phase 2 COMPLETE (2026-07-06).** All nine "immediately know" questions are answerable on one prototype, no backend required. Next: the backend decision (Supabase vs Firebase) gates Phase 3.
 
 ### Phase 3 — After backend _(shared audit log, real dispatch, multi-user, integrations)_
 - **Shared, multi-user immutable audit log** — makes the Decision Log, timeline and Risk Register legally real across devices and users (the true defensibility unlock).
