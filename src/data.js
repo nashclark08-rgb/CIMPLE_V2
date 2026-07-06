@@ -1024,6 +1024,365 @@ export const PLAYBOOK_TASKS = {
       { text: "Log systems affected and every action taken, with times", due: 20 },
     ],
   },
+
+  // ---------- STUDENT MENTAL HEALTH / SELF-HARM ----------
+  mental_health: {
+    "Incident Commander": [
+      { text: "Confirm the student is safe, supervised, and any means of harm is removed", due: 5 },
+      { text: "Activate the Mental Health / Self-Harm procedure (EMP §4.3)", due: 5 },
+      { text: "Decide whether 000 / medical attention is required", due: 10 },
+      { text: "Determine whether a mandatory reporting obligation exists (risk of harm — DCJ 132 111)", due: 15, mandatory: true },
+      { text: "Approve any family communication before it is made", due: 15, approval: true },
+    ],
+    "Wellbeing Lead": [
+      { text: "Locate and stay with the student — do not leave them unsupervised", due: 5 },
+      { text: "Conduct an initial wellbeing/risk assessment using the school framework", due: 15 },
+      { text: "Document the disclosure factually, in the student's own words", due: 20 },
+      { text: "Determine whether a mandatory reporting trigger is present", due: 20, mandatory: true },
+      { text: "Arrange immediate counsellor support (internal or external)", due: 30 },
+    ],
+    "First Aid": [
+      { text: "Assess and treat any self-harm injury", due: 10 },
+      { text: "Call 000 if there is a medical emergency", due: 10, mandatory: true },
+      { text: "Document any physical findings", due: 20 },
+    ],
+    "Family Liaison": [
+      { text: "Wait for Principal approval before contacting the family", due: 15, approval: true },
+      { text: "Contact the family using the prepared script", due: 20, approval: true },
+      { text: "Log the call: time, who answered, what was said", due: 25 },
+    ],
+    "Counsellor (External)": [
+      { text: "Attend and take primary responsibility for the student's support", due: 30 },
+      { text: "Brief the Wellbeing Lead at handover", due: 45 },
+    ],
+    "Documenter": [
+      { text: "Maintain a factual timeline — no interpretation", due: 10 },
+      { text: "Record the mandatory-reporting decision and rationale", due: 20 },
+    ],
+  },
+
+  // ---------- BEHAVIOURAL / VIOLENT INCIDENT ----------
+  behavioural: {
+    "Incident Commander": [
+      { text: "Confirm the immediate safety of all students and staff", due: 5 },
+      { text: "Direct de-escalation and separation of those involved", due: 5 },
+      { text: "Decide whether Police (000) are required", due: 10 },
+      { text: "Approve any communication to families", due: 15, approval: true },
+    ],
+    "Wellbeing Lead": [
+      { text: "Separate the parties — do not debrief them jointly", due: 5 },
+      { text: "Ensure any injured party receives first aid", due: 10 },
+      { text: "Conduct individual, factual debriefs", due: 20 },
+      { text: "Put immediate safety measures in place", due: 25 },
+    ],
+    "Family Liaison": [
+      { text: "Contact the family of each involved student separately", due: 20, approval: true },
+      { text: "Provide a factual account — do not blame or speculate", due: 25 },
+    ],
+    "Documenter": [
+      { text: "Record the sequence of events and who was involved", due: 10 },
+      { text: "Capture witness accounts factually and separately", due: 20 },
+      { text: "Note any injuries and the actions taken", due: 25 },
+    ],
+  },
+
+  // ---------- BULLYING / HARASSMENT ----------
+  bullying: {
+    "Incident Commander": [
+      { text: "Ensure the affected student is safe and supported", due: 10 },
+      { text: "Decide the response pathway (restorative / disciplinary / report)", due: 20, approval: true },
+      { text: "Determine if the conduct is a child-protection or Police matter", due: 20, mandatory: true },
+    ],
+    "Wellbeing Lead": [
+      { text: "Separate the students involved", due: 10 },
+      { text: "Speak with the affected student and document their account", due: 20 },
+      { text: "Speak with others involved separately", due: 25 },
+      { text: "Put immediate safety and support measures in place", due: 30 },
+    ],
+    "Family Liaison": [
+      { text: "Contact the parents of the students involved separately", due: 30, approval: true },
+      { text: "Provide factual information and the next steps", due: 35 },
+    ],
+    "Documenter": [
+      { text: "Record accounts from all parties factually", due: 20 },
+      { text: "Log the response pathway decided and by whom", due: 30 },
+    ],
+  },
+
+  // ---------- FIRE / EVACUATION ----------
+  evacuation: {
+    "Incident Commander": [
+      { text: "Confirm the trigger and authorise evacuation", due: 5 },
+      { text: "Sound the alarm and initiate the evacuation procedure (EMP §1.2)", due: 5 },
+      { text: "Call 000 (Fire & Rescue) if fire is confirmed", due: 5, mandatory: true },
+      { text: "Confirm the whole-site headcount is complete", due: 20 },
+      { text: "Brief emergency services on arrival", due: 20 },
+      { text: "Authorise re-entry only when services confirm it is safe", due: 45, approval: true },
+    ],
+    "Floor Wardens": [
+      { text: "Lead your zone to the assembly point via the designated route", due: 5 },
+      { text: "Sweep classrooms, bathrooms, and offices in your zone", due: 10 },
+      { text: "Conduct a headcount at the assembly point", due: 15 },
+      { text: "Report your zone status to the Headcount Officer", due: 15 },
+    ],
+    "Headcount Officer": [
+      { text: "Receive headcounts from each Floor Warden", due: 15 },
+      { text: "Reconcile against expected attendance, incl. visitors and contractors", due: 20 },
+      { text: "Report any unaccounted person to the Incident Commander immediately", due: 20 },
+      { text: "Document the final reconciled count", due: 30 },
+    ],
+    "Communications Lead": [
+      { text: "Prepare the parent notification — do not send until approved", due: 25, approval: true },
+      { text: "Prepare a 'do not come to the College' holding message if needed", due: 30, approval: true },
+    ],
+    "Documenter": [
+      { text: "Record the evacuation start time and the trigger", due: 5 },
+      { text: "Log the headcount reconciliation and any issues", due: 20 },
+      { text: "Record the re-entry time and who authorised it", due: 45 },
+    ],
+  },
+
+  // ---------- HAZARDOUS MATERIAL ----------
+  hazmat: {
+    "Incident Commander": [
+      { text: "Identify the substance only if safe to do so — do NOT approach", due: 5 },
+      { text: "Evacuate or isolate the affected zone", due: 5 },
+      { text: "Call 000 (Fire & Rescue / Hazmat)", due: 5, mandatory: true },
+      { text: "Establish an upwind exclusion zone", due: 10 },
+      { text: "Brief emergency services on the substance and location", due: 15 },
+    ],
+    "Floor Wardens": [
+      { text: "Move students away from the affected zone, upwind", due: 5 },
+      { text: "Keep everyone clear of the exclusion zone", due: 10 },
+      { text: "Account for all students and staff", due: 15 },
+    ],
+    "First Aid": [
+      { text: "Assess anyone exposed — do not enter the hazard zone", due: 10 },
+      { text: "Follow decontamination advice from emergency services", due: 15 },
+      { text: "Call 000 for any exposure symptoms", due: 10, mandatory: true },
+    ],
+    "Communications Lead": [
+      { text: "Prepare a parent holding statement — hold until approved", due: 25, approval: true },
+    ],
+    "Documenter": [
+      { text: "Record the substance, location, and time identified", due: 10 },
+      { text: "Log the exclusion zone and evacuation actions", due: 20 },
+    ],
+  },
+
+  // ---------- NATURAL DISASTER ----------
+  natural_disaster: {
+    "Incident Commander": [
+      { text: "Confirm the threat and monitor official warnings (Fires Near Me / SES 132 500 / BOM)", due: 5, mandatory: true },
+      { text: "Decide shelter-in-place vs evacuation vs early closure", due: 10, approval: true },
+      { text: "Activate the relevant plan (Bushfire / Flood / Storm)", due: 10 },
+      { text: "Notify head office and coordinate with emergency services", due: 15, mandatory: true },
+      { text: "Decide on student release and transport arrangements", due: 30, approval: true },
+    ],
+    "Floor Wardens": [
+      { text: "Move students to the designated safe area", due: 10 },
+      { text: "Account for all students and staff", due: 15 },
+      { text: "Keep students away from windows and hazards", due: 15 },
+    ],
+    "First Aid": [
+      { text: "Prepare for injuries and check first aid supplies", due: 15 },
+    ],
+    "Communications Lead": [
+      { text: "Prepare parent communications on status and arrangements", due: 25, approval: true },
+      { text: "Coordinate messaging with any transport / road-closure impacts", due: 35, approval: true },
+    ],
+    "Documenter": [
+      { text: "Log warnings received and decisions made, with times", due: 10 },
+      { text: "Record student release and collection details", due: 30 },
+    ],
+  },
+
+  // ---------- DISEASE OUTBREAK / PUBLIC HEALTH ----------
+  disease_outbreak: {
+    "Incident Commander": [
+      { text: "Isolate affected individual(s) from others", due: 5 },
+      { text: "Notify the NSW Health Public Health Unit (1300 066 055) if notifiable", due: 15, mandatory: true },
+      { text: "Decide on enhanced cleaning, cohorting, or partial closure", due: 20, approval: true },
+      { text: "Follow Public Health Unit directions", due: 30, mandatory: true },
+      { text: "Approve communications to families", due: 30, approval: true },
+    ],
+    "First Aid": [
+      { text: "Assess symptoms and isolate the affected person", due: 10 },
+      { text: "Apply infection-control precautions (PPE, hygiene)", due: 15 },
+      { text: "Arrange collection by parent or medical care", due: 20 },
+    ],
+    "Communications Lead": [
+      { text: "Draft a factual parent notification (symptoms, actions, advice)", due: 30, approval: true },
+      { text: "Coordinate wording with the Public Health Unit", due: 35, approval: true },
+    ],
+    "Family Liaison": [
+      { text: "Contact affected families with collection and health advice", due: 25, approval: true },
+    ],
+    "Documenter": [
+      { text: "Record cases, times, and areas affected", due: 15 },
+      { text: "Log Public Health Unit contact and directions", due: 30 },
+    ],
+  },
+
+  // ---------- UTILITIES / INFRASTRUCTURE FAILURE ----------
+  infrastructure: {
+    "Incident Commander": [
+      { text: "Confirm what has failed and the impact on operations", due: 5 },
+      { text: "Make the affected area safe and restrict access", due: 10 },
+      { text: "Call 000 if there is any danger (gas, electrical, structural)", due: 5, mandatory: true },
+      { text: "Decide on relocation, early closure, or continuation", due: 20, approval: true },
+      { text: "Notify head office and the relevant suppliers/contractors", due: 20 },
+    ],
+    "Floor Wardens": [
+      { text: "Move students out of any unsafe area", due: 10 },
+      { text: "Account for all students and staff", due: 15 },
+    ],
+    "Communications Lead": [
+      { text: "Prepare a parent notification about the disruption or closure", due: 25, approval: true },
+      { text: "Hold external communications until Principal sign-off", due: 20, approval: true },
+    ],
+    "Documenter": [
+      { text: "Record the failure, time, and areas affected", due: 10 },
+      { text: "Log continuity decisions and supplier contacts", due: 25 },
+    ],
+  },
+
+  // ---------- PARENT / VISITOR AGGRESSION ----------
+  parent_aggression: {
+    "Incident Commander": [
+      { text: "Ensure children are moved away from the aggressive person", due: 5 },
+      { text: "Direct de-escalation by a trained staff member", due: 5 },
+      { text: "Call 000 if there is a threat of violence", due: 10, mandatory: true },
+      { text: "Decide on trespass notice / conditions of entry", due: 20, approval: true },
+    ],
+    "Front Office Lead": [
+      { text: "Keep the front office calm — do not escalate", due: 5 },
+      { text: "Maintain distance; move to a private area only if safe", due: 10 },
+      { text: "Alert nearby staff discreetly", due: 10 },
+      { text: "Control access — do not admit them further into the school", due: 15 },
+    ],
+    "Police Liaison": [
+      { text: "Call 000 if the person is violent or refuses to leave", due: 10, mandatory: true },
+      { text: "Brief Police on arrival", due: 20 },
+    ],
+    "Documenter": [
+      { text: "Record what was said and done, with times", due: 10 },
+      { text: "Note any threats and witnesses (for a possible AVO / trespass)", due: 20 },
+    ],
+  },
+
+  // ---------- EXTERNAL THREAT / POLICE ----------
+  external_threat: {
+    "Incident Commander": [
+      { text: "Assess the threat and decide lockdown vs evacuation", due: 5, approval: true },
+      { text: "Call 000 / Police immediately", due: 5, mandatory: true },
+      { text: "Initiate the chosen protective action (lockdown or evacuation)", due: 5 },
+      { text: "Account for all students, staff, and visitors", due: 20 },
+      { text: "Make the all-clear decision only when Police confirm it is safe", due: 45, approval: true },
+    ],
+    "Police Liaison": [
+      { text: "Give Police the threat details, location, and site access", due: 10, mandatory: true },
+      { text: "Meet and brief Police on arrival; provide a site map", due: 20 },
+      { text: "Relay Police instructions to the Incident Commander", due: 25 },
+    ],
+    "Floor Wardens": [
+      { text: "Secure your zone per the lockdown protocol", due: 5 },
+      { text: "Account for everyone in your zone; keep them calm and quiet", due: 10 },
+      { text: "Report your zone status to the Incident Commander", due: 15 },
+    ],
+    "Communications Lead": [
+      { text: "Hold a single Principal-approved message (do not come / do not phone)", due: 20, approval: true },
+      { text: "Prepare parent updates for after the all-clear", due: 30, approval: true },
+    ],
+    "Documenter": [
+      { text: "Record the threat, time, and protective action taken", due: 5 },
+      { text: "Log Police contact and instructions", due: 20 },
+    ],
+  },
+
+  // ---------- TRANSPORT ACCIDENT ----------
+  transport: {
+    "Incident Commander": [
+      { text: "Confirm the welfare and count of all students involved", due: 5 },
+      { text: "Ensure 000 (ambulance / Police) is called for any injury", due: 5, mandatory: true },
+      { text: "Notify head office; if serious injury or death, notify SafeWork NSW (13 10 50)", due: 15, mandatory: true },
+      { text: "Approve communications to affected families", due: 20, approval: true },
+    ],
+    "First Aid": [
+      { text: "Assess and treat injuries at the scene within your qualification", due: 10 },
+      { text: "Triage and prioritise for ambulance", due: 15 },
+      { text: "Stay with injured students until handover", due: 25 },
+    ],
+    "Family Liaison": [
+      { text: "Contact the parents of affected students with factual updates", due: 20, approval: true },
+      { text: "Coordinate parent attendance at the scene or hospital", due: 30 },
+    ],
+    "Communications Lead": [
+      { text: "Prepare a holding statement for the wider community", due: 30, approval: true },
+    ],
+    "Documenter": [
+      { text: "Record the accident details, time, and location", due: 10 },
+      { text: "Log which students were involved and their status", due: 20 },
+      { text: "Record all notifications made", due: 30 },
+    ],
+  },
+
+  // ---------- EXCURSION / OFF-SITE INCIDENT ----------
+  excursion: {
+    "Incident Commander": [
+      { text: "Confirm the welfare and headcount of all students on the excursion", due: 5 },
+      { text: "Ensure local 000 is called for any emergency", due: 5, mandatory: true },
+      { text: "Contact the College / Principal immediately", due: 10, mandatory: true },
+      { text: "Decide whether to continue, relocate, or return", due: 20, approval: true },
+      { text: "Coordinate with the venue and local emergency services", due: 25 },
+    ],
+    "First Aid": [
+      { text: "Provide first aid within qualification using the excursion kit", due: 10 },
+      { text: "Call local 000 for any serious injury or illness", due: 10, mandatory: true },
+      { text: "Stay with the affected student", due: 20 },
+    ],
+    "Family Liaison": [
+      { text: "Contact parents of affected students with factual updates", due: 25, approval: true },
+      { text: "Coordinate collection or travel arrangements", due: 35 },
+    ],
+    "Communications Lead": [
+      { text: "Prepare a holding statement for other excursion families", due: 30, approval: true },
+    ],
+    "Documenter": [
+      { text: "Record the incident, location, and time", due: 10 },
+      { text: "Log student welfare status and actions taken", due: 20 },
+      { text: "Record contact with base and emergency services", due: 25 },
+    ],
+  },
+
+  // ---------- DEATH OFF-CAMPUS / COMMUNITY TRAGEDY ----------
+  death_offcampus: {
+    "Incident Commander": [
+      { text: "Confirm the facts with the family / Police before acting", due: 10, mandatory: true },
+      { text: "Convene the incident team and plan the response", due: 15 },
+      { text: "Designate a single spokesperson", due: 15 },
+      { text: "Approve all internal and community communications", due: 20, approval: true },
+      { text: "Notify head office / AISNSW for critical-incident support", due: 20 },
+    ],
+    "Wellbeing Lead": [
+      { text: "Identify students and staff most affected (siblings, close friends)", due: 15 },
+      { text: "Activate the grief / psychological support plan", due: 20 },
+      { text: "Brief teaching staff on supporting students once authorised", due: 30, approval: true },
+    ],
+    "Communications Lead": [
+      { text: "Prepare the staff notification (brief staff before students)", due: 25, approval: true },
+      { text: "Prepare the community communication — withhold details; safe-messaging", due: 30, approval: true },
+      { text: "Prepare a media holding statement if required", due: 35, approval: true },
+    ],
+    "Counsellor (External)": [
+      { text: "Attend and provide student and staff support", due: 45 },
+      { text: "Advise on the grief-support plan and follow-up", due: 60 },
+    ],
+    "Documenter": [
+      { text: "Record the facts as confirmed and the decisions made", due: 15 },
+      { text: "Log all communications and support actions", due: 30 },
+    ],
+  },
 };
 
 function normResp(e) {
