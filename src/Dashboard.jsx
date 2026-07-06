@@ -9,7 +9,7 @@ import {
   Circle, Lock, Unlock, X, BookOpen, Heart, AlertTriangle, Mail,
   Activity, Eye, Edit3, Download, ArrowLeft, RotateCcw,
   UserCheck, UserX, UserPlus, Settings, MessageSquare, Megaphone,
-  Sparkles, Check, Radio, Bell, ClipboardCheck, Trash2, Scale,
+  Sparkles, Check, Radio, Bell, ClipboardCheck, Trash2, Scale, Lightbulb,
 } from "lucide-react";
 import { PALETTE, TopBarShell, formatTime, formatRelative, formatElapsed } from "./shared.jsx";
 import {
@@ -20,6 +20,7 @@ import {
   PIR_STATUS, newPIR, newCorrectiveAction, pirFacts,
   DECISION_STATUS, newDecision,
   RISK_CATEGORIES, RISK_SEVERITY, RISK_STATUS, newRisk, openRisks, riskCounts, riskIsOpen,
+  COPILOT_SEVERITY, COPILOT_RULES, runCopilot,
 } from "./data.js";
 
 export default function Dashboard({ incidentId, onBack }) {
@@ -151,6 +152,11 @@ export default function Dashboard({ incidentId, onBack }) {
           <RiskRegisterDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} now={now} />
         </Drawer>
       )}
+      {drawer === "copilot" && (
+        <Drawer onClose={() => setDrawer(null)} title="Crisis Copilot">
+          <CopilotDrawer incident={incident} addTimelineEntry={addTimelineEntry} setDrawer={setDrawer} now={now} />
+        </Drawer>
+      )}
       {drawer === "comms" && (
         <Drawer onClose={() => setDrawer(null)} title="Communications">
           <CommsDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />
@@ -263,6 +269,8 @@ function TopBarPresence({ incident, now }) {
 function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reopenIncident, onBack }) {
   const sev = SEVERITY[incident.severity];
   const isClosed = incident.status === "closed";
+  const copilotFindings = runCopilot(incident);
+  const copilotCrit = copilotFindings.filter((f) => f.severity === "critical").length;
 
   return (
     <div style={{ background: PALETTE.paper, borderBottom: `1px solid rgba(0, 48, 94, 0.14)`, padding: "20px 32px" }}>
@@ -320,7 +328,7 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
                 })}
               </div>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
               {!incident.activation && !isClosed ? (
                 <button className="btn btn-danger" onClick={() => setDrawer("activation")}><Radio size={14} /> Activate</button>
               ) : incident.activation ? (
@@ -328,6 +336,9 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
                   <Radio size={14} /> Activated · {ackRollup(incident)}
                 </button>
               ) : null}
+              <button className="btn" onClick={() => setDrawer("copilot")} style={copilotFindings.length ? { borderColor: copilotCrit ? PALETTE.crimson : PALETTE.rust, color: copilotCrit ? PALETTE.crimson : PALETTE.rust } : undefined}>
+                <Lightbulb size={14} /> Copilot{copilotFindings.length ? ` · ${copilotFindings.length}` : ""}
+              </button>
               <button className="btn" onClick={() => setDrawer("policy")}><BookOpen size={14} /> Policy</button>
               <button className="btn" onClick={() => setDrawer("decisions")}><Scale size={14} /> Decisions{(incident.decisions || []).length ? ` · ${(incident.decisions || []).length}` : ""}</button>
               {(() => { const open = riskCounts(incident).open; return (
@@ -1276,6 +1287,97 @@ function PolicyDrawer({ incident }) {
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ---------- Crisis Copilot drawer (CORE · decision support) ---------- */
+const COPILOT_TARGET_LABEL = {
+  comms: "Communications", activation: "Activation", decisions: "Decision Log", risks: "Risk register", pir: "Post-incident review",
+};
+
+function CopilotDrawer({ incident, addTimelineEntry, setDrawer, now }) {
+  const findings = runCopilot(incident, now);
+  const crit = findings.filter((f) => f.severity === "critical").length;
+  const imp = findings.filter((f) => f.severity === "important").length;
+  const adv = findings.filter((f) => f.severity === "advisory").length;
+
+  function logReview() {
+    addTimelineEntry({ type: "system", text: `Crisis Copilot review — ${findings.length} finding(s)${findings.length ? ` (${crit} critical, ${imp} important, ${adv} advisory)` : ""}.` });
+  }
+
+  return (
+    <div>
+      <div style={{ padding: 16, background: PALETTE.tealDeep, color: PALETTE.paper, marginBottom: 18 }}>
+        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.amber, marginBottom: 6 }}>CRISIS COPILOT · WHAT MIGHT BE MISSED</div>
+        <div className="display" style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.015em" }}>Have we forgotten anything?</div>
+        <p style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.85, marginTop: 8 }}>
+          Suggestions only. The Copilot highlights what may have been overlooked against the response pattern for this incident — it never decides, instructs, or acts.
+        </p>
+      </div>
+
+      {/* Summary + log */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 10 }}>
+          {[["critical", crit], ["important", imp], ["advisory", adv]].map(([k, n]) => (
+            <span key={k} className="mono" style={{ fontSize: 10, letterSpacing: "0.06em", color: n ? COPILOT_SEVERITY[k].color : PALETTE.inkSoft, fontWeight: n ? 700 : 400 }}>
+              {n} {COPILOT_SEVERITY[k].label.toUpperCase()}
+            </span>
+          ))}
+        </div>
+        <button onClick={logReview} className="btn-ghost" style={{ background: "none", border: "none", padding: 0, fontSize: 11, color: PALETTE.teal, fontWeight: 500 }}>Log review →</button>
+      </div>
+
+      {findings.length === 0 ? (
+        <div style={{ border: `1px solid rgba(91,140,124,0.4)`, background: PALETTE.sageMist, padding: 20, textAlign: "center" }}>
+          <CheckCircle2 size={28} color={PALETTE.sage} style={{ margin: "0 auto" }} />
+          <div className="display" style={{ fontSize: 18, color: PALETTE.sage, fontWeight: 500, marginTop: 10 }}>Nothing obvious flagged.</div>
+          <p style={{ fontSize: 12.5, color: PALETTE.inkSoft, marginTop: 6, lineHeight: 1.5 }}>
+            No gaps detected across communications, command, tasks, risk, activation, and recovery. This is a prompt, not a guarantee — keep your own judgement.
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gap: 10 }}>
+          {findings.map((f) => <FindingCard key={f.ruleId} f={f} setDrawer={setDrawer} />)}
+        </div>
+      )}
+
+      <div className="mono" style={{ fontSize: 9, letterSpacing: "0.08em", color: PALETTE.inkSoft, marginTop: 18, textAlign: "center", opacity: 0.7 }}>
+        {COPILOT_RULES.length} RULES EVALUATED · EVERY FINDING TRACES TO A RULE
+      </div>
+    </div>
+  );
+}
+
+function FindingCard({ f, setDrawer }) {
+  const sv = COPILOT_SEVERITY[f.severity] || COPILOT_SEVERITY.advisory;
+  return (
+    <div style={{ border: `1px solid rgba(0,48,94,0.14)`, borderLeft: `3px solid ${sv.color}`, background: PALETTE.paper, padding: "12px 14px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <AlertTriangle size={14} color={sv.color} />
+          <span style={{ fontSize: 13.5, fontWeight: 600, color: PALETTE.ink }}>{f.issue}</span>
+        </div>
+        <span className="chip" style={{ borderColor: sv.color, color: sv.color, flexShrink: 0 }}>{sv.label}</span>
+      </div>
+      <div className="mono" style={{ fontSize: 8.5, letterSpacing: "0.1em", color: PALETTE.inkSoft, marginTop: 6 }}>{f.category.toUpperCase()} · {f.ruleId}</div>
+
+      <div style={{ marginTop: 10 }}>
+        <div className="mono" style={{ fontSize: 8.5, letterSpacing: "0.12em", color: PALETTE.teal, opacity: 0.6, textTransform: "uppercase" }}>Why it matters</div>
+        <div style={{ fontSize: 12.5, lineHeight: 1.5, color: PALETTE.ink, marginTop: 2 }}>{f.why}</div>
+      </div>
+      <div style={{ marginTop: 8 }}>
+        <div className="mono" style={{ fontSize: 8.5, letterSpacing: "0.12em", color: PALETTE.teal, opacity: 0.6, textTransform: "uppercase" }}>Evidence</div>
+        <div className="mono" style={{ fontSize: 11, lineHeight: 1.45, color: PALETTE.inkSoft, marginTop: 2 }}>{f.evidence}</div>
+      </div>
+
+      {f.target ? (
+        <button onClick={() => setDrawer(f.target)} className="btn" style={{ marginTop: 10, padding: "6px 10px", fontSize: 11.5 }}>
+          Review · {COPILOT_TARGET_LABEL[f.target] || f.target} <ChevronRight size={12} />
+        </button>
+      ) : (
+        <div className="mono" style={{ fontSize: 10, color: PALETTE.inkSoft, marginTop: 10, opacity: 0.8 }}>Review in the roles / tasks panel.</div>
+      )}
     </div>
   );
 }
@@ -2239,6 +2341,7 @@ function ExportDrawer({ incident }) {
     { k: "Risk / watch register", v: risksSummary(incident) },
     { k: "Communications log", v: commsSummary(incident.comms) },
     { k: "Post-incident review", v: incident.pir ? `${(PIR_STATUS[incident.pir.status] || {}).label || "Draft"} · ${(incident.pir.correctiveActions || []).length} actions` : "not started" },
+    { k: "Copilot findings", v: copilotSummary(incident) },
   ];
 
   function downloadJSON() {
@@ -2419,6 +2522,23 @@ function ExportDrawer({ incident }) {
     }
     rule();
 
+    // Copilot findings (open at export time)
+    const copilotFindings = runCopilot(incident);
+    heading(`COPILOT FINDINGS (${copilotFindings.length} open at export)`);
+    if (copilotFindings.length === 0) {
+      line("No findings — no obvious gaps detected at export time.", { color: [90, 102, 112] });
+    } else {
+      for (const f of copilotFindings) {
+        const sv = (COPILOT_SEVERITY[f.severity] || {}).label || "Advisory";
+        line(`[${sv.toUpperCase()}] ${f.issue}  ·  ${f.category} · ${f.ruleId}`, { size: 10, color: [0, 48, 94], bold: true, gap: 13 });
+        line(`Why: ${f.why}`, { size: 10, indent: 8, gap: 13 });
+        line(`Evidence: ${f.evidence}`, { size: 9, color: [90, 102, 112], indent: 8, gap: 12 });
+        y += 3;
+      }
+      line("Copilot findings are advisory prompts, not instructions. Human judgement governs the response.", { size: 8.5, color: [90, 102, 112], gap: 12 });
+    }
+    rule();
+
     // Post-incident review
     if (incident.pir) {
       const p = incident.pir;
@@ -2513,6 +2633,13 @@ function risksSummary(incident) {
   const c = riskCounts(incident);
   if (c.total === 0) return "none yet";
   return `${c.open} open${c.escalated ? ` · ${c.escalated} escalated` : ""} · ${c.resolved} resolved`;
+}
+
+function copilotSummary(incident) {
+  const f = runCopilot(incident);
+  if (f.length === 0) return "no gaps flagged";
+  const crit = f.filter((x) => x.severity === "critical").length;
+  return `${f.length} finding${f.length === 1 ? "" : "s"}${crit ? ` · ${crit} critical` : ""}`;
 }
 
 function ackRollup(incident) {

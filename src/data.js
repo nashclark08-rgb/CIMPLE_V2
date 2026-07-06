@@ -1168,6 +1168,146 @@ export function riskCounts(incident) {
   };
 }
 
+// ============================================================
+// v10 — CRISIS COPILOT (CORE · decision support)
+// A RULES-BASED assistant answering "what are we forgetting?".
+// It recommends only — never decides, instructs, or automates.
+// Architecture:
+//   buildCopilotContext(incident) → one flat facts object
+//   COPILOT_RULES[]               → declarative, each with an id;
+//                                   evaluate(ctx) → finding | null
+//   runCopilot(incident, now)     → sorted findings, each traceable
+//                                   to its rule id (no hidden logic)
+// Future AI upgrade path: an AI rule can be appended to
+// COPILOT_RULES consuming the SAME ctx (decisions, risks, timeline)
+// and returning findings in the same shape — no schema change.
+// ============================================================
+
+export const COPILOT_SEVERITY = {
+  critical: { label: "Critical", color: "#7A1820", rank: 3 },
+  important: { label: "Important", color: "#A85535", rank: 2 },
+  advisory: { label: "Advisory", color: "#4A5664", rank: 1 },
+};
+
+// One flat, inspectable facts object. Every rule reads only from here.
+export function buildCopilotContext(incident, now = Date.now()) {
+  const roles = incident.roles || [];
+  const assigned = roles.filter(roleIsAssigned);
+  const requiredUnfilled = roles.filter((r) => r.required && !roleIsAssigned(r));
+  const tasks = incident.tasks || [];
+  const openTasks = tasks.filter((t) => !t.done);
+  const decisions = incident.decisions || [];
+  const comms = incident.comms || [];
+  const rc = riskCounts(incident);
+  const oRisks = openRisks(incident);
+  const notified = assigned.filter((r) => r.notify);
+
+  return {
+    now,
+    severityNum: incident.severity,
+    severityLabel: SEVERITY[incident.severity]?.label || "—",
+    isClosed: incident.status === "closed",
+    isDrill: !!incident.isDrill,
+    elapsedMin: Math.floor((now - incident.startedAt) / 60000),
+
+    // roles
+    requiredUnfilled,
+    commsRoleAssigned: assigned.some((r) => /communication/i.test(r.role)),
+    requiredWithoutBackup: roles.filter((r) => r.required && roleIsAssigned(r) && !r.backup).length,
+
+    // activation
+    activation: !!incident.activation,
+    minsSinceActivation: incident.activation ? Math.floor((now - incident.activation.declaredAt) / 60000) : null,
+    notifiedCount: notified.length,
+    unackedCount: notified.filter((r) => r.notify.status !== "acked").length,
+
+    // tasks
+    openTasksCount: openTasks.length,
+    overdueTasksCount: openTasks.filter((t) => t.dueAt && t.dueAt < now).length,
+    ownedOpenTasksCount: openTasks.filter((t) => t.owner && t.owner !== "—").length,
+
+    // decisions
+    decisionsCount: decisions.length,
+    openDecisionsCount: decisions.filter((d) => d.status === "open").length,
+    decisionsWithReviewCount: decisions.filter((d) => d.reviewBy).length,
+
+    // comms
+    commsDrafted: comms.length,
+    commsApproved: comms.filter((c) => c.status === "approved" || c.status === "dispatched").length,
+
+    // risks
+    openRisksCount: rc.open,
+    criticalOpenCount: oRisks.filter((r) => r.severity === "critical").length,
+    escalatedNoReviewCount: (incident.risks || []).filter((r) => r.status === "escalated" && !r.reviewBy).length,
+    unownedOpenCount: oRisks.filter((r) => !r.owner).length,
+
+    // recovery
+    hasPir: !!incident.pir,
+  };
+}
+
+// Declarative rule set. Each rule owns an id + category; evaluate()
+// returns the finding body (severity/issue/why/evidence/target) or null.
+// target = a drawer key the UI can open, or null (surfaced elsewhere).
+export const COPILOT_RULES = [
+  // ---- COMMUNICATIONS ----
+  { id: "COMMS-01", category: "Communications", evaluate: (c) => c.activation && c.commsDrafted === 0 && !c.isClosed
+    ? { severity: c.severityNum >= 3 ? "critical" : "important", issue: "No communication after declaration", why: "The incident was activated but no communication has been drafted.", evidence: `Declared ${c.minsSinceActivation}m ago · 0 messages drafted.`, target: "comms" } : null },
+  { id: "COMMS-02", category: "Communications", evaluate: (c) => c.commsDrafted > 0 && c.commsApproved === 0 && !c.isClosed
+    ? { severity: "advisory", issue: "Communications drafted, none approved", why: "Draft messages exist but none have Principal approval to release.", evidence: `${c.commsDrafted} drafted · 0 approved.`, target: "comms" } : null },
+  { id: "COMMS-03", category: "Communications", evaluate: (c) => (c.severityNum >= 3 || c.activation) && !c.commsRoleAssigned && !c.isClosed
+    ? { severity: "important", issue: "No Communications Lead assigned", why: "A significant incident should have someone owning communications.", evidence: `Severity ${c.severityLabel} · comms role unfilled.`, target: null } : null },
+
+  // ---- COMMAND ----
+  { id: "CMD-01", category: "Command", evaluate: (c) => !c.isClosed && c.elapsedMin >= 15 && c.decisionsCount === 0
+    ? { severity: "important", issue: "No decisions recorded", why: "15+ minutes in with no decisions logged — key calls may be going undocumented.", evidence: `${c.elapsedMin}m elapsed · 0 decisions.`, target: "decisions" } : null },
+  { id: "CMD-02", category: "Command", evaluate: (c) => !c.isClosed && c.requiredUnfilled.length > 0 && (c.activation || c.severityNum >= 3)
+    ? { severity: c.severityNum >= 4 ? "critical" : "important", issue: "Required roles unfilled", why: "Key command roles have no one assigned.", evidence: `${c.requiredUnfilled.length} unfilled: ${c.requiredUnfilled.map((r) => r.role).join(", ")}.`, target: null } : null },
+  { id: "CMD-03", category: "Command", evaluate: (c) => !c.isClosed && c.openDecisionsCount > 0 && c.decisionsWithReviewCount === 0
+    ? { severity: "advisory", issue: "No review point on decisions", why: "Open decisions have no scheduled review — assumptions may go unchecked.", evidence: `${c.openDecisionsCount} open · 0 with a review point.`, target: "decisions" } : null },
+
+  // ---- TASKS ----
+  { id: "TASK-01", category: "Tasks", evaluate: (c) => c.overdueTasksCount > 0 && !c.isClosed
+    ? { severity: c.severityNum >= 3 ? "important" : "advisory", issue: "Tasks overdue", why: "Tasks past their due time may be slipping.", evidence: `${c.overdueTasksCount} task(s) overdue.`, target: null } : null },
+  { id: "TASK-02", category: "Tasks", evaluate: (c) => !c.isClosed && c.openTasksCount > 0 && c.ownedOpenTasksCount === 0
+    ? { severity: "advisory", issue: "Open tasks unassigned", why: "No owner on any open task.", evidence: `${c.openTasksCount} open · 0 owned.`, target: null } : null },
+  { id: "TASK-03", category: "Tasks", evaluate: (c) => !c.isClosed && c.severityNum >= 3 && c.openTasksCount < 2
+    ? { severity: "advisory", issue: "Few active tasks for a major incident", why: "A major incident usually has more tracked actions — is everything being captured?", evidence: `Severity ${c.severityLabel} · ${c.openTasksCount} open task(s).`, target: null } : null },
+
+  // ---- RISK ----
+  { id: "RISK-01", category: "Risk", evaluate: (c) => c.criticalOpenCount > 0
+    ? { severity: "critical", issue: "Critical risk unresolved", why: "A risk marked critical remains open.", evidence: `${c.criticalOpenCount} critical risk(s) open.`, target: "risks" } : null },
+  { id: "RISK-02", category: "Risk", evaluate: (c) => c.escalatedNoReviewCount > 0
+    ? { severity: "important", issue: "Escalated risk without review", why: "An escalated risk has no review point set.", evidence: `${c.escalatedNoReviewCount} escalated risk(s) without a review point.`, target: "risks" } : null },
+  { id: "RISK-03", category: "Risk", evaluate: (c) => c.unownedOpenCount > 0
+    ? { severity: "important", issue: "Open risk without an owner", why: "An open risk has no one accountable for watching it.", evidence: `${c.unownedOpenCount} open risk(s) unowned.`, target: "risks" } : null },
+
+  // ---- ACTIVATION ----
+  { id: "ACT-01", category: "Activation", evaluate: (c) => !c.isClosed && c.severityNum >= 3 && !c.activation
+    ? { severity: c.severityNum >= 4 ? "critical" : "important", issue: "Activation not run", why: "This severity usually warrants notifying role-holders.", evidence: `Severity ${c.severityLabel} · not activated.`, target: "activation" } : null },
+  { id: "ACT-02", category: "Activation", evaluate: (c) => c.activation && c.unackedCount > 0 && c.minsSinceActivation >= 5
+    ? { severity: "important", issue: "Notified staff haven't acknowledged", why: "Some notified role-holders have not confirmed receipt.", evidence: `${c.unackedCount} of ${c.notifiedCount} not acknowledged · ${c.minsSinceActivation}m since declaration.`, target: "activation" } : null },
+  { id: "ACT-03", category: "Activation", evaluate: (c) => c.activation && c.requiredWithoutBackup > 0 && !c.isClosed
+    ? { severity: "advisory", issue: "Key roles have no backup", why: "Some required roles have no named backup for failover.", evidence: `${c.requiredWithoutBackup} required role(s) without a backup.`, target: null } : null },
+
+  // ---- RECOVERY ----
+  { id: "REC-01", category: "Recovery", evaluate: (c) => c.isClosed && c.openRisksCount > 0
+    ? { severity: "important", issue: "Closed with open risks", why: "The incident is closed but risks remain unresolved.", evidence: `${c.openRisksCount} risk(s) still open.`, target: "risks" } : null },
+  { id: "REC-02", category: "Recovery", evaluate: (c) => c.isClosed && !c.hasPir
+    ? { severity: "advisory", issue: "No post-incident review", why: "The incident closed without a review started.", evidence: "Closed · no PIR.", target: "pir" } : null },
+];
+
+// Run every rule against the context; return findings sorted most-severe first.
+export function runCopilot(incident, now = Date.now()) {
+  const c = buildCopilotContext(incident, now);
+  const findings = [];
+  for (const rule of COPILOT_RULES) {
+    const f = rule.evaluate(c);
+    if (f) findings.push({ ruleId: rule.id, category: rule.category, ...f });
+  }
+  return findings.sort((a, b) => COPILOT_SEVERITY[b.severity].rank - COPILOT_SEVERITY[a.severity].rank);
+}
+
 // Read-only facts auto-assembled from the incident record, so the
 // reviewer (and the AI draft) work from the same evidence base.
 export function pirFacts(incident) {
