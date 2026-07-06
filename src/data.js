@@ -238,6 +238,7 @@ export function createIncident({ type, severity, title, location, isDrill = fals
   const typeMeta = INCIDENT_TYPES.find((t) => t.id === type);
   const allIncidents = loadAll().incidents;
   const id = nextIncidentId(allIncidents);
+  const effectiveRoles = roles || rolesForIncidentType(type);
 
   return {
     id,
@@ -254,7 +255,7 @@ export function createIncident({ type, severity, title, location, isDrill = fals
     empSection: typeMeta.emp,
     policies: defaultPoliciesForType(type),
     student: null,
-    roles: roles || rolesForIncidentType(type),
+    roles: effectiveRoles,
     timeline: [
       {
         id: `t${Date.now()}`,
@@ -265,7 +266,7 @@ export function createIncident({ type, severity, title, location, isDrill = fals
         text: `Incident opened. Initial severity: ${SEVERITY[severity || typeMeta.defaultSeverity].label}.`,
       },
     ],
-    tasks: tasksForIncidentType(type),
+    tasks: generateIncidentTasks(type, effectiveRoles),
   };
 }
 
@@ -804,8 +805,263 @@ const ROLE_RESPONSIBILITIES = {
   },
 };
 
+// ============================================================
+// PLAYBOOK TASK LIBRARY (offline knowledge base)
+// Rich, role-specific operational actions for the first 30–60 min,
+// grounded in NSW school critical-incident best practice. Entries:
+//   { text, due (min), approval (Principal sign-off), mandatory (notification) }
+// Overrides ROLE_RESPONSIBILITIES for the 6 priority incident types.
+// NOT fetched live — this is CIMPLE's permanent built-in knowledge.
+// ============================================================
+export const PLAYBOOK_TASKS = {
+  // ---------- MISSING STUDENT ----------
+  missing: {
+    "Incident Commander": [
+      { text: "Confirm the student's last known location, time, and who reported it", due: 5 },
+      { text: "Declare the incident level and activate the Missing Student procedure (EMP §6.1)", due: 5 },
+      { text: "Direct an immediate coordinated search of grounds and buildings", due: 10 },
+      { text: "Escalate to Police (000) early if there is any concern for the student's safety — do not impose an arbitrary wait", due: 15 },
+      { text: "Authorise parent notification", due: 15, approval: true },
+      { text: "Notify head office / network once Police are involved", due: 20, mandatory: true },
+    ],
+    "Search Coordinator": [
+      { text: "Confirm the student actually arrived today — cross-check the morning roll/attendance", due: 8 },
+      { text: "Divide the site into search sectors and assign a staff member to each", due: 10 },
+      { text: "Check likely locations first: bathrooms, sick bay, friends' classes, library", due: 10 },
+      { text: "Review and preserve gate/exit CCTV for the student's last movements before it overwrites", due: 15 },
+      { text: "Check attendance/sign-out records and all gate and exit points", due: 15 },
+      { text: "Report each sector to the Incident Commander as it is cleared", due: 20 },
+      { text: "Prepare a current description and recent photo for Police", due: 25 },
+    ],
+    "Family Liaison": [
+      { text: "Confirm the family's current emergency contact numbers", due: 10 },
+      { text: "Check custody / AVO / parenting-order flags before contacting a parent", due: 12 },
+      { text: "Contact the parent/carer using the approved script once authorised", due: 15, approval: true },
+      { text: "Ask the family about likely locations, friends, or arrangements", due: 20 },
+      { text: "Keep a log of every call, who answered, and what was said", due: 25 },
+    ],
+    "Police Liaison": [
+      { text: "Call 000 when directed; give description, last-seen details, and site access", due: 15, mandatory: true },
+      { text: "Meet and brief Police on arrival; hand over description and CCTV", due: 25 },
+      { text: "Provide a site map and access/exit points", due: 25 },
+      { text: "Maintain a single line of communication with Police", due: 30 },
+    ],
+    "Documenter": [
+      { text: "Start the incident log with exact times (reported, search commenced)", due: 5 },
+      { text: "Record the student description: clothing, appearance, last seen where", due: 10 },
+      { text: "Log every search sector assigned and cleared, with times", due: 15 },
+      { text: "Record all Police and parent contacts with times", due: 30 },
+    ],
+  },
+
+  // ---------- CHILD PROTECTION / SERIOUS ALLEGATION ----------
+  child_protection: {
+    "Incident Commander": [
+      { text: "Ensure the child is safe and separated from any alleged source of harm", due: 5 },
+      { text: "Do NOT question the child, investigate, or confront/warn the alleged person — preserve the account", due: 5 },
+      { text: "If a staff member is alleged, stand them down from child-related duties as a risk-management step (not a disciplinary finding)", due: 10, approval: true },
+      { text: "Assess Risk of Significant Harm (ROSH) using the Mandatory Reporter Guide", due: 15, mandatory: true },
+      { text: "Report suspected ROSH to the DCJ Child Protection Helpline (132 111) as soon as practicable", due: 30, mandatory: true },
+      { text: "If the allegation is against a staff member, notify the Office of the Children's Guardian within 7 business days (Reportable Conduct)", due: 45, mandatory: true },
+      { text: "Restrict information strictly to those with a need to know", due: 10 },
+    ],
+    "Wellbeing Lead": [
+      { text: "Stay with the child; reassure without probing for detail", due: 5 },
+      { text: "Record only what the child said, in their exact words, factually", due: 15 },
+      { text: "Assess the child's immediate safety and support needs", due: 20 },
+      { text: "Arrange counsellor support if required", due: 30 },
+    ],
+    "Family Liaison": [
+      { text: "Wait for Principal / Police / DCJ authorisation before contacting family", due: 15, approval: true },
+      { text: "Confirm which adult may safely be contacted (check custody / AVO flags)", due: 20 },
+      { text: "Do not disclose allegation details beyond the agreed wording", due: 25, approval: true },
+    ],
+    "Police Liaison": [
+      { text: "Report to NSW Police if a criminal offence is suspected; follow Police direction", due: 20, mandatory: true },
+      { text: "Coordinate scene and information control with Police", due: 30 },
+    ],
+    "Documenter": [
+      { text: "Record the disclosure time, who received it, and the exact words used", due: 10 },
+      { text: "Log the mandatory-reporting decision and the rationale", due: 20 },
+      { text: "Record every notification made and the time it was made", due: 45 },
+    ],
+  },
+
+  // ---------- MEDICAL / INJURY ----------
+  medical: {
+    "Incident Commander": [
+      { text: "Confirm the nature and severity of the injury or illness", due: 5 },
+      { text: "Decide ambulance (000) vs parent transport on First Aid advice", due: 10, approval: true },
+      { text: "Ensure the scene is safe and move bystander students away", due: 10 },
+      { text: "Approve the message to the family", due: 15, approval: true },
+      { text: "Brief arriving paramedics personally", due: 20 },
+      { text: "If serious injury or death, notify SafeWork NSW immediately (13 10 50) — notifiable incident", due: 20, mandatory: true },
+    ],
+    "First Aid": [
+      { text: "Perform a primary assessment (DRSABCD)", due: 5 },
+      { text: "Provide first aid within your qualification", due: 5 },
+      { text: "Call 000 if the condition meets ambulance criteria", due: 10, mandatory: true },
+      { text: "Check the student's health-care plan (asthma, anaphylaxis, allergies)", due: 10 },
+      { text: "Stay with the patient until handover to paramedics or parent", due: 20 },
+      { text: "Record observations, treatment given, and times", due: 25 },
+    ],
+    "Family Liaison": [
+      { text: "Contact the emergency contact within 5 minutes", due: 10 },
+      { text: "Provide factual information only — do not speculate on diagnosis", due: 15 },
+      { text: "Arrange parent collection or direct them to the hospital", due: 20 },
+    ],
+    "Documenter": [
+      { text: "Record times: incident, first aid started, 000 called, paramedics arrived, parent contacted", due: 15 },
+      { text: "Complete the medical incident form", due: 30 },
+      { text: "Preserve the scene/equipment for SafeWork (you may still aid the injured and make the area safe)", due: 30 },
+    ],
+  },
+
+  // ---------- LOCKDOWN ----------
+  lockdown: {
+    "Incident Commander": [
+      { text: "Confirm the trigger and decide to initiate lockdown", due: 5 },
+      { text: "Initiate the lockdown alert / PA announcement", due: 5 },
+      { text: "Call 000 / Police and maintain contact via Police Liaison", due: 10, mandatory: true },
+      { text: "Notify head office of the lockdown", due: 15, mandatory: true },
+      { text: "Confirm a whole-site headcount via wardens", due: 20 },
+      { text: "Make the all-clear decision only when Police confirm it is safe", due: 45, approval: true },
+    ],
+    "Floor Wardens": [
+      { text: "Lock all doors and windows in your zone immediately", due: 5 },
+      { text: "Move students away from windows and out of line of sight", due: 5 },
+      { text: "Account for all students and visitors in your zone", due: 10 },
+      { text: "Keep everyone silent; phones on silent", due: 10 },
+      { text: "Report your zone status to the Headcount Officer / Incident Commander", due: 15 },
+      { text: "Do not open the door until an authorised all-clear is given", due: 45 },
+    ],
+    "Communications Lead": [
+      { text: "Draft the internal staff instruction for silent distribution", due: 10, approval: true },
+      { text: "Prepare the parent holding statement — do NOT send until approved", due: 20, approval: true },
+      { text: "Prepare the 'do not come to the College' message for parents", due: 25, approval: true },
+      { text: "Hold all external communications until Principal sign-off", due: 20, approval: true },
+    ],
+    "Police Liaison": [
+      { text: "Call 000: state 'school in lockdown', location, nature of threat, numbers on site, and access points", due: 5, mandatory: true },
+      { text: "Brief Police on arrival; provide site map and access points", due: 20 },
+      { text: "Relay Police instructions to the Incident Commander", due: 25 },
+    ],
+    "Documenter": [
+      { text: "Record the lockdown start time and the trigger", due: 5 },
+      { text: "Log each zone's status report as it comes in", due: 20 },
+      { text: "Record the all-clear time and who authorised it", due: 45 },
+    ],
+  },
+
+  // ---------- DEATH ON CAMPUS ----------
+  death_oncampus: {
+    "Incident Commander": [
+      { text: "Confirm emergency services are en route — do NOT move the deceased", due: 5, mandatory: true },
+      { text: "Restrict and screen access to the area", due: 5 },
+      { text: "Notify head office / network immediately by phone, not email", due: 10, mandatory: true },
+      { text: "Contact Police if not already attending", due: 10, mandatory: true },
+      { text: "Designate a single spokesperson; all others refer media on", due: 15 },
+      { text: "Personally approve every internal and external communication", due: 20, approval: true },
+    ],
+    "Wellbeing Lead": [
+      { text: "Coordinate immediate support for any witnesses", due: 10 },
+      { text: "Activate the critical-incident counsellor protocol", due: 20 },
+      { text: "Brief teaching staff on supporting students once authorised", due: 45, approval: true },
+    ],
+    "Family Liaison": [
+      { text: "Wait for Police authorisation before any family contact", due: 15, approval: true },
+      { text: "Notify next of kin in person, coordinated with Police — never by phone or text", due: 20, approval: true },
+      { text: "Be physically present with the family if appropriate", due: 45 },
+    ],
+    "Communications Lead": [
+      { text: "Prepare the staff communication for controlled release", due: 30, approval: true },
+      { text: "Prepare the community communication", due: 45, approval: true },
+      { text: "Prepare a media holding statement — withhold the name; if a suspected suicide, follow safe-messaging (no method, location, or detail)", due: 30, approval: true },
+      { text: "Route all drafts to the Principal for approval", due: 30, approval: true },
+    ],
+    "Police Liaison": [
+      { text: "Maintain sole communication with Police", due: 10 },
+      { text: "Preserve the scene — a death on site is reportable to the Coroner; Police will manage it", due: 15, mandatory: true },
+      { text: "Document all Police interactions", due: 20 },
+    ],
+    "Documenter": [
+      { text: "Record the sequence of events and times, factually only", due: 15 },
+      { text: "Log all notifications (head office, Police, family)", due: 30 },
+      { text: "Record no opinions or speculation", due: 15 },
+    ],
+    "Counsellor (External)": [
+      { text: "Arrive within the agreed response time", due: 45 },
+      { text: "Take primary responsibility for direct student and staff support", due: 60 },
+    ],
+  },
+
+  // ---------- CYBER INCIDENT / DATA BREACH ----------
+  cyber: {
+    "Incident Commander": [
+      { text: "Confirm the nature: ransomware, breach, outage, or suspected attack", due: 5 },
+      { text: "Direct IT to isolate affected systems (disconnect, do NOT power off)", due: 5 },
+      { text: "Notify head office / IT leadership immediately", due: 10, mandatory: true },
+      { text: "Decide whether to switch to manual / paper business-continuity mode", due: 15, approval: true },
+      { text: "Assess whether personal information is involved (privacy breach)", due: 30 },
+      { text: "Approve any communication to families about outages or data", due: 30, approval: true },
+      { text: "Report the incident to ReportCyber (cyber.gov.au); involve Police for cybercrime", due: 30, mandatory: true },
+      { text: "If a ransom payment is considered, check the mandatory 72-hour reporting duty (Cyber Security Act 2024)", due: 30, approval: true },
+    ],
+    "Communications Lead": [
+      { text: "Prepare an internal staff notice (what not to click or do)", due: 15, approval: true },
+      { text: "Draft a parent holding statement about any service outage", due: 30, approval: true },
+      { text: "If personal data is involved, assess as a Notifiable Data Breach (≤30 days) and notify OAIC + affected individuals as soon as practicable", due: 45, approval: true, mandatory: true },
+      { text: "Hold all external communications until Principal + IT sign-off", due: 20, approval: true },
+    ],
+    "Front Office Lead": [
+      { text: "Switch to manual sign-in / sign-out and phone processes", due: 15 },
+      { text: "Manage parent enquiries using the approved holding line", due: 30 },
+      { text: "Keep a manual log of key events while systems are down", due: 20 },
+    ],
+    "Documenter": [
+      { text: "Record the time the incident was detected and by whom", due: 10 },
+      { text: "Preserve evidence — do not delete logs, emails, or files", due: 15 },
+      { text: "Log systems affected and every action taken, with times", due: 20 },
+    ],
+  },
+};
+
+function normResp(e) {
+  return typeof e === "string" ? { text: e } : e;
+}
+
 export function responsibilitiesFor(roleName, incidentType) {
-  return ROLE_RESPONSIBILITIES[incidentType]?.[roleName] || null;
+  const list = PLAYBOOK_TASKS[incidentType]?.[roleName] || ROLE_RESPONSIBILITIES[incidentType]?.[roleName];
+  return list ? list.map(normResp) : null;
+}
+
+// Generate a role-owned operational task board from the playbook, after
+// triage + allocation. Each assigned role receives its immediate actions;
+// tasks carry owner, due time, status, priority, and approval/mandatory flags.
+export function generateIncidentTasks(typeId, roles) {
+  const now = Date.now();
+  const out = [];
+  let i = 0;
+  for (const role of (roles || [])) {
+    const entries = (PLAYBOOK_TASKS[typeId]?.[role.role] || ROLE_RESPONSIBILITIES[typeId]?.[role.role] || []).map(normResp);
+    const owner = roleIsAssigned(role) ? role.initials : "—";
+    for (const e of entries) {
+      const due = e.due ?? 60;
+      out.push({
+        id: `tk${now}-${i++}`,
+        text: e.text,
+        owner,
+        role: role.role,
+        done: false,
+        priority: due <= 15 ? "high" : due <= 30 ? "med" : "low",
+        dueAt: e.due ? now + e.due * 60000 : undefined,
+        approval: !!e.approval,
+        mandatory: !!e.mandatory,
+      });
+    }
+  }
+  out.sort((a, b) => (a.dueAt || Infinity) - (b.dueAt || Infinity));
+  return out.length ? out : tasksForIncidentType(typeId);
 }
 
 // ============================================================

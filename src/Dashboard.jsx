@@ -852,6 +852,16 @@ function formatDue(dueAt, now) {
   return d.toLocaleDateString("en-AU", { day: "numeric", month: "short" }) + ` ${hh}:${mm}`;
 }
 
+function RespFlags({ r }) {
+  if (!r || (!r.approval && !r.mandatory)) return null;
+  return (
+    <>
+      {r.approval && <span className="mono" title="Requires Principal approval before acting" style={{ fontSize: 8, letterSpacing: "0.08em", fontWeight: 700, color: PALETTE.crimson, border: `1px solid ${PALETTE.crimson}`, padding: "0px 4px", marginLeft: 4, whiteSpace: "nowrap" }}>APPROVAL</span>}
+      {r.mandatory && <span className="mono" title="Mandatory notification / report" style={{ fontSize: 8, letterSpacing: "0.08em", fontWeight: 700, color: PALETTE.rust, border: `1px solid ${PALETTE.rust}`, padding: "0px 4px", marginLeft: 4, whiteSpace: "nowrap" }}>NOTIFY</span>}
+    </>
+  );
+}
+
 function TaskRow({ task, now, onToggle, isLast, disabled }) {
   const p = { high: { color: PALETTE.rust, label: "HIGH" }, med: { color: PALETTE.amber, label: "MED" }, low: { color: PALETTE.sage, label: "LOW" } }[task.priority];
   const overdue = !task.done && task.dueAt && task.dueAt < now;
@@ -875,7 +885,9 @@ function TaskRow({ task, now, onToggle, isLast, disabled }) {
       }}>
         {task.done && <CheckCircle2 size={12} color={PALETTE.paper} strokeWidth={3} />}
       </button>
-      <span style={{ flex: 1, fontSize: 14, color: PALETTE.ink, textDecoration: task.done ? "line-through" : "none" }}>{task.text}</span>
+      <span style={{ flex: 1, fontSize: 14, color: PALETTE.ink, textDecoration: task.done ? "line-through" : "none" }}>
+        {task.text} <RespFlags r={task} />
+      </span>
       {task.dueAt && (
         <span
           className="mono"
@@ -1396,7 +1408,7 @@ function RoleAssignDrawer({ incident, roleId, update, addTimelineEntry, isClosed
                   <span className="mono" style={{ color: PALETTE.teal, fontSize: 11, fontWeight: 500, minWidth: 20, paddingTop: 2 }}>
                     {String(i + 1).padStart(2, "0")}
                   </span>
-                  {r}
+                  <span style={{ flex: 1 }}>{r.text} <RespFlags r={r} /></span>
                 </li>
               ))}
             </ol>
@@ -2281,7 +2293,7 @@ function BriefingView({ incident, role, onBack }) {
       <Section title="Immediate responsibilities">
         {responsibilities && responsibilities.length ? (
           <ul style={{ margin: 0, paddingLeft: 18 }}>
-            {responsibilities.map((r, i) => <li key={i} style={{ fontSize: 13, lineHeight: 1.6, color: PALETTE.ink }}>{r}</li>)}
+            {responsibilities.map((r, i) => <li key={i} style={{ fontSize: 13, lineHeight: 1.6, color: PALETTE.ink }}>{r.text} <RespFlags r={r} /></li>)}
           </ul>
         ) : <p style={{ fontSize: 13, color: PALETTE.inkSoft, margin: 0 }}>Follow the Incident Commander's direction and this incident's task list.</p>}
       </Section>
