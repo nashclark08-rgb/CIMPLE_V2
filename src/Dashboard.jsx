@@ -10,7 +10,7 @@ import {
   Activity, Eye, Edit3, Download, ArrowLeft, RotateCcw,
   UserCheck, UserX, UserPlus, Settings, MessageSquare, Megaphone,
   Sparkles, Check, Radio, Bell, ClipboardCheck, Trash2, Scale, Lightbulb,
-  AlertOctagon, Minimize2,
+  AlertOctagon, Minimize2, ListChecks, ArrowRight,
 } from "lucide-react";
 import { PALETTE, TopBarShell, formatTime, formatRelative, formatElapsed } from "./shared.jsx";
 import {
@@ -25,6 +25,8 @@ import {
   recommendAlternate,
   ROLE_BOARD_STATE, roleBoardState, escalationPathwayFor, simulateNotification,
   promoteToRole, reassignRoleToAlternate, availableQualifiedStaff, PREF_LABEL,
+  CIMT_PHASES, PHASE_CHECKLIST, incidentPhase, phaseMeta, phaseIndex,
+  phaseProgress, nextPhaseId, isPhaseItemDone,
 } from "./data.js";
 
 export default function Dashboard({ incidentId, onBack }) {
@@ -149,6 +151,7 @@ export default function Dashboard({ incidentId, onBack }) {
       <TopBarPresence incident={incident} now={now} />
       {incident.isDrill && <DrillBanner />}
       <CommandStrip incident={incident} changeSeverity={changeSeverity} setDrawer={setDrawer} closeIncident={closeIncident} reopenIncident={reopenIncident} onBack={onBack} onRedFolder={() => setRedFolder(true)} />
+      <PhaseStepper incident={incident} onOpen={(phaseId) => setDrawer({ kind: "phases", phaseId })} />
 
       <div style={{ maxWidth: 1480, margin: "0 auto", padding: "24px 32px", display: "grid", gridTemplateColumns: "260px 1fr 320px", gap: 24, alignItems: "start" }}>
         <LeftRail incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} setDrawer={setDrawer} />
@@ -198,6 +201,17 @@ export default function Dashboard({ incidentId, onBack }) {
       {drawer === "pir" && (
         <Drawer onClose={() => setDrawer(null)} title="Post-Incident Review">
           <PIRDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} />
+        </Drawer>
+      )}
+      {drawer && typeof drawer === "object" && drawer.kind === "phases" && (
+        <Drawer onClose={() => setDrawer(null)} title="Incident Phases — CIMT Checklist">
+          <PhaseDrawer
+            incident={incident}
+            initialPhase={drawer.phaseId}
+            update={update}
+            addTimelineEntry={addTimelineEntry}
+            isClosed={isClosed}
+          />
         </Drawer>
       )}
       {drawer && typeof drawer === "object" && drawer.kind === "role" && (
@@ -521,6 +535,9 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
                   <Radio size={14} /> Activated · {ackRollup(incident)}
                 </button>
               ) : null}
+              <button className="btn" onClick={() => setDrawer({ kind: "phases", phaseId: incidentPhase(incident) })}>
+                <ListChecks size={14} /> Phase · {phaseMeta(incidentPhase(incident)).label}
+              </button>
               <button className="btn" onClick={() => setDrawer("copilot")} style={copilotFindings.length ? { borderColor: copilotCrit ? PALETTE.crimson : PALETTE.rust, color: copilotCrit ? PALETTE.crimson : PALETTE.rust } : undefined}>
                 <Lightbulb size={14} /> Blind Spots{copilotFindings.length ? ` · ${copilotFindings.length}` : ""}
               </button>
@@ -544,6 +561,156 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ---------- Phase stepper (the incident lifecycle spine) ---------- */
+function PhaseStepper({ incident, onOpen }) {
+  const currentId = incidentPhase(incident);
+  const curIdx = phaseIndex(currentId);
+  return (
+    <div style={{ background: PALETTE.paper, borderBottom: `1px solid rgba(0, 48, 94, 0.1)` }}>
+      <div style={{ maxWidth: 1480, margin: "0 auto", padding: "0 32px", display: "flex", alignItems: "stretch" }}>
+        {CIMT_PHASES.map((p, i) => {
+          const prog = phaseProgress(incident, p.id);
+          const isCurrent = p.id === currentId;
+          const isPast = i < curIdx;
+          const complete = prog.total > 0 && prog.done === prog.total;
+          const topColor = isCurrent ? PALETTE.teal : isPast ? PALETTE.sage : "rgba(0, 48, 94, 0.15)";
+          return (
+            <button
+              key={p.id}
+              onClick={() => onOpen(p.id)}
+              title={p.blurb}
+              style={{
+                flex: 1, textAlign: "left", cursor: "pointer",
+                background: isCurrent ? "rgba(0, 48, 94, 0.05)" : "transparent",
+                border: "none", borderTop: `3px solid ${topColor}`,
+                padding: "9px 12px", minWidth: 0,
+              }}
+            >
+              <div className="mono" style={{ fontSize: 8.5, letterSpacing: "0.12em", color: PALETTE.inkSoft, opacity: 0.7 }}>PHASE {i + 1}</div>
+              <div style={{ fontSize: 12.5, fontWeight: isCurrent ? 600 : 500, color: isCurrent ? PALETTE.teal : isPast ? PALETTE.sage : PALETTE.ink, display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {isPast && complete ? <Check size={12} color={PALETTE.sage} /> : null}{p.label}
+              </div>
+              <div style={{ fontSize: 10, color: PALETTE.inkSoft, marginTop: 2 }}>{prog.done}/{prog.total} done{isCurrent ? " · current" : ""}</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Phase drawer: the plan's master checklist per phase ---------- */
+function PhaseDrawer({ incident, initialPhase, update, addTimelineEntry, isClosed }) {
+  const currentId = incidentPhase(incident);
+  const [sel, setSel] = useState(initialPhase && CIMT_PHASES.some((p) => p.id === initialPhase) ? initialPhase : currentId);
+  const items = PHASE_CHECKLIST[sel] || [];
+  const meta = phaseMeta(sel);
+  const prog = phaseProgress(incident, sel);
+  const nid = nextPhaseId(currentId);
+
+  function toggleItem(itemId) {
+    if (isClosed) return;
+    const wasDone = isPhaseItemDone(incident, itemId);
+    update((prev) => {
+      const checks = { ...(prev.phaseChecks || {}) };
+      if (wasDone) delete checks[itemId];
+      else checks[itemId] = { done: true, at: Date.now() };
+      return { ...prev, phaseChecks: checks };
+    });
+    const it = items.find((x) => x.id === itemId);
+    addTimelineEntry({ type: wasDone ? "system" : "action", text: `${meta.label} checklist — ${wasDone ? "un-ticked" : "completed"}: ${(it?.text || "").slice(0, 90)}` });
+  }
+
+  function advance() {
+    if (!nid || isClosed) return;
+    update({ phase: nid });
+    addTimelineEntry({ type: "system", text: `Phase advanced: ${phaseMeta(currentId).label} → ${phaseMeta(nid).label}.` });
+    setSel(nid);
+  }
+
+  return (
+    <div>
+      {/* Phase selector */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+        {CIMT_PHASES.map((p, i) => {
+          const isSel = p.id === sel;
+          const isCur = p.id === currentId;
+          const pr = phaseProgress(incident, p.id);
+          return (
+            <button key={p.id} onClick={() => setSel(p.id)} style={{
+              padding: "6px 10px", fontSize: 11.5, cursor: "pointer",
+              border: `1px solid ${isSel ? PALETTE.teal : "rgba(0, 48, 94, 0.2)"}`,
+              background: isSel ? PALETTE.teal : PALETTE.paper,
+              color: isSel ? PALETTE.paper : PALETTE.ink,
+              display: "flex", alignItems: "center", gap: 5, fontWeight: isSel ? 600 : 500,
+            }}>
+              <span className="mono" style={{ opacity: 0.7, fontSize: 9 }}>{i + 1}</span>{p.label}
+              {isCur && <span style={{ width: 6, height: 6, borderRadius: "50%", background: isSel ? PALETTE.paper : PALETTE.rust }} />}
+              <span style={{ opacity: 0.7, fontSize: 10 }}>{pr.done}/{pr.total}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Selected phase header */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div className="display" style={{ fontSize: 22, fontWeight: 500, color: PALETTE.teal }}>{meta.label}</div>
+          {sel === currentId ? (
+            <span className="chip" style={{ background: PALETTE.rust, color: PALETTE.paper, borderColor: PALETTE.rust }}>CURRENT PHASE</span>
+          ) : phaseIndex(sel) < phaseIndex(currentId) ? (
+            <span className="chip" style={{ background: PALETTE.sage, color: PALETTE.paper, borderColor: PALETTE.sage }}>PASSED</span>
+          ) : (
+            <span className="chip">UPCOMING</span>
+          )}
+        </div>
+        <p style={{ fontSize: 13, color: PALETTE.inkSoft, lineHeight: 1.6, margin: "6px 0 0" }}>{meta.blurb}</p>
+        <div style={{ marginTop: 10, height: 5, background: "rgba(0, 48, 94, 0.1)", borderRadius: 3, overflow: "hidden" }}>
+          <div style={{ width: `${prog.pct}%`, height: "100%", background: prog.pct === 100 ? PALETTE.sage : PALETTE.teal }} />
+        </div>
+        <div style={{ fontSize: 11, color: PALETTE.inkSoft, marginTop: 4 }}>{prog.done} of {prog.total} steps complete</div>
+      </div>
+
+      {/* Checklist */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {items.map((it) => {
+          const done = isPhaseItemDone(incident, it.id);
+          return (
+            <button key={it.id} onClick={() => toggleItem(it.id)} disabled={isClosed} style={{
+              display: "flex", gap: 10, alignItems: "flex-start", textAlign: "left",
+              padding: "10px 8px", background: "none", border: "none",
+              borderBottom: `1px solid rgba(0, 48, 94, 0.07)`, cursor: isClosed ? "default" : "pointer", width: "100%",
+            }}>
+              {done ? <CheckCircle2 size={17} color={PALETTE.sage} style={{ flexShrink: 0, marginTop: 1 }} />
+                    : <Circle size={17} color={PALETTE.inkSoft} style={{ flexShrink: 0, marginTop: 1, opacity: 0.5 }} />}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, lineHeight: 1.5, color: done ? PALETTE.inkSoft : PALETTE.ink, textDecoration: done ? "line-through" : "none" }}>
+                  {it.text}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
+                  <span className="mono" style={{ fontSize: 9.5, letterSpacing: "0.06em", color: PALETTE.teal, background: "rgba(0, 48, 94, 0.07)", padding: "2px 6px" }}>{it.responsible}</span>
+                  {it.reference && <span className="mono" style={{ fontSize: 9.5, color: PALETTE.inkSoft }}>↳ {it.reference}</span>}
+                  {it.mandatory && <span className="mono" style={{ fontSize: 9, letterSpacing: "0.08em", color: PALETTE.crimson, fontWeight: 600 }}>MANDATORY</span>}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Advance */}
+      {!isClosed && sel === currentId && nid && (
+        <button onClick={advance} className="btn btn-primary" style={{ marginTop: 18, width: "100%", justifyContent: "center" }}>
+          Advance to {phaseMeta(nid).label} <ArrowRight size={14} />
+        </button>
+      )}
+      {sel === currentId && !nid && (
+        <p style={{ fontSize: 12, color: PALETTE.inkSoft, textAlign: "center", marginTop: 16 }}>Final phase — stand the CIMT down and complete the Post-Incident Review.</p>
+      )}
     </div>
   );
 }

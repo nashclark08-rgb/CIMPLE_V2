@@ -265,6 +265,8 @@ export function createIncident({ type, severity, title, location, isDrill = fals
     empSection: typeMeta.emp,
     policies: defaultPoliciesForType(type),
     student: null,
+    phase: "assessment",
+    phaseChecks: {},
     roles: effectiveRoles,
     timeline: [
       {
@@ -355,6 +357,8 @@ export function buildSampleIncidents() {
     location: "D-Block, Level 1, Bathroom B",
     empSection: "EMP §4.3 — Student Mental Health Crisis Response",
     policies: defaultPoliciesForType("mental_health"),
+    phase: "response",
+    phaseChecks: { as1: { done: true }, as7: { done: true }, as8: { done: true }, ac1: { done: true }, ac6: { done: true }, re1: { done: true } },
     student: {
       initials: "M.T.",
       yearLevel: "Year 9",
@@ -408,6 +412,8 @@ export function buildSampleIncidents() {
     location: "Oval — Eastern Field",
     empSection: "EMP §3.1 — Medical Emergency Response",
     policies: defaultPoliciesForType("medical"),
+    phase: "response",
+    phaseChecks: { as1: { done: true }, as7: { done: true } },
     student: null,
     roles: [
       { id: "r1", role: "Critical Incident Leader", staff: "Adrian Johnson", initials: "AJ", status: "confirmed", required: true, isPrincipal: true },
@@ -795,6 +801,120 @@ export const CIMT_ROLE_CHECKLISTS = {
     { text: "Communicate co-curricular changes to families and staff", due: 45 },
   ],
 };
+
+// ==================================================================
+// CIMT INCIDENT LIFECYCLE — the plan's phase model + master checklist
+// (CIM & BCP V0.3 §3.4 Critical Incident Management Checklist). The
+// incident moves Assessment → Activation → Response → Business
+// Recovery → Business Resumption → Stand Down. Each phase carries the
+// plan's checklist (Action · Responsible CIMT role · reference). An
+// incident tracks which items are ticked in `phaseChecks`.
+// ==================================================================
+export const CIMT_PHASES = [
+  { id: "assessment", label: "Assessment", blurb: "Collect information, assess the situation, and determine the incident level and which CIMT roles are required." },
+  { id: "activation", label: "Activation", blurb: "Formally declare, stand up the CIMT and Control Room, and hold the initial briefing." },
+  { id: "response", label: "Response", blurb: "Confirm welfare, run the response, manage communications, and coordinate with emergency services." },
+  { id: "recovery", label: "Business Recovery", blurb: "Where operations are impacted, recover critical business functions and relocate as needed." },
+  { id: "resumption", label: "Business Resumption", blurb: "Return the College to pre-incident operations — restoration or relocation." },
+  { id: "standdown", label: "Stand Down", blurb: "Declare the response over, deactivate the CIMT, and arrange the Post-Incident Review (within 7 days)." },
+];
+
+export const PHASE_CHECKLIST = {
+  assessment: [
+    { id: "as1", text: "Collect information: what happened, where/when, who is affected, emergency services called/ETA, injuries, first aid, evacuated or locked down, media on site, reliability of the information", responsible: "Critical Incident Leader", reference: "Call Taker Form" },
+    { id: "as2", text: "Direct Support to WhatsApp the CIMT to stand by while the situation is assessed; then continue via Teams", responsible: "Critical Incident Leader" },
+    { id: "as3", text: "Confirm the Emergency Response Procedures (ECO / warden team) have been activated, if required", responsible: "Planning Coordinator", reference: "Emergency Response Plan" },
+    { id: "as4", text: "Determine whether the Emergency Control Organisation needs additional support and organise it", responsible: "College Services" },
+    { id: "as5", text: "Determine whether someone needs to go to the incident/assembly area to manage media", responsible: "Communications Coordinator" },
+    { id: "as6", text: "Determine whether immediate communications need to be issued to those impacted", responsible: "Communications Coordinator" },
+    { id: "as7", text: "Conduct an incident assessment to determine the incident level", responsible: "Critical Incident Leader", reference: "Incident Levels" },
+    { id: "as8", text: "Determine which CIMT members are required", responsible: "Critical Incident Leader" },
+    { id: "as9", text: "Set up Teams for the incident (new channel named with incident + date; copy templates from General)", responsible: "Support Coordinator" },
+    { id: "as10", text: "Initiate and maintain the incident log", responsible: "Support Coordinator", reference: "Incident Log" },
+  ],
+  activation: [
+    { id: "ac1", text: "Formally declare a Critical Incident", responsible: "Critical Incident Leader", mandatory: true },
+    { id: "ac2", text: "Notify CIMT members of the location and time for the initial briefing", responsible: "Support Coordinator" },
+    { id: "ac3", text: "Activate the Critical Incident Control Room (Boardroom) and ensure all equipment is working", responsible: "Support Coordinator", reference: "Control Room Activation" },
+    { id: "ac4", text: "Establish the visual boards in the Control Room (physical or via Teams)", responsible: "Support Coordinator", reference: "Visual Boards" },
+    { id: "ac5", text: "Confirm available CIMT members and their roles", responsible: "Critical Incident Leader" },
+    { id: "ac6", text: "Run the initial CIMT meeting: welfare, update, area reports, impact & issues assessment, objectives, comms protocols, next meeting time", responsible: "Critical Incident Leader", reference: "Meeting Agenda" },
+    { id: "ac7", text: "Notify the Chair of College Council and the CEO of AngliSchools", responsible: "Critical Incident Leader", mandatory: true },
+    { id: "ac8", text: "Allocate a CIMT member to liaise with emergency services on what can be told to parents and where they should go", responsible: "Critical Incident Leader" },
+  ],
+  response: [
+    { id: "re1", text: "Confirm the safety and wellbeing of all staff, students and visitors; track affected persons (names, condition, next of kin)", responsible: "Student Coordinator", reference: "People at Risk Log" },
+    { id: "re2", text: "Confirm the Emergency Control Organisation / warden team has been activated, if needed", responsible: "College Services" },
+    { id: "re3", text: "Re-assess the expected incident level", responsible: "Critical Incident Leader", reference: "Incident Levels" },
+    { id: "re4", text: "Conduct the impact & issues assessment", responsible: "Planning Coordinator", reference: "Impact Assessment" },
+    { id: "re5", text: "Review Critical Business Functions with short RTOs for likely impact", responsible: "Recovery Coordinator", reference: "Critical Business Functions" },
+    { id: "re6", text: "Develop the initial communications strategy for the Leader to approve", responsible: "Communications Coordinator", reference: "Communications Strategy" },
+    { id: "re7", text: "Draft a holding statement", responsible: "Communications Coordinator" },
+    { id: "re8", text: "Assume the media spokesperson role for the College", responsible: "Critical Incident Leader" },
+    { id: "re9", text: "Establish a call centre / reception script for parent and family calls", responsible: "Communications Coordinator" },
+    { id: "re10", text: "Inform parents of students who may be directly involved", responsible: "Student Coordinator" },
+    { id: "re11", text: "Establish a regular communications schedule with staff, students and community", responsible: "Communications Coordinator" },
+    { id: "re12", text: "Provide regular briefings to CIMT, Council, AngliSchools, media, parents and students", responsible: "Critical Incident Leader" },
+    { id: "re13", text: "If required, notify next of kin through the appropriate authorities", responsible: "Student Coordinator" },
+    { id: "re14", text: "Establish daily debriefing: self-care, counselling services, and EAP for impacted staff", responsible: "Critical Incident Leader" },
+  ],
+  recovery: [
+    { id: "br1", text: "Commence a physical damage assessment (IT & applications, voice/data, buildings, grounds) to estimate downtime", responsible: "Recovery Coordinator" },
+    { id: "br2", text: "If voice communications are affected, organise diversion of phones", responsible: "Recovery Coordinator" },
+    { id: "br3", text: "Review the Critical Business Functions list to assess all work-in-progress affected", responsible: "Recovery Coordinator", reference: "Critical Business Functions" },
+    { id: "br4", text: "If downtime is estimated > 24 hours, initiate the Relocation Plan (confirm rooms/resources at offsite locations)", responsible: "Recovery Coordinator", reference: "Relocation Plan" },
+    { id: "br5", text: "If key staff are affected, cover via existing staff or activate workarounds for critical functions", responsible: "Recovery Coordinator" },
+    { id: "br6", text: "Facilitate relocation of key staff/students to recovery sites; advise other staff to return home until further notice", responsible: "Recovery Coordinator" },
+    { id: "br7", text: "Procure replacement IT and equipment as determined by the damage assessment", responsible: "Recovery – IT Coordinator" },
+    { id: "br8", text: "Provide regular status reports to the Critical Incident Leader on critical business capabilities", responsible: "Recovery Coordinator", reference: "SITREP" },
+  ],
+  resumption: [
+    { id: "rs1", text: "Continue referring to the Critical Business Functions list to ensure restoration alongside longer-term resumption", responsible: "Recovery Coordinator", reference: "Critical Business Functions" },
+    { id: "rs2", text: "Develop a resumption communication strategy for Council, parents, staff and community", responsible: "Communications Coordinator" },
+    { id: "rs3", text: "Work with HR on staff injuries/near misses; liaise with SafeWork NSW, doctors and insurers on care and return-to-work", responsible: "Planning Coordinator" },
+    { id: "rs4", text: "If there were deaths, organise memorial services and ongoing trauma management support", responsible: "Student Coordinator" },
+    { id: "rs5", text: "Notify insurers of the disruption", responsible: "Recovery Coordinator", reference: "Insurance Register" },
+    { id: "rs6", text: "Maintain a log of all post-incident steps (time, location, action, delegations, work orders, invoices)", responsible: "Recovery Coordinator", reference: "Incident Log" },
+    { id: "rs7", text: "Make plans for repairing damage or relocating buildings/campuses as required", responsible: "Recovery Coordinator" },
+    { id: "rs8", text: "Resume normal operations and advise key stakeholders that operations have resumed", responsible: "Recovery Coordinator" },
+  ],
+  standdown: [
+    { id: "sd1", text: "Declare an end to the response phase of the Critical Incident", responsible: "Critical Incident Leader" },
+    { id: "sd2", text: "Notify internal and external stakeholders that the CIMT is being deactivated", responsible: "Critical Incident Leader" },
+    { id: "sd3", text: "Liaise with the trauma/counselling provider on support for impacted staff, students and community", responsible: "Student Coordinator" },
+    { id: "sd4", text: "Collect, collate and file all incident logs and documents related to the incident", responsible: "Support Coordinator" },
+    { id: "sd5", text: "Confirm reporting and ongoing liaison with regulators, agencies and insurers is established", responsible: "Communications Coordinator" },
+    { id: "sd6", text: "Arrange cleaning and return of the Control Room to normal use", responsible: "Support Coordinator" },
+    { id: "sd7", text: "Determine the need for a formal investigation and report", responsible: "Critical Incident Leader" },
+    { id: "sd8", text: "Arrange a Post-Incident Review within 7 days of the incident", responsible: "Critical Incident Leader", reference: "PIR", mandatory: true },
+    { id: "sd9", text: "Update the CIMP and applicable policies and procedures as required", responsible: "Recovery Coordinator" },
+  ],
+};
+
+// The incident's current phase (defaults sensibly for legacy incidents).
+export function incidentPhase(incident) {
+  if (incident?.phase && CIMT_PHASES.some((p) => p.id === incident.phase)) return incident.phase;
+  return incident?.status === "closed" ? "standdown" : "assessment";
+}
+export function phaseMeta(id) {
+  return CIMT_PHASES.find((p) => p.id === id) || CIMT_PHASES[0];
+}
+export function phaseIndex(id) {
+  return Math.max(0, CIMT_PHASES.findIndex((p) => p.id === id));
+}
+export function nextPhaseId(id) {
+  const i = phaseIndex(id);
+  return i < CIMT_PHASES.length - 1 ? CIMT_PHASES[i + 1].id : null;
+}
+export function isPhaseItemDone(incident, itemId) {
+  return !!incident?.phaseChecks?.[itemId]?.done;
+}
+// Progress of a single phase = ticked / total checklist items.
+export function phaseProgress(incident, phaseId) {
+  const items = PHASE_CHECKLIST[phaseId] || [];
+  const done = items.filter((it) => isPhaseItemDone(incident, it.id)).length;
+  return { done, total: items.length, pct: items.length ? Math.round((done / items.length) * 100) : 0 };
+}
 
 // Per-incident-type responsibilities for each role.
 // Tells the user "what does THIS role do during THIS type of incident".
