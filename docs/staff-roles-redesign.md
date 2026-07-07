@@ -142,7 +142,7 @@ Status colour = activation state. Also feeds Red Folder ("Key contacts") and Bli
 
 **Increment C — Escalation & activation states (no backend): ✅ SHIPPED 2026-07-06.** `promoteToRole()` (vacate + backfill, verified) + `reassignRoleToAlternate()`; 5-state board (`roleBoardState`/`ROLE_BOARD_STATE`: unassigned/assigned/notified/acknowledged/declined); **Team Status Board** drawer ("Team" command view) with assign-replace (runs the conflict engine), notify/ack/decline/escalate; **role briefing pack** (summary + description + reporting line + responsibilities + tasks + escalation pathway); `simulateNotification()` provider abstraction.
 
-**Increment D — Production (after backend):** real email/SMS/push providers; real-time multi-user acknowledgements from assignees' own devices; shared immutable audit log; RBAC.
+**Increment D — Production (backend). D1 foundation ✅ SHIPPED 2026-07-07.** Backend chosen: **Firebase** (see `docs/backend-decision.md`). D1 laid the non-breaking foundation: `firebase` SDK added; `src/firebase.js` (env-driven init + Firestore offline persistence, inert until configured); `src/auth.jsx` AuthProvider with two runtime modes (LOCAL = today's localStorage prototype, no sign-in; CONNECTED = real Firebase Auth); `src/SignIn.jsx` gate (connected mode only); firebase split into its own build chunk. **Blocked on the one manual step** — create the Firebase project + set the 6 `VITE_FIREBASE_*` env vars (`docs/firebase-setup.md`). **D2 (next, once project exists):** migrate localStorage → Firestore collections; Security Rules (RBAC); real-time Team Board + real acknowledgements from assignees' own devices; swap `simulateNotification()` for FCM push + Cloud Function → Twilio (SMS).
 
 ---
 

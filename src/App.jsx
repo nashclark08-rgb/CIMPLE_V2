@@ -15,6 +15,8 @@ import Dashboard from "./Dashboard.jsx";
 import NewIncident from "./NewIncident.jsx";
 import Triage from "./Triage.jsx";
 import Admin from "./Admin.jsx";
+import SignIn from "./SignIn.jsx";
+import { useAuth } from "./auth.jsx";
 import { Construction, ArrowLeft } from "lucide-react";
 
 function parseHash() {
@@ -32,6 +34,7 @@ function parseHash() {
 
 export default function App() {
   const [route, setRoute] = useState(parseHash());
+  const { user, ready, connected } = useAuth();
 
   useEffect(() => {
     const onChange = () => setRoute(parseHash());
@@ -42,6 +45,29 @@ export default function App() {
   const navigate = useCallback((path) => {
     window.location.hash = path;
   }, []);
+
+  // CONNECTED MODE only: wait for the auth check, then gate on sign-in.
+  // In LOCAL MODE `ready` is true and `user` is the synthetic local user,
+  // so neither branch fires and the app renders exactly as before.
+  if (connected && !ready) {
+    return (
+      <>
+        <GlobalStyles />
+        <TopBarShell />
+        <div style={{ maxWidth: 600, margin: "140px auto", textAlign: "center", color: PALETTE.inkSoft, fontSize: 14 }}>
+          Loading…
+        </div>
+      </>
+    );
+  }
+  if (connected && ready && !user) {
+    return (
+      <>
+        <GlobalStyles />
+        <SignIn />
+      </>
+    );
+  }
 
   return (
     <>
