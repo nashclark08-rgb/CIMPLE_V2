@@ -10,7 +10,7 @@ import {
   Activity, Eye, Edit3, Download, ArrowLeft, RotateCcw,
   UserCheck, UserX, UserPlus, Settings, MessageSquare, Megaphone,
   Sparkles, Check, Radio, Bell, ClipboardCheck, Trash2, Scale, Lightbulb,
-  AlertOctagon, Minimize2, ListChecks, ArrowRight,
+  AlertOctagon, Minimize2, ListChecks, ArrowRight, LayoutGrid, ClipboardList,
 } from "lucide-react";
 import { PALETTE, TopBarShell, formatTime, formatRelative, formatElapsed } from "./shared.jsx";
 import {
@@ -29,6 +29,9 @@ import {
   promoteToRole, reassignRoleToAlternate, availableQualifiedStaff, PREF_LABEL,
   CIMT_PHASES, PHASE_CHECKLIST, incidentPhase, phaseMeta, phaseIndex,
   phaseProgress, nextPhaseId, isPhaseItemDone,
+  BOARD_QUADRANTS, newBoardItem, boardCounts,
+  PERSON_CATEGORIES, PERSON_STATUS, newPersonAtRisk, peopleAtRiskCounts,
+  newSitrep, SITREP_FIELDS, IAP_FIELDS, emptyIAP,
 } from "./data.js";
 
 export default function Dashboard({ incidentId, onBack }) {
@@ -198,6 +201,11 @@ export default function Dashboard({ incidentId, onBack }) {
       {drawer === "team" && (
         <Drawer onClose={() => setDrawer(null)} title="Team Status Board">
           <TeamBoardDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />
+        </Drawer>
+      )}
+      {drawer === "instruments" && (
+        <Drawer onClose={() => setDrawer(null)} title="CIMT Instruments">
+          <InstrumentsDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />
         </Drawer>
       )}
       {drawer === "pir" && (
@@ -544,6 +552,11 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
                 <Lightbulb size={14} /> Blind Spots{copilotFindings.length ? ` · ${copilotFindings.length}` : ""}
               </button>
               <button className="btn" onClick={() => setDrawer("team")}><Users size={14} /> Team</button>
+              {(() => { const pr = peopleAtRiskCounts(incident); return (
+                <button className="btn" onClick={() => setDrawer("instruments")} style={pr.unaccounted ? { borderColor: PALETTE.crimson, color: PALETTE.crimson } : undefined}>
+                  <LayoutGrid size={14} /> Instruments{pr.unaccounted ? ` · ${pr.unaccounted} unaccounted` : ""}
+                </button>
+              ); })()}
               <button className="btn" onClick={() => setDrawer("policy")}><BookOpen size={14} /> Policy</button>
               <button className="btn" onClick={() => setDrawer("decisions")}><Scale size={14} /> Decisions{(incident.decisions || []).length ? ` · ${(incident.decisions || []).length}` : ""}</button>
               {(() => { const open = riskCounts(incident).open; return (
@@ -2664,6 +2677,241 @@ function RecipientRow({ role, isClosed, onAck, onNoResponse, onEscalate, onRenot
 }
 
 /* ---------- Communications drawer (PRD M4) ---------- */
+/* ---------- CIMT Instruments (the plan's appendix forms, live) ---------- */
+function InstrumentsDrawer({ incident, update, addTimelineEntry, isClosed }) {
+  const [tab, setTab] = useState("boards");
+  const bc = boardCounts(incident);
+  const prc = peopleAtRiskCounts(incident);
+  const TABS = [
+    { id: "boards", label: "Visual Boards", badge: BOARD_QUADRANTS.reduce((n, q) => n + bc[q.id], 0) || null },
+    { id: "people", label: "People at Risk", badge: prc.total || null, alert: prc.unaccounted > 0 },
+    { id: "sitrep", label: "SITREP", badge: (incident.sitreps || []).length || null },
+    { id: "iap", label: "Action Plan", badge: null },
+  ];
+  return (
+    <div>
+      <div style={{ padding: 16, background: PALETTE.tealDeep, color: PALETTE.paper, marginBottom: 16 }}>
+        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.sage, marginBottom: 6 }}>CONTROL-ROOM INSTRUMENTS</div>
+        <div className="display" style={{ fontSize: 20, fontWeight: 500 }}>The plan's forms, live.</div>
+        <p style={{ fontSize: 12.5, lineHeight: 1.5, opacity: 0.85, marginTop: 8 }}>Visual boards, people at risk, situation reports and the incident action plan — the CIM &amp; BCP appendix instruments (§16), kept in one shared record.</p>
+      </div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+        {TABS.map((t) => {
+          const on = tab === t.id;
+          return (
+            <button key={t.id} onClick={() => setTab(t.id)} style={{
+              padding: "7px 11px", fontSize: 12, cursor: "pointer", fontWeight: on ? 600 : 500,
+              background: on ? PALETTE.teal : PALETTE.paper, color: on ? PALETTE.paper : PALETTE.ink,
+              border: `1px solid ${t.alert ? PALETTE.crimson : on ? PALETTE.teal : "rgba(0,48,94,0.18)"}`,
+              display: "flex", alignItems: "center", gap: 6,
+            }}>
+              {t.label}
+              {t.badge != null && <span className="mono" style={{ fontSize: 9, color: on ? PALETTE.paper : t.alert ? PALETTE.crimson : PALETTE.inkSoft }}>{t.badge}</span>}
+            </button>
+          );
+        })}
+      </div>
+      {tab === "boards" && <BoardsTab incident={incident} update={update} isClosed={isClosed} />}
+      {tab === "people" && <PeopleTab incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />}
+      {tab === "sitrep" && <SitrepTab incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />}
+      {tab === "iap" && <IAPTab incident={incident} update={update} isClosed={isClosed} />}
+    </div>
+  );
+}
+
+function BoardsTab({ incident, update, isClosed }) {
+  const boards = incident.boards || {};
+  const [draft, setDraft] = useState({});
+  function addItem(qid) {
+    const text = (draft[qid] || "").trim();
+    if (!text || isClosed) return;
+    update((prev) => ({ ...prev, boards: { ...(prev.boards || {}), [qid]: [...((prev.boards || {})[qid] || []), newBoardItem(text)] } }));
+    setDraft((d) => ({ ...d, [qid]: "" }));
+  }
+  function removeItem(qid, id) {
+    update((prev) => ({ ...prev, boards: { ...(prev.boards || {}), [qid]: ((prev.boards || {})[qid] || []).filter((x) => x.id !== id) } }));
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {BOARD_QUADRANTS.map((q) => {
+        const items = boards[q.id] || [];
+        return (
+          <div key={q.id} style={{ border: `1px solid rgba(0,48,94,0.14)`, background: PALETTE.paper }}>
+            <div style={{ padding: "9px 12px", background: PALETTE.parchment, borderBottom: `1px solid rgba(0,48,94,0.1)` }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: PALETTE.teal }}>{q.label}</span>
+                <span className="mono" style={{ fontSize: 10, color: PALETTE.inkSoft }}>{items.length}</span>
+              </div>
+              <div style={{ fontSize: 10.5, color: PALETTE.inkSoft, marginTop: 2 }}>{q.blurb}</div>
+            </div>
+            <div style={{ padding: "8px 12px" }}>
+              {items.length === 0 && <div style={{ fontSize: 12, color: PALETTE.inkSoft, fontStyle: "italic", padding: "4px 0" }}>—</div>}
+              {items.map((it) => (
+                <div key={it.id} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "5px 0", borderBottom: `1px solid rgba(0,48,94,0.06)` }}>
+                  <span style={{ flex: 1, fontSize: 12.5, lineHeight: 1.45, color: PALETTE.ink }}>{it.text}</span>
+                  {!isClosed && <button onClick={() => removeItem(q.id, it.id)} style={{ background: "none", border: "none", cursor: "pointer", color: PALETTE.inkSoft, padding: 0, flexShrink: 0 }} title="Remove"><X size={13} /></button>}
+                </div>
+              ))}
+              {!isClosed && (
+                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                  <input
+                    value={draft[q.id] || ""}
+                    onChange={(e) => setDraft((d) => ({ ...d, [q.id]: e.target.value }))}
+                    onKeyDown={(e) => { if (e.key === "Enter") addItem(q.id); }}
+                    placeholder={`Add to ${q.label.toLowerCase()}…`}
+                    style={{ flex: 1, fontSize: 12.5 }}
+                  />
+                  <button onClick={() => addItem(q.id)} className="btn" style={{ padding: "6px 10px", fontSize: 12 }}><Plus size={13} /></button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PeopleTab({ incident, update, addTimelineEntry, isClosed }) {
+  const people = incident.peopleAtRisk || [];
+  const counts = peopleAtRiskCounts(incident);
+  function addPerson() {
+    if (isClosed) return;
+    update((prev) => ({ ...prev, peopleAtRisk: [...(prev.peopleAtRisk || []), newPersonAtRisk()] }));
+  }
+  function setField(id, field, val) {
+    update((prev) => ({ ...prev, peopleAtRisk: (prev.peopleAtRisk || []).map((p) => (p.id === id ? { ...p, [field]: val, updatedAt: Date.now() } : p)) }));
+  }
+  function removePerson(id) {
+    update((prev) => ({ ...prev, peopleAtRisk: (prev.peopleAtRisk || []).filter((p) => p.id !== id) }));
+  }
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        <Stat label="Tracked" value={counts.total} color={PALETTE.teal} />
+        <Stat label="Injured / hospital" value={counts.injured} color={PALETTE.rust} />
+        <Stat label="Unaccounted" value={counts.unaccounted} color={counts.unaccounted ? PALETTE.crimson : PALETTE.sage} />
+      </div>
+      {people.length === 0 && <p style={{ fontSize: 13, color: PALETTE.inkSoft, fontStyle: "italic", marginBottom: 12 }}>No people logged yet. Track anyone affected — condition, location and next-of-kin status.</p>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {people.map((p) => {
+          const st = PERSON_STATUS[p.status] || PERSON_STATUS.safe;
+          return (
+            <div key={p.id} style={{ border: `1px solid ${p.status === "unaccounted" ? PALETTE.crimson : "rgba(0,48,94,0.14)"}`, background: PALETTE.paper, padding: 12 }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                <input value={p.name} onChange={(e) => setField(p.id, "name", e.target.value)} placeholder="Name" disabled={isClosed} style={{ flex: 1, fontSize: 13, fontWeight: 600 }} />
+                {!isClosed && <button onClick={() => removePerson(p.id)} className="btn" style={{ padding: "6px 9px" }} title="Remove"><Trash2 size={13} /></button>}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <select value={p.category} onChange={(e) => setField(p.id, "category", e.target.value)} disabled={isClosed} style={{ fontSize: 12 }}>
+                  {PERSON_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select value={p.status} onChange={(e) => setField(p.id, "status", e.target.value)} disabled={isClosed} style={{ fontSize: 12, color: st.color, fontWeight: 600 }}>
+                  {Object.entries(PERSON_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                </select>
+                <input value={p.location} onChange={(e) => setField(p.id, "location", e.target.value)} placeholder="Location" disabled={isClosed} style={{ fontSize: 12 }} />
+                <input value={p.nok} onChange={(e) => setField(p.id, "nok", e.target.value)} placeholder="Next of kin — notified?" disabled={isClosed} style={{ fontSize: 12 }} />
+              </div>
+              <input value={p.notes} onChange={(e) => setField(p.id, "notes", e.target.value)} placeholder="Notes" disabled={isClosed} style={{ fontSize: 12, width: "100%", marginTop: 8, boxSizing: "border-box" }} />
+            </div>
+          );
+        })}
+      </div>
+      {!isClosed && (
+        <button onClick={addPerson} className="btn" style={{ width: "100%", justifyContent: "center", marginTop: 12 }}><Plus size={13} /> Add person</button>
+      )}
+    </div>
+  );
+}
+
+function SitrepTab({ incident, update, addTimelineEntry, isClosed }) {
+  const sitreps = incident.sitreps || [];
+  const [form, setForm] = useState(() => newSitrep());
+  const [openId, setOpenId] = useState(null);
+  function save() {
+    if (isClosed) return;
+    const hasContent = form.area.trim() || SITREP_FIELDS.some((f) => (form[f.key] || "").trim());
+    if (!hasContent) return;
+    const rec = { ...form, id: `sr${Date.now()}`, ts: Date.now() };
+    update((prev) => ({ ...prev, sitreps: [rec, ...(prev.sitreps || [])] }));
+    addTimelineEntry({ type: "note", text: `SITREP filed${form.area ? ` — ${form.area}` : ""} (to Planning Coordinator).` });
+    setForm(newSitrep());
+  }
+  return (
+    <div>
+      {!isClosed && (
+        <div style={{ border: `1px solid rgba(0,48,94,0.14)`, background: PALETTE.paper, padding: 12, marginBottom: 16 }}>
+          <div className="mono" style={{ fontSize: 9, letterSpacing: "0.12em", color: PALETTE.teal, opacity: 0.7, marginBottom: 8 }}>NEW SITUATION REPORT → PLANNING COORDINATOR</div>
+          <input value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} placeholder="Functional area / CIMT role (e.g. College Services)" style={{ width: "100%", fontSize: 12.5, marginBottom: 8, boxSizing: "border-box" }} />
+          {SITREP_FIELDS.map((f) => (
+            <div key={f.key} style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: PALETTE.ink }}>{f.label} <span style={{ color: PALETTE.inkSoft, fontWeight: 400 }}>— {f.hint}</span></div>
+              <textarea value={form[f.key]} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} rows={2} style={{ width: "100%", fontSize: 12.5, resize: "vertical", boxSizing: "border-box", marginTop: 3 }} />
+            </div>
+          ))}
+          <button onClick={save} className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }}><Send size={13} /> File SITREP</button>
+        </div>
+      )}
+      <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6, marginBottom: 10 }}>FILED · {sitreps.length}</div>
+      {sitreps.length === 0 ? (
+        <p style={{ fontSize: 13, color: PALETTE.inkSoft, fontStyle: "italic" }}>No situation reports filed yet.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {sitreps.map((s) => (
+            <div key={s.id} style={{ border: `1px solid rgba(0,48,94,0.14)`, background: PALETTE.paper }}>
+              <button onClick={() => setOpenId(openId === s.id ? null : s.id)} style={{ width: "100%", textAlign: "left", background: "none", border: "none", padding: "10px 12px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: PALETTE.ink }}>{s.area || "SITREP"}</span>
+                <span className="mono" style={{ fontSize: 10, color: PALETTE.inkSoft }}>{formatTime(s.ts)}</span>
+              </button>
+              {openId === s.id && (
+                <div style={{ padding: "0 12px 12px" }}>
+                  {SITREP_FIELDS.filter((f) => (s[f.key] || "").trim()).map((f) => (
+                    <div key={f.key} style={{ marginBottom: 6 }}>
+                      <div className="mono" style={{ fontSize: 9, letterSpacing: "0.06em", color: PALETTE.teal, opacity: 0.7 }}>{f.label.toUpperCase()}</div>
+                      <div style={{ fontSize: 12.5, lineHeight: 1.5, color: PALETTE.ink, whiteSpace: "pre-wrap" }}>{s[f.key]}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function IAPTab({ incident, update, isClosed }) {
+  const iap = incident.iap || emptyIAP();
+  function setField(key, val) {
+    update((prev) => ({ ...prev, iap: { ...(prev.iap || emptyIAP()), [key]: val, updatedAt: Date.now() } }));
+  }
+  return (
+    <div>
+      <p style={{ fontSize: 12.5, color: PALETTE.inkSoft, lineHeight: 1.5, marginTop: 0, marginBottom: 14 }}>
+        The Planning Coordinator's Incident Action Plan / briefing (SMEAC). One shared, current plan the CIMT briefs from.
+      </p>
+      {IAP_FIELDS.map((f) => (
+        <div key={f.key} style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: PALETTE.teal }}>{f.label}</div>
+          <div style={{ fontSize: 11, color: PALETTE.inkSoft, marginBottom: 4 }}>{f.hint}</div>
+          <textarea value={iap[f.key] || ""} onChange={(e) => setField(f.key, e.target.value)} rows={3} disabled={isClosed} style={{ width: "100%", fontSize: 12.5, lineHeight: 1.5, resize: "vertical", boxSizing: "border-box" }} />
+        </div>
+      ))}
+      {iap.updatedAt && <div className="mono" style={{ fontSize: 10, color: PALETTE.inkSoft }}>Last updated {formatTime(iap.updatedAt)}</div>}
+    </div>
+  );
+}
+
+function Stat({ label, value, color }) {
+  return (
+    <div style={{ flex: 1, minWidth: 90, border: `1px solid rgba(0,48,94,0.14)`, background: PALETTE.paper, padding: "8px 10px" }}>
+      <div className="display" style={{ fontSize: 22, fontWeight: 500, color: color || PALETTE.teal, lineHeight: 1 }}>{value}</div>
+      <div className="mono" style={{ fontSize: 9, letterSpacing: "0.08em", color: PALETTE.inkSoft, marginTop: 4, textTransform: "uppercase" }}>{label}</div>
+    </div>
+  );
+}
+
 function MiniList({ title, items }) {
   return (
     <div style={{ marginBottom: 10 }}>
@@ -3065,6 +3313,10 @@ function ExportDrawer({ incident }) {
     { k: "Risk / watch register", v: risksSummary(incident) },
     { k: "Communications log", v: commsSummary(incident.comms) },
     { k: "Media Q&A / FAQ", v: (() => { const p = mediaQAProgress(incident); return p.done ? `${p.done}/${p.total} answered` : "not started"; })() },
+    { k: "Visual boards", v: (() => { const b = boardCounts(incident); return `${b.facts}F · ${b.assumptions}A · ${b.issues}I · ${b.actions}Ac`; })() },
+    { k: "People at risk", v: (() => { const p = peopleAtRiskCounts(incident); return p.total ? `${p.total} tracked · ${p.injured} injured · ${p.unaccounted} unaccounted` : "none logged"; })() },
+    { k: "SITREPs filed", v: `${(incident.sitreps || []).length}` },
+    { k: "Incident Action Plan", v: incident.iap?.updatedAt ? `updated ${formatTime(incident.iap.updatedAt)}` : "not started" },
     { k: "Post-incident review", v: incident.pir ? `${(PIR_STATUS[incident.pir.status] || {}).label || "Draft"} · ${(incident.pir.correctiveActions || []).length} actions` : "not started" },
     { k: "Blind spots", v: copilotSummary(incident) },
   ];

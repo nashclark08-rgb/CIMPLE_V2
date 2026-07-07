@@ -359,6 +359,15 @@ export function buildSampleIncidents() {
     policies: defaultPoliciesForType("mental_health"),
     phase: "response",
     phaseChecks: { as1: { done: true }, as7: { done: true }, as8: { done: true }, ac1: { done: true }, ac6: { done: true }, re1: { done: true } },
+    boards: {
+      facts: [{ id: "bd-s1", text: "Year 9 student located in D-Block bathroom — distressed but safe", ts: now - minutes(21) }],
+      assumptions: [{ id: "bd-s2", text: "No physical injury; Ventolin not required", ts: now - minutes(20) }],
+      issues: [{ id: "bd-s3", text: "Student refusing to contact parent directly", ts: now - minutes(4) }],
+      actions: [{ id: "bd-s4", text: "Counsellor en route; parent contact pending Leader approval", ts: now - minutes(6) }],
+    },
+    peopleAtRisk: [
+      { id: "pr-s1", name: "M.T. (Year 9)", category: "Student", status: "safe", location: "D-Block — with Wellbeing", nok: "Mother — not yet contacted (awaiting approval)", notes: "History of anxiety", updatedAt: now - minutes(3) },
+    ],
     student: {
       initials: "M.T.",
       yearLevel: "Year 9",
@@ -1050,6 +1059,94 @@ export function phaseProgress(incident, phaseId) {
   const items = PHASE_CHECKLIST[phaseId] || [];
   const done = items.filter((it) => isPhaseItemDone(incident, it.id)).length;
   return { done, total: items.length, pct: items.length ? Math.round((done / items.length) * 100) : 0 };
+}
+
+// ==================================================================
+// CIMT INSTRUMENTS — the plan's appendix forms as living digital tools
+// (CIM & BCP V0.3 §16): Visual Boards, People at Risk Log, SITREP,
+// Incident Action Plan (SMEAC). Stored on the incident.
+// ==================================================================
+
+// --- Visual Boards (§16.6): Facts · Assumptions · Issues · Actions ---
+// The Control Room boards the Support Coordinator maintains.
+export const BOARD_QUADRANTS = [
+  { id: "facts", label: "Facts", blurb: "What we know for certain, verified." },
+  { id: "assumptions", label: "Assumptions", blurb: "What we believe but have not confirmed." },
+  { id: "issues", label: "Issues", blurb: "Problems and open questions to resolve." },
+  { id: "actions", label: "Actions", blurb: "What we are doing / need to do." },
+];
+export function newBoardItem(text) {
+  return { id: `bd${Date.now()}-${Math.floor(performance.now?.() || 0)}`, text: (text || "").trim(), ts: Date.now() };
+}
+export function boardCounts(incident) {
+  const b = incident?.boards || {};
+  return BOARD_QUADRANTS.reduce((acc, q) => { acc[q.id] = (b[q.id] || []).length; return acc; }, {});
+}
+
+// --- People at Risk Log (§16.10) ---
+// Track affected persons: who, condition, location, next of kin.
+export const PERSON_CATEGORIES = ["Student", "Staff", "Visitor", "Contractor"];
+export const PERSON_STATUS = {
+  safe: { label: "Safe / accounted for", color: "#5B8C7C" },
+  injured: { label: "Injured — on site", color: "#B89460" },
+  hospital: { label: "Hospitalised", color: "#A85535" },
+  unaccounted: { label: "Unaccounted", color: "#A02029" },
+};
+export function newPersonAtRisk(data = {}) {
+  return {
+    id: `pr${Date.now()}-${Math.floor(performance.now?.() || 0)}`,
+    name: data.name || "",
+    category: data.category || "Student",
+    status: data.status || "safe",     // safe | injured | hospital | unaccounted
+    location: data.location || "",
+    nok: data.nok || "",                // next of kin — notified/contact
+    notes: data.notes || "",
+    updatedAt: Date.now(),
+  };
+}
+export function peopleAtRiskCounts(incident) {
+  const list = incident?.peopleAtRisk || [];
+  return {
+    total: list.length,
+    unaccounted: list.filter((p) => p.status === "unaccounted").length,
+    injured: list.filter((p) => p.status === "injured" || p.status === "hospital").length,
+  };
+}
+
+// --- SITREP (§16.3): per-functional-area situation report → Planning ---
+export function newSitrep(data = {}) {
+  return {
+    id: `sr${Date.now()}-${Math.floor(performance.now?.() || 0)}`,
+    ts: Date.now(),
+    area: data.area || "",        // functional area / CIMT role
+    situation: data.situation || "",   // what has happened
+    future: data.future || "",          // what could happen
+    impacts: data.impacts || "",        // services/buildings impacted
+    actions: data.actions || "",        // what you've done
+    objectives: data.objectives || "",  // what you need to achieve
+    needs: data.needs || "",            // what you need to do it
+  };
+}
+export const SITREP_FIELDS = [
+  { key: "situation", label: "Situation", hint: "What has happened?" },
+  { key: "future", label: "Future situation", hint: "What could happen?" },
+  { key: "impacts", label: "Impacts", hint: "What services / buildings are impacted?" },
+  { key: "actions", label: "Actions taken", hint: "What have you done so far?" },
+  { key: "objectives", label: "Objectives", hint: "What do you need to achieve?" },
+  { key: "needs", label: "Needs", hint: "What do you need to complete the next steps?" },
+];
+
+// --- Incident Action Plan / Briefing (§16.2), SMEAC structure ---
+export const IAP_FIELDS = [
+  { key: "situation", label: "Situation", hint: "Current situation, impacts, key risks, prognosis." },
+  { key: "mission", label: "Mission", hint: "Objectives to be achieved." },
+  { key: "execution", label: "Execution", hint: "Strategies, alternatives, priorities, resources." },
+  { key: "admin", label: "Administration", hint: "Meeting intervals, shift changeovers, welfare, logistics, information plan." },
+  { key: "command", label: "Command & Communications", hint: "CIMT structure; internal/external communications plan." },
+  { key: "safety", label: "Safety", hint: "Key safety issues." },
+];
+export function emptyIAP() {
+  return { situation: "", mission: "", execution: "", admin: "", command: "", safety: "", updatedAt: null };
 }
 
 function normResp(e) {
@@ -2195,6 +2292,10 @@ export function buildCopilotContext(incident, now = Date.now()) {
 
     // recovery
     hasPir: !!incident.pir,
+
+    // instruments (people at risk / visual boards)
+    peopleUnaccounted: peopleAtRiskCounts(incident).unaccounted,
+    boardIssues: (incident.boards?.issues || []).length,
   };
 }
 
@@ -2241,6 +2342,10 @@ export const COPILOT_RULES = [
     ? { severity: "important", issue: "Notified staff haven't acknowledged", why: "Some notified role-holders have not confirmed receipt.", evidence: `${c.unackedCount} of ${c.notifiedCount} not acknowledged · ${c.minsSinceActivation}m since declaration.`, target: "activation" } : null },
   { id: "ACT-03", category: "Activation", evaluate: (c) => c.activation && c.requiredWithoutBackup > 0 && !c.isClosed
     ? { severity: "advisory", issue: "Key roles have no backup", why: "Some required roles have no named backup for failover.", evidence: `${c.requiredWithoutBackup} required role(s) without a backup.`, target: null } : null },
+
+  // ---- PEOPLE / SAFETY ----
+  { id: "PPL-01", category: "People", evaluate: (c) => c.peopleUnaccounted > 0 && !c.isClosed
+    ? { severity: "critical", issue: "Person unaccounted for", why: "Someone in the People at Risk log is marked unaccounted — the highest-priority safety gap.", evidence: `${c.peopleUnaccounted} person(s) unaccounted.`, target: "instruments" } : null },
 
   // ---- RECOVERY ----
   { id: "REC-01", category: "Recovery", evaluate: (c) => c.isClosed && c.openRisksCount > 0
