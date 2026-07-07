@@ -1149,6 +1149,180 @@ export function emptyIAP() {
   return { situation: "", mission: "", execution: "", admin: "", command: "", safety: "", updatedAt: null };
 }
 
+// ==================================================================
+// BUSINESS CONTINUITY (CIM & BCP V0.3 Section Three) — the recovery
+// half of the plan. Time-phased recovery strategies, the Critical
+// Business Functions register (with RTOs from the BIA), and the impact
+// & issues assessment. Stored on incident.recovery.
+// Charter note: in scope because the plan defines Response → Recovery →
+// Resumption as one continuum (SCOPE.md v2). Built last (Pivot 6).
+// ==================================================================
+
+// --- 5 Recovery Strategies (§11), each a time-phased checklist ---
+export const RECOVERY_STRATEGIES = [
+  {
+    id: "loss_people",
+    label: "Loss of key people / large numbers of staff",
+    triggers: ["Resignation of key staff", "Illness or injury", "Pandemic", "Assault or serious injury", "Staff/students overseas or remote", "Abduction"],
+    steps: [
+      { id: "lp1", timing: "Pre", text: "Maintain contingency resourcing options (agency, contractors, recruiters)." },
+      { id: "lp2", timing: "0–2 hrs", text: "Assemble remaining staff (on site or virtually) and brief them on the incident." },
+      { id: "lp3", timing: "0–2 hrs", text: "Assess the interruption; determine impact to critical functions; cover with existing staff or transfer functions." },
+      { id: "lp4", timing: "0–2 hrs", text: "Notify and brief the Critical Incident Leader; consider activating the CIMT." },
+      { id: "lp5", timing: "2–4 hrs", text: "Develop and implement a communication strategy; notify affected stakeholders." },
+      { id: "lp6", timing: "2–4 hrs", text: "Establish a recovery plan — interim/manual workarounds, casual/agency staff, staffing-ratio review, financial assessment — for Leader approval." },
+      { id: "lp7", timing: "4–6 hrs", text: "Confirm CIMT, regulators and stakeholders are informed; resume operations per the Critical Business Functions list." },
+      { id: "lp8", timing: "12–24 hrs", text: "Confirm impacted staff have access to EAP / trauma counselling." },
+      { id: "lp9", timing: "1 week+", text: "Commence recruitment of permanent/temporary replacements for key roles." },
+      { id: "lp10", timing: "Ongoing", text: "Monitor the recovery plan and affected functions; update the Leader." },
+    ],
+  },
+  {
+    id: "loss_campus",
+    label: "Loss of access to campus (temporary / permanent)",
+    triggers: ["Structure fire / smoke damage", "Water damage", "Asbestos", "Suspicious device", "Security/access malfunction", "Civil disturbance", "Construction accident"],
+    steps: [
+      { id: "lc1", timing: "Pre", text: "Maintain relocation plans for staff and students (work/study-from-home set-up)." },
+      { id: "lc2", timing: "0–2 hrs", text: "Activate the ECO if an evacuation is required, and emergency services if appropriate." },
+      { id: "lc3", timing: "0–2 hrs", text: "Commence a damage assessment — cause, downtime estimate, partial vs total loss of access." },
+      { id: "lc4", timing: "0–2 hrs", text: "Work with IT to divert phones if they are not operating." },
+      { id: "lc5", timing: "0–2 hrs", text: "If downtime is estimated > 24 hrs, initiate staff and student relocation strategies." },
+      { id: "lc6", timing: "0–2 hrs", text: "Develop and implement a communication strategy for the incident." },
+      { id: "lc7", timing: "2–4 hrs", text: "Implement parent pick-up processes if required." },
+      { id: "lc8", timing: "2–4 hrs", text: "Review the Critical Business Functions list for impacted functions; establish a recovery plan (relocation, IT access, comms, transport)." },
+      { id: "lc9", timing: "4–6 hrs", text: "Facilitate relocation of key staff/students to the nominated recovery site(s)." },
+      { id: "lc10", timing: "Ongoing", text: "Provide regular status reports to the Critical Incident Leader." },
+    ],
+  },
+  {
+    id: "loss_it",
+    label: "Sustained loss of IT and/or communications",
+    triggers: ["Cyber-attack / denial of service", "Virus or hacker", "IT systems / hardware / software failure", "Human error or negligence", "Theft, fraud or malice"],
+    steps: [
+      { id: "li1", timing: "Pre", text: "Keep the IT Disaster Recovery Plan and backups current and tested." },
+      { id: "li2", timing: "0–2 hrs", text: "Conduct an IT impact assessment to determine the extent of disruption." },
+      { id: "li3", timing: "0–2 hrs", text: "If a breach, isolate affected systems (disconnect, do NOT power off); do NOT restore backups until the threat is eliminated." },
+      { id: "li4", timing: "0–2 hrs", text: "Switch impacted functions to manual/paper workarounds (sign-in, reception, comms)." },
+      { id: "li5", timing: "2–4 hrs", text: "Implement the IT Disaster Recovery Plan; approve back-up accesses and privileges." },
+      { id: "li6", timing: "2–4 hrs", text: "Communicate the outage to staff and families (what not to click; service status)." },
+      { id: "li7", timing: "4–6 hrs", text: "Prioritise restoration by RTO (SMS system, Office 365, finance, LMS, networking)." },
+      { id: "li8", timing: "Daily", text: "Provide status updates to the Recovery Coordinator and Leader." },
+      { id: "li9", timing: "Ongoing", text: "Complete root-cause analysis and remediation; restore remaining services." },
+    ],
+  },
+  {
+    id: "loss_supplier",
+    label: "Loss of supplier",
+    triggers: ["Service-provider failure or negligence", "Loss of partner/relationship agreement", "Loss or reduction in funding"],
+    steps: [
+      { id: "ls1", timing: "Pre", text: "Maintain a list of alternate suppliers." },
+      { id: "ls2", timing: "0–2 hrs", text: "Identify the failed supplier and the functions/services affected." },
+      { id: "ls3", timing: "0–2 hrs", text: "Assess the impact on critical functions and the timeframes involved." },
+      { id: "ls4", timing: "2–4 hrs", text: "Activate an alternate supplier or a manual workaround." },
+      { id: "ls5", timing: "2–4 hrs", text: "Notify affected stakeholders of any service change." },
+      { id: "ls6", timing: "4–6 hrs", text: "Confirm continuity of the affected service; agree interim arrangements." },
+      { id: "ls7", timing: "Ongoing", text: "Manage the contract/commercial issues; source a permanent replacement; update the Leader." },
+    ],
+  },
+  {
+    id: "loss_utilities",
+    label: "Loss of utilities (water / electricity / gas)",
+    triggers: ["Loss of water", "Loss of electricity", "Loss of gas"],
+    steps: [
+      { id: "lu1", timing: "0–2 hrs", text: "Confirm which utility is affected and the safety implications; for gas follow the gas-leak procedure (evacuate; no switches/flames; call 000 and the gas network)." },
+      { id: "lu2", timing: "0–2 hrs", text: "Make the area safe; consider shutting down the affected utility at the main." },
+      { id: "lu3", timing: "0–2 hrs", text: "Notify the utility provider/contractor and obtain a restoration estimate." },
+      { id: "lu4", timing: "0–2 hrs", text: "Assess the impact on operations (heating/cooling, water for hygiene, power for IT/servers)." },
+      { id: "lu5", timing: "2–4 hrs", text: "Decide continuation vs relocation vs early closure based on the estimate." },
+      { id: "lu6", timing: "2–4 hrs", text: "Communicate to staff and families as required." },
+      { id: "lu7", timing: "4–6 hrs", text: "Arrange interim measures (generator, bottled water, alternate facilities)." },
+      { id: "lu8", timing: "Ongoing", text: "Monitor restoration; provide status updates to the Leader." },
+    ],
+  },
+];
+
+// Which recovery strategies to suggest for a CIMPLE incident type.
+const STRATEGY_SUGGESTIONS = {
+  cyber: ["loss_it", "loss_campus"],
+  infrastructure: ["loss_utilities", "loss_campus"],
+  natural_disaster: ["loss_campus", "loss_people"],
+  hazmat: ["loss_campus"],
+  evacuation: ["loss_campus"],
+  external_threat: ["loss_campus"],
+  lockdown: ["loss_campus"],
+  disease_outbreak: ["loss_people"],
+  death_oncampus: ["loss_people"],
+  death_offcampus: ["loss_people"],
+  transport: ["loss_people"],
+};
+export function suggestedStrategyIds(typeId) {
+  return STRATEGY_SUGGESTIONS[typeId] || [];
+}
+export function recoveryStrategyById(id) {
+  return RECOVERY_STRATEGIES.find((s) => s.id === id) || null;
+}
+export function strategyActivated(incident, id) {
+  return !!incident?.recovery?.strategies?.[id]?.activated;
+}
+export function strategyProgress(incident, id) {
+  const s = recoveryStrategyById(id);
+  if (!s) return { done: 0, total: 0 };
+  const checks = incident?.recovery?.checks || {};
+  const done = s.steps.filter((st) => checks[st.id]).length;
+  return { done, total: s.steps.length };
+}
+export function activeStrategyCount(incident) {
+  return RECOVERY_STRATEGIES.filter((s) => strategyActivated(incident, s.id)).length;
+}
+
+// --- Critical Business Functions register (§13, from the BIA) ---
+// Representative short-RTO set — the functions the Recovery Coordinator
+// checks "in the next few hours". Not the full BIA. rtoMins drives tiering.
+export const CRITICAL_BUSINESS_FUNCTIONS = [
+  { id: "cbf1", task: "Support external events including transport", unit: "Facilities", rto: "< 1 hour", mins: 60 },
+  { id: "cbf2", task: "Manage campus security (on call)", unit: "Facilities", rto: "< 1 hour", mins: 60 },
+  { id: "cbf3", task: "Manage IT infrastructure", unit: "IT", rto: "< 1 hour", mins: 60 },
+  { id: "cbf4", task: "Administer on-site server infrastructure", unit: "IT", rto: "< 1 hour", mins: 60 },
+  { id: "cbf5", task: "Manage networking infrastructure", unit: "IT", rto: "< 1 hour", mins: 60 },
+  { id: "cbf6", task: "Internal marketing & comms (media releases, holding statements)", unit: "Marketing / Enrolments", rto: "1 hour", mins: 60 },
+  { id: "cbf7", task: "Manage the TAC SMS messaging system", unit: "Marketing / Enrolments", rto: "1 hour", mins: 60 },
+  { id: "cbf8", task: "Provide & manage Office 365", unit: "IT", rto: "1 hour", mins: 60 },
+  { id: "cbf9", task: "Deliver the finance system", unit: "IT", rto: "1 hour", mins: 60 },
+  { id: "cbf10", task: "Coordinate reception & daily stakeholder interactions", unit: "Executive Assistant", rto: "2 hours", mins: 120 },
+  { id: "cbf11", task: "Manage direct debit / credit card / direct deposit payments", unit: "Finance", rto: "2 hours", mins: 120 },
+  { id: "cbf12", task: "Billing, invoicing, reconciliations, month-end reporting", unit: "Finance", rto: "2 hours", mins: 120 },
+  { id: "cbf13", task: "Manage creditor payments", unit: "Finance", rto: "2 hours", mins: 120 },
+  { id: "cbf14", task: "Manage debt collection", unit: "Finance", rto: "2 hours", mins: 120 },
+  { id: "cbf15", task: "Employee onboarding / offboarding", unit: "HR", rto: "2 hours", mins: 120 },
+  { id: "cbf16", task: "Monthly student-movement reports", unit: "Marketing / Enrolments", rto: "2 hours", mins: 120 },
+  { id: "cbf17", task: "Provide & deliver the LMS", unit: "IT", rto: "2 hours", mins: 120 },
+  { id: "cbf18", task: "Coordinate response to significant personal impacts (staff/students/family)", unit: "Principal", rto: "2 hours", mins: 120 },
+  { id: "cbf19", task: "Respond to hazards", unit: "Risk & Compliance", rto: "2 hours", mins: 120 },
+  { id: "cbf20", task: "Schedule events & activities (sport, excursions, camps)", unit: "Daily Organiser", rto: "3 hours", mins: 180 },
+  { id: "cbf21", task: "Provide First Aid", unit: "Executive Assistant", rto: "3 hours", mins: 180 },
+  { id: "cbf22", task: "Maintain student attendance", unit: "Executive Assistant", rto: "3 hours", mins: 180 },
+  { id: "cbf23", task: "Oversee the counselling & wellbeing team", unit: "Deputy Principals", rto: "3 hours", mins: 180 },
+  { id: "cbf24", task: "Deliver the telephone system", unit: "IT", rto: "6 hours", mins: 360 },
+  { id: "cbf25", task: "Manage on-campus WiFi", unit: "IT", rto: "6 hours", mins: 360 },
+];
+export function cbfTierColor(mins) {
+  if (mins <= 60) return "#A02029";   // crimson — recover within the hour
+  if (mins <= 120) return "#A85535";  // rust
+  if (mins <= 360) return "#B89460";  // amber
+  return "#5B8C7C";                    // sage
+}
+export function impactedCBFCount(incident) {
+  const imp = incident?.recovery?.impacted || {};
+  return CRITICAL_BUSINESS_FUNCTIONS.filter((c) => imp[c.id]).length;
+}
+
+// --- Impact & Issues Assessment matrix (§12) ---
+export const IMPACT_DIMENSIONS = [
+  "Health & Safety", "Operations", "Financial", "Compliance", "Reputational", "Strategic / Market",
+];
+export const IMPACT_LEVELS = ["Not assessed", "Insignificant", "Minor", "Moderate", "Major", "Catastrophic"];
+export const IMPACT_LEVEL_COLORS = ["#4A5664", "#5B8C7C", "#7FA07A", "#B89460", "#A85535", "#7A1820"];
+
 function normResp(e) {
   return typeof e === "string" ? { text: e } : e;
 }
@@ -2296,6 +2470,10 @@ export function buildCopilotContext(incident, now = Date.now()) {
     // instruments (people at risk / visual boards)
     peopleUnaccounted: peopleAtRiskCounts(incident).unaccounted,
     boardIssues: (incident.boards?.issues || []).length,
+
+    // business continuity
+    inRecoveryPhase: ["recovery", "resumption"].includes(incidentPhase(incident)),
+    activeStrategies: activeStrategyCount(incident),
   };
 }
 
@@ -2352,6 +2530,8 @@ export const COPILOT_RULES = [
     ? { severity: "important", issue: "Closed with open risks", why: "The incident is closed but risks remain unresolved.", evidence: `${c.openRisksCount} risk(s) still open.`, target: "risks" } : null },
   { id: "REC-02", category: "Recovery", evaluate: (c) => c.isClosed && !c.hasPir
     ? { severity: "advisory", issue: "No post-incident review", why: "The incident closed without a review started.", evidence: "Closed · no PIR.", target: "pir" } : null },
+  { id: "REC-03", category: "Recovery", evaluate: (c) => c.inRecoveryPhase && c.activeStrategies === 0 && !c.isClosed
+    ? { severity: "important", issue: "In a recovery phase but no continuity strategy active", why: "The incident has moved into Business Recovery/Resumption but no recovery strategy is activated.", evidence: "Recovery phase · 0 strategies active.", target: "continuity" } : null },
 ];
 
 // Run every rule against the context; return findings sorted most-severe first.

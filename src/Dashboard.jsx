@@ -10,7 +10,7 @@ import {
   Activity, Eye, Edit3, Download, ArrowLeft, RotateCcw,
   UserCheck, UserX, UserPlus, Settings, MessageSquare, Megaphone,
   Sparkles, Check, Radio, Bell, ClipboardCheck, Trash2, Scale, Lightbulb,
-  AlertOctagon, Minimize2, ListChecks, ArrowRight, LayoutGrid, ClipboardList,
+  AlertOctagon, Minimize2, ListChecks, ArrowRight, LayoutGrid, ClipboardList, Building2,
 } from "lucide-react";
 import { PALETTE, TopBarShell, formatTime, formatRelative, formatElapsed } from "./shared.jsx";
 import {
@@ -32,6 +32,9 @@ import {
   BOARD_QUADRANTS, newBoardItem, boardCounts,
   PERSON_CATEGORIES, PERSON_STATUS, newPersonAtRisk, peopleAtRiskCounts,
   newSitrep, SITREP_FIELDS, IAP_FIELDS, emptyIAP,
+  RECOVERY_STRATEGIES, suggestedStrategyIds, recoveryStrategyById, strategyActivated,
+  strategyProgress, activeStrategyCount, CRITICAL_BUSINESS_FUNCTIONS, cbfTierColor,
+  impactedCBFCount, IMPACT_DIMENSIONS, IMPACT_LEVELS, IMPACT_LEVEL_COLORS,
 } from "./data.js";
 
 export default function Dashboard({ incidentId, onBack }) {
@@ -206,6 +209,11 @@ export default function Dashboard({ incidentId, onBack }) {
       {drawer === "instruments" && (
         <Drawer onClose={() => setDrawer(null)} title="CIMT Instruments">
           <InstrumentsDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />
+        </Drawer>
+      )}
+      {drawer === "continuity" && (
+        <Drawer onClose={() => setDrawer(null)} title="Business Continuity">
+          <ContinuityDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />
         </Drawer>
       )}
       {drawer === "pir" && (
@@ -565,6 +573,11 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
                 </button>
               ); })()}
               <button className="btn" onClick={() => setDrawer("comms")}><MessageSquare size={14} /> Communications{(incident.comms || []).length ? ` · ${(incident.comms || []).length}` : ""}</button>
+              {(() => { const n = activeStrategyCount(incident); return (
+                <button className="btn" onClick={() => setDrawer("continuity")} style={n ? { borderColor: PALETTE.sage, color: PALETTE.sage } : undefined}>
+                  <Building2 size={14} /> Continuity{n ? ` · ${n}` : ""}
+                </button>
+              ); })()}
               <button className="btn" onClick={() => setDrawer("pir")} style={incident.pir ? { borderColor: PALETTE.sage, color: PALETTE.sage } : undefined}><ClipboardCheck size={14} /> Review</button>
               <button className="btn" onClick={() => setDrawer("export")}><Download size={14} /> Export pack</button>
               {!isClosed ? (
@@ -2912,6 +2925,197 @@ function Stat({ label, value, color }) {
   );
 }
 
+/* ---------- Business Continuity (Section Three of the plan) ---------- */
+function ContinuityDrawer({ incident, update, addTimelineEntry, isClosed }) {
+  const [tab, setTab] = useState("strategies");
+  const TABS = [
+    { id: "strategies", label: "Recovery Strategies", badge: activeStrategyCount(incident) || null },
+    { id: "cbf", label: "Critical Functions", badge: impactedCBFCount(incident) || null },
+    { id: "impact", label: "Impact Assessment", badge: null },
+  ];
+  return (
+    <div>
+      <div style={{ padding: 16, background: PALETTE.tealDeep, color: PALETTE.paper, marginBottom: 16 }}>
+        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.sage, marginBottom: 6 }}>SECTION THREE · BUSINESS CONTINUITY</div>
+        <div className="display" style={{ fontSize: 20, fontWeight: 500 }}>Recover, resume, restore.</div>
+        <p style={{ fontSize: 12.5, lineHeight: 1.5, opacity: 0.85, marginTop: 8 }}>When operations are impacted: activate a time-phased recovery strategy, track the critical business functions against their RTOs, and assess the impact. Owned by the Recovery &amp; Planning Coordinators.</p>
+      </div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+        {TABS.map((t) => {
+          const on = tab === t.id;
+          return (
+            <button key={t.id} onClick={() => setTab(t.id)} style={{
+              padding: "7px 11px", fontSize: 12, cursor: "pointer", fontWeight: on ? 600 : 500,
+              background: on ? PALETTE.teal : PALETTE.paper, color: on ? PALETTE.paper : PALETTE.ink,
+              border: `1px solid ${on ? PALETTE.teal : "rgba(0,48,94,0.18)"}`, display: "flex", alignItems: "center", gap: 6,
+            }}>
+              {t.label}
+              {t.badge != null && <span className="mono" style={{ fontSize: 9, color: on ? PALETTE.paper : PALETTE.inkSoft }}>{t.badge}</span>}
+            </button>
+          );
+        })}
+      </div>
+      {tab === "strategies" && <StrategiesTab incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />}
+      {tab === "cbf" && <CBFTab incident={incident} update={update} isClosed={isClosed} />}
+      {tab === "impact" && <ImpactTab incident={incident} update={update} isClosed={isClosed} />}
+    </div>
+  );
+}
+
+function StrategiesTab({ incident, update, addTimelineEntry, isClosed }) {
+  const suggested = suggestedStrategyIds(incident.type);
+  const [openId, setOpenId] = useState(suggested[0] || null);
+  function toggleActivate(id) {
+    if (isClosed) return;
+    const was = strategyActivated(incident, id);
+    update((prev) => ({ ...prev, recovery: { ...(prev.recovery || {}), strategies: { ...((prev.recovery || {}).strategies || {}), [id]: { activated: !was } } } }));
+    addTimelineEntry({ type: was ? "system" : "action", text: `Recovery strategy ${was ? "deactivated" : "ACTIVATED"} — ${recoveryStrategyById(id).label}.` });
+    if (!was) setOpenId(id);
+  }
+  function toggleStep(stepId) {
+    if (isClosed) return;
+    update((prev) => {
+      const checks = { ...((prev.recovery || {}).checks || {}) };
+      if (checks[stepId]) delete checks[stepId]; else checks[stepId] = true;
+      return { ...prev, recovery: { ...(prev.recovery || {}), checks } };
+    });
+  }
+  return (
+    <div>
+      {suggested.length > 0 && (
+        <p style={{ fontSize: 12, color: PALETTE.inkSoft, lineHeight: 1.5, margin: "0 0 14px", padding: "8px 10px", background: PALETTE.parchment, border: `1px solid rgba(0,48,94,0.1)` }}>
+          Suggested for <strong style={{ color: PALETTE.teal }}>{incident.typeLabel}</strong>: {suggested.map((id) => recoveryStrategyById(id)?.label).join(" · ")}
+        </p>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {RECOVERY_STRATEGIES.map((s) => {
+          const on = strategyActivated(incident, s.id);
+          const prog = strategyProgress(incident, s.id);
+          const isSug = suggested.includes(s.id);
+          const open = openId === s.id;
+          const checks = incident.recovery?.checks || {};
+          return (
+            <div key={s.id} style={{ border: `1px solid ${on ? PALETTE.sage : "rgba(0,48,94,0.14)"}`, background: PALETTE.paper }}>
+              <div style={{ padding: "11px 12px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: PALETTE.ink, lineHeight: 1.3 }}>{s.label}</div>
+                    <div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap", alignItems: "center" }}>
+                      {isSug && <span className="mono" style={{ fontSize: 8.5, letterSpacing: "0.08em", color: PALETTE.rust, textTransform: "uppercase" }}>◆ suggested</span>}
+                      {on && <span className="mono" style={{ fontSize: 9.5, color: PALETTE.sage }}>{prog.done}/{prog.total} steps</span>}
+                    </div>
+                  </div>
+                  <button onClick={() => toggleActivate(s.id)} disabled={isClosed} className="btn" style={on ? { borderColor: PALETTE.sage, color: PALETTE.sage, flexShrink: 0 } : { flexShrink: 0 }}>
+                    {on ? <><Check size={13} /> Activated</> : "Activate"}
+                  </button>
+                </div>
+                <button onClick={() => setOpenId(open ? null : s.id)} className="btn-ghost" style={{ background: "none", border: "none", padding: 0, color: PALETTE.teal, fontSize: 11, marginTop: 8, display: "flex", alignItems: "center", gap: 4 }}>
+                  {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />} {open ? "Hide" : "View"} the {s.steps.length}-step plan
+                </button>
+              </div>
+              {open && (
+                <div style={{ borderTop: `1px solid rgba(0,48,94,0.1)`, padding: "8px 12px" }}>
+                  {s.steps.map((st) => {
+                    const done = !!checks[st.id];
+                    return (
+                      <button key={st.id} onClick={() => toggleStep(st.id)} disabled={isClosed || !on} style={{
+                        display: "flex", gap: 9, alignItems: "flex-start", textAlign: "left", width: "100%",
+                        padding: "7px 0", background: "none", border: "none", borderBottom: `1px solid rgba(0,48,94,0.06)`,
+                        cursor: isClosed || !on ? "default" : "pointer", opacity: on ? 1 : 0.55,
+                      }}>
+                        {done ? <CheckCircle2 size={16} color={PALETTE.sage} style={{ flexShrink: 0, marginTop: 1 }} /> : <Circle size={16} color={PALETTE.inkSoft} style={{ flexShrink: 0, marginTop: 1, opacity: 0.5 }} />}
+                        <div style={{ flex: 1 }}>
+                          <span className="mono" style={{ fontSize: 8.5, letterSpacing: "0.06em", color: PALETTE.teal, background: "rgba(0,48,94,0.07)", padding: "1px 5px", marginRight: 6 }}>{st.timing}</span>
+                          <span style={{ fontSize: 12.5, lineHeight: 1.45, color: done ? PALETTE.inkSoft : PALETTE.ink, textDecoration: done ? "line-through" : "none" }}>{st.text}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {!on && <p style={{ fontSize: 11, color: PALETTE.inkSoft, fontStyle: "italic", marginTop: 8 }}>Activate this strategy to work its checklist.</p>}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CBFTab({ incident, update, isClosed }) {
+  const imp = incident.recovery?.impacted || {};
+  const count = impactedCBFCount(incident);
+  function toggle(id) {
+    if (isClosed) return;
+    update((prev) => {
+      const impacted = { ...((prev.recovery || {}).impacted || {}) };
+      if (impacted[id]) delete impacted[id]; else impacted[id] = true;
+      return { ...prev, recovery: { ...(prev.recovery || {}), impacted } };
+    });
+  }
+  return (
+    <div>
+      <p style={{ fontSize: 12.5, color: PALETTE.inkSoft, lineHeight: 1.5, marginTop: 0, marginBottom: 12 }}>
+        Recovery Coordinator: mark the functions impacted by this incident. Ordered by Recovery Time Objective (RTO) — the reddest recover within the hour.
+      </p>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <Stat label="Impacted" value={count} color={count ? PALETTE.rust : PALETTE.sage} />
+        <Stat label="In register" value={CRITICAL_BUSINESS_FUNCTIONS.length} color={PALETTE.teal} />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {CRITICAL_BUSINESS_FUNCTIONS.map((c) => {
+          const on = !!imp[c.id];
+          const color = cbfTierColor(c.mins);
+          return (
+            <button key={c.id} onClick={() => toggle(c.id)} disabled={isClosed} style={{
+              display: "flex", gap: 10, alignItems: "center", textAlign: "left", width: "100%",
+              padding: "9px 6px", background: on ? "rgba(168,85,53,0.06)" : "none", border: "none",
+              borderBottom: `1px solid rgba(0,48,94,0.07)`, cursor: isClosed ? "default" : "pointer",
+            }}>
+              <div style={{ width: 15, height: 15, flexShrink: 0, border: `1.5px solid ${on ? PALETTE.rust : "rgba(0,48,94,0.3)"}`, background: on ? PALETTE.rust : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {on && <Check size={10} color={PALETTE.paper} strokeWidth={3} />}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, color: PALETTE.ink, lineHeight: 1.35 }}>{c.task}</div>
+                <div className="mono" style={{ fontSize: 9.5, color: PALETTE.inkSoft, marginTop: 2 }}>{c.unit}</div>
+              </div>
+              <span className="mono" style={{ fontSize: 9.5, fontWeight: 600, color: PALETTE.paper, background: color, padding: "2px 7px", flexShrink: 0 }}>{c.rto}</span>
+            </button>
+          );
+        })}
+      </div>
+      <p style={{ fontSize: 11, color: PALETTE.inkSoft, fontStyle: "italic", marginTop: 10 }}>Representative short-RTO set from the Business Impact Analysis — not the full register.</p>
+    </div>
+  );
+}
+
+function ImpactTab({ incident, update, isClosed }) {
+  const impact = incident.recovery?.impact || {};
+  function setDim(dim, level) {
+    update((prev) => ({ ...prev, recovery: { ...(prev.recovery || {}), impact: { ...((prev.recovery || {}).impact || {}), [dim]: level } } }));
+  }
+  return (
+    <div>
+      <p style={{ fontSize: 12.5, color: PALETTE.inkSoft, lineHeight: 1.5, marginTop: 0, marginBottom: 14 }}>
+        Planning Coordinator: rate the incident's impact across each dimension to prioritise recovery. Repeat at intervals as the incident evolves.
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {IMPACT_DIMENSIONS.map((dim) => {
+          const lvl = impact[dim] || 0;
+          return (
+            <div key={dim} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ flex: 1, fontSize: 12.5, fontWeight: 500, color: PALETTE.ink }}>{dim}</div>
+              <select value={lvl} onChange={(e) => setDim(dim, Number(e.target.value))} disabled={isClosed} style={{ fontSize: 12, width: 150, color: IMPACT_LEVEL_COLORS[lvl], fontWeight: lvl ? 600 : 400 }}>
+                {IMPACT_LEVELS.map((l, i) => <option key={i} value={i}>{l}</option>)}
+              </select>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function MiniList({ title, items }) {
   return (
     <div style={{ marginBottom: 10 }}>
@@ -3317,6 +3521,8 @@ function ExportDrawer({ incident }) {
     { k: "People at risk", v: (() => { const p = peopleAtRiskCounts(incident); return p.total ? `${p.total} tracked · ${p.injured} injured · ${p.unaccounted} unaccounted` : "none logged"; })() },
     { k: "SITREPs filed", v: `${(incident.sitreps || []).length}` },
     { k: "Incident Action Plan", v: incident.iap?.updatedAt ? `updated ${formatTime(incident.iap.updatedAt)}` : "not started" },
+    { k: "Recovery strategies active", v: (() => { const n = activeStrategyCount(incident); return n ? RECOVERY_STRATEGIES.filter((s) => strategyActivated(incident, s.id)).map((s) => s.label).join("; ") : "none"; })() },
+    { k: "Critical functions impacted", v: `${impactedCBFCount(incident)} of ${CRITICAL_BUSINESS_FUNCTIONS.length}` },
     { k: "Post-incident review", v: incident.pir ? `${(PIR_STATUS[incident.pir.status] || {}).label || "Draft"} · ${(incident.pir.correctiveActions || []).length} actions` : "not started" },
     { k: "Blind spots", v: copilotSummary(incident) },
   ];
