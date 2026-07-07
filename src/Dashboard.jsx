@@ -18,6 +18,7 @@ import {
   COMMS_CHANNELS, COMMS_AUDIENCES, COMMS_CATEGORIES, COMMS_STATUS,
   templatesForIncidentType, fillTemplate, newComm, channelLabel, audienceLabel,
   COMMS_LEVELS, COMMS_PHASES, commsPhaseMeta, MEDIA_PROTOCOL, RECEPTION_SCRIPT, SOCIAL_RULES,
+  MEDIA_QA_CATEGORIES, MEDIA_QA_QUESTIONS, mediaQAProgress, buildFAQText,
   ACTIVATION_CHANNELS, NOTIFY_STATUS, roleIsAssigned,
   PIR_STATUS, newPIR, newCorrectiveAction, pirFacts,
   DECISION_STATUS, newDecision,
@@ -2692,6 +2693,16 @@ function CommsDrawer({ incident, update, addTimelineEntry, isClosed }) {
     addTimelineEntry({ type: "system", text: `Communications exposure level set to L${lvl} — ${COMMS_LEVELS[lvl].label}.` });
   }
 
+  function setAnswer(qid, val) {
+    update((prev) => ({ ...prev, mediaQA: { ...(prev.mediaQA || {}), [qid]: val } }));
+  }
+  function copyFAQ() {
+    const text = buildFAQText(incident);
+    try { navigator.clipboard?.writeText(text); } catch { /* clipboard may be blocked */ }
+    addTimelineEntry({ type: "comm", text: `Media FAQ compiled (${mediaQAProgress(incident).done} answered) — single source of truth for spokesperson & channels.` });
+  }
+  const qa = mediaQAProgress(incident);
+
   function persistComms(nextComms) {
     update((prev) => ({ ...prev, comms: nextComms }));
   }
@@ -2830,6 +2841,62 @@ function CommsDrawer({ incident, update, addTimelineEntry, isClosed }) {
     );
   }
 
+  // ---- Media Q&A / FAQ view ----
+  if (view === "qa") {
+    return (
+      <div>
+        <button onClick={() => setView("list")} className="btn-ghost" style={{ background: "none", border: "none", padding: 0, color: PALETTE.teal, fontSize: 12, display: "flex", alignItems: "center", gap: 6, marginBottom: 16 }}>
+          <ArrowLeft size={13} /> Back to messages
+        </button>
+        <div style={{ padding: 16, background: PALETTE.tealDeep, color: PALETTE.paper, marginBottom: 16 }}>
+          <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.sage, marginBottom: 6 }}>SPOKESPERSON PREP · FAQ SINGLE-SOURCE-OF-TRUTH</div>
+          <div className="display" style={{ fontSize: 20, fontWeight: 500 }}>Media Q&amp;A</div>
+          <p style={{ fontSize: 12.5, lineHeight: 1.5, opacity: 0.85, marginTop: 8 }}>
+            Pre-draft answers to the questions journalists ask. Keep to verified facts — no speculation. Answered items form the College's media FAQ. Only the spokesperson ({principalName}) speaks to media.
+          </p>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
+          <div style={{ flex: 1, height: 5, background: "rgba(0,48,94,0.1)", borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ width: `${qa.total ? (qa.done / qa.total) * 100 : 0}%`, height: "100%", background: PALETTE.teal }} />
+          </div>
+          <span className="mono" style={{ fontSize: 10, color: PALETTE.inkSoft }}>{qa.done}/{qa.total} answered</span>
+          <button onClick={copyFAQ} className="btn" style={{ fontSize: 11, padding: "6px 10px" }} disabled={qa.done === 0}><FileText size={12} /> Copy FAQ</button>
+        </div>
+
+        {MEDIA_QA_CATEGORIES.map((cat) => {
+          const qs = MEDIA_QA_QUESTIONS.filter((x) => x.cat === cat.id);
+          return (
+            <div key={cat.id} style={{ marginBottom: 18 }}>
+              <div className="mono" style={{ fontSize: 10, letterSpacing: "0.1em", color: PALETTE.teal, opacity: 0.7, marginBottom: 8, textTransform: "uppercase" }}>{cat.label}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {qs.map((x) => {
+                  const val = (incident.mediaQA || {})[x.id] || "";
+                  return (
+                    <div key={x.id}>
+                      <div style={{ fontSize: 12.5, fontWeight: 500, color: PALETTE.ink, marginBottom: 4, display: "flex", alignItems: "flex-start", gap: 6 }}>
+                        {val.trim() ? <CheckCircle2 size={13} color={PALETTE.sage} style={{ flexShrink: 0, marginTop: 2 }} /> : <Circle size={13} color={PALETTE.inkSoft} style={{ flexShrink: 0, marginTop: 2, opacity: 0.5 }} />}
+                        {x.q}
+                      </div>
+                      <textarea
+                        value={val}
+                        onChange={(e) => setAnswer(x.id, e.target.value)}
+                        disabled={isClosed}
+                        rows={2}
+                        placeholder="Draft a factual answer…"
+                        style={{ width: "100%", resize: "vertical", fontSize: 12.5, lineHeight: 1.5, boxSizing: "border-box" }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   // ---- List view ----
   return (
     <div>
@@ -2875,6 +2942,22 @@ function CommsDrawer({ incident, update, addTimelineEntry, isClosed }) {
           <MiniList title="Social-media guardrails" items={SOCIAL_RULES} />
         </div>
       )}
+
+      {/* Media Q&A / FAQ builder entry */}
+      <button onClick={() => setView("qa")} style={{
+        width: "100%", textAlign: "left", padding: "11px 12px", marginBottom: 18, cursor: "pointer",
+        background: PALETTE.paper, border: `1px solid rgba(0,48,94,0.15)`, borderLeft: `3px solid ${PALETTE.rust}`,
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+      }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <FileText size={15} color={PALETTE.rust} />
+          <span>
+            <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: PALETTE.ink }}>Media Q&amp;A / FAQ prep</span>
+            <span className="mono" style={{ fontSize: 9.5, color: PALETTE.inkSoft }}>Spokesperson answers to journalist questions · FAQ single-source-of-truth</span>
+          </span>
+        </span>
+        <span className="mono" style={{ fontSize: 10, color: qa.done ? PALETTE.sage : PALETTE.inkSoft, flexShrink: 0 }}>{qa.done}/{qa.total}</span>
+      </button>
 
       {isClosed && <p style={{ fontSize: 12, color: PALETTE.inkSoft, marginBottom: 16 }}>This incident is closed — messages are read-only.</p>}
 
@@ -2981,6 +3064,7 @@ function ExportDrawer({ incident }) {
     { k: "Decisions logged", v: decisionsSummary(incident.decisions) },
     { k: "Risk / watch register", v: risksSummary(incident) },
     { k: "Communications log", v: commsSummary(incident.comms) },
+    { k: "Media Q&A / FAQ", v: (() => { const p = mediaQAProgress(incident); return p.done ? `${p.done}/${p.total} answered` : "not started"; })() },
     { k: "Post-incident review", v: incident.pir ? `${(PIR_STATUS[incident.pir.status] || {}).label || "Draft"} · ${(incident.pir.correctiveActions || []).length} actions` : "not started" },
     { k: "Blind spots", v: copilotSummary(incident) },
   ];

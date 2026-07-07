@@ -1730,6 +1730,89 @@ export function commsPhaseMeta(id) {
   return COMMS_PHASES.find((p) => p.id === id) || null;
 }
 
+// ------------------------------------------------------------------
+// MEDIA Q&A / FAQ BUILDER (Crisis Comms Plan, MW — "Media Coverage
+// Preparation"). The spokesperson pre-drafts answers to the questions
+// journalists ask; answered items become the FAQ single-source-of-truth.
+// The 5 broad categories frame ~35 specific questions. Answers are
+// stored on incident.mediaQA = { [questionId]: "answer" }.
+// ------------------------------------------------------------------
+export const MEDIA_QA_CATEGORIES = [
+  { id: "happened", label: "What happened?" },
+  { id: "caused", label: "What caused it?" },
+  { id: "means", label: "What does it mean?" },
+  { id: "responsible", label: "Who is responsible?" },
+  { id: "prevent", label: "What's being done / preventing recurrence?" },
+];
+
+export const MEDIA_QA_QUESTIONS = [
+  // What happened?
+  { id: "q1", cat: "happened", q: "What is your name and title?" },
+  { id: "q2", cat: "happened", q: "Can you explain what happened?" },
+  { id: "q3", cat: "happened", q: "When did the incident occur?" },
+  { id: "q4", cat: "happened", q: "Where did it happen?" },
+  { id: "q5", cat: "happened", q: "Who was affected, and how many people were involved?" },
+  { id: "q6", cat: "happened", q: "How confident are you about the accuracy of this information?" },
+  { id: "q7", cat: "happened", q: "Can you specify the extent of the harm or damage?" },
+  { id: "q8", cat: "happened", q: "When did the response begin, and when were you notified of the situation?" },
+  // What caused it?
+  { id: "q9", cat: "caused", q: "Why did this happen, and what caused it?" },
+  { id: "q10", cat: "caused", q: "What is your best estimate of the cause, if not yet confirmed?" },
+  { id: "q11", cat: "caused", q: "Did you have any prior warning?" },
+  { id: "q12", cat: "caused", q: "Could this situation have been prevented?" },
+  // What does it mean?
+  { id: "q13", cat: "means", q: "Is the situation under control?" },
+  { id: "q14", cat: "means", q: "Is there any ongoing danger, and are people safe now?" },
+  { id: "q15", cat: "means", q: "Are those affected receiving help?" },
+  { id: "q16", cat: "means", q: "What should people do now?" },
+  { id: "q17", cat: "means", q: "How long will it take for things to return to normal?" },
+  { id: "q18", cat: "means", q: "What is the estimated damage, and could more damage occur?" },
+  { id: "q19", cat: "means", q: "What impact will this have on those involved?" },
+  { id: "q20", cat: "means", q: "What is the worst-case scenario?" },
+  { id: "q21", cat: "means", q: "Will this cause any inconvenience to employees or the public?" },
+  { id: "q22", cat: "means", q: "What would you say to those affected and their families?" },
+  { id: "q23", cat: "means", q: "When can we expect more updates?" },
+  // Who is responsible?
+  { id: "q24", cat: "responsible", q: "Who is leading the response?" },
+  { id: "q25", cat: "responsible", q: "Who is responsible or to blame?" },
+  { id: "q26", cat: "responsible", q: "Who is conducting the investigation, and what have you found so far?" },
+  { id: "q27", cat: "responsible", q: "Have any laws been broken, and were any mistakes made?" },
+  { id: "q28", cat: "responsible", q: "How was the response handled, and could it have been better?" },
+  // What's being done / preventing recurrence?
+  { id: "q29", cat: "prevent", q: "What is being done to manage the crisis?" },
+  { id: "q30", cat: "prevent", q: "What help has been offered or requested?" },
+  { id: "q31", cat: "prevent", q: "What actions will be taken after the investigation?" },
+  { id: "q32", cat: "prevent", q: "What precautionary measures were in place, and were lessons from previous incidents applied?" },
+  { id: "q33", cat: "prevent", q: "How much will the response and recovery cost?" },
+  { id: "q34", cat: "prevent", q: "What steps are being taken to prevent this from happening again?" },
+  { id: "q35", cat: "prevent", q: "Can we speak to those affected? (media access)" },
+];
+
+export function mediaQAProgress(incident) {
+  const a = incident?.mediaQA || {};
+  const done = MEDIA_QA_QUESTIONS.filter((x) => (a[x.id] || "").trim()).length;
+  return { done, total: MEDIA_QA_QUESTIONS.length };
+}
+
+// Build the FAQ single-source-of-truth from answered questions only.
+export function buildFAQText(incident) {
+  const a = incident?.mediaQA || {};
+  const settings = loadAll().settings || {};
+  const lines = [
+    `Trinity Anglican College — Media FAQ`,
+    `Incident: ${incident?.title || incident?.id || ""}`,
+    `Prepared by: ${settings.principalName || "Critical Incident Leader"} (spokesperson)`,
+    ``,
+  ];
+  for (const cat of MEDIA_QA_CATEGORIES) {
+    const answered = MEDIA_QA_QUESTIONS.filter((x) => x.cat === cat.id && (a[x.id] || "").trim());
+    if (!answered.length) continue;
+    lines.push(`## ${cat.label}`);
+    for (const x of answered) { lines.push(`Q: ${x.q}`); lines.push(`A: ${a[x.id].trim()}`); lines.push(``); }
+  }
+  return lines.join("\n");
+}
+
 // Substitute {{tokens}} in a template body against an incident.
 export function fillTemplate(body, incident) {
   const settings = loadAll().settings || {};
