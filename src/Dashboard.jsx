@@ -32,6 +32,7 @@ import {
   BOARD_QUADRANTS, newBoardItem, boardCounts,
   PERSON_CATEGORIES, PERSON_STATUS, newPersonAtRisk, peopleAtRiskCounts,
   newSitrep, SITREP_FIELDS, IAP_FIELDS, emptyIAP,
+  CALL_TAKER_QUESTIONS, emptyCallTaker, callTakerProgress, CIMT_MEETING_AGENDA, newMeeting, PIR_ELEMENTS,
   RECOVERY_STRATEGIES, suggestedStrategyIds, recoveryStrategyById, strategyActivated,
   strategyProgress, activeStrategyCount, CRITICAL_BUSINESS_FUNCTIONS, cbfTierColor,
   impactedCBFCount, IMPACT_DIMENSIONS, IMPACT_LEVELS, IMPACT_LEVEL_COLORS,
@@ -2301,6 +2302,8 @@ function PIRDrawer({ incident, update, addTimelineEntry }) {
           <PIRField label="What could be improved" value={pir.whatImprove} onChange={(v) => setPir({ whatImprove: v })} />
           <PIRField label="Suggested plan updates" value={pir.planUpdates} onChange={(v) => setPir({ planUpdates: v })} />
 
+          <PIRElements pir={pir} onSet={(id, v) => setPir({ elements: { ...(pir.elements || {}), [id]: v } })} />
+
           <Section title={`Corrective actions · ${(pir.correctiveActions || []).length}`}>
             <div style={{ display: "grid", gap: 8, marginBottom: 10 }}>
               {(pir.correctiveActions || []).map((c) => (
@@ -2338,6 +2341,42 @@ function PIRField({ label, value, onChange }) {
     <Section title={label}>
       <textarea value={value || ""} onChange={(e) => onChange(e.target.value)} rows={4} style={{ resize: "vertical", lineHeight: 1.55, fontSize: 13 }} />
     </Section>
+  );
+}
+
+// Structured debrief against the plan's PIR elements (§16.4).
+function PIRElements({ pir, onSet }) {
+  const [open, setOpen] = useState(false);
+  const elements = pir.elements || {};
+  const answered = PIR_ELEMENTS.reduce((n, cat) => n + cat.questions.filter((q) => (elements[q.id] || "").trim()).length, 0);
+  const total = PIR_ELEMENTS.reduce((n, cat) => n + cat.questions.length, 0);
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <button onClick={() => setOpen((o) => !o)} style={{ width: "100%", textAlign: "left", background: PALETTE.parchment, border: `1px solid rgba(0,48,94,0.12)`, padding: "10px 12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: PALETTE.teal }}>Structured debrief (plan §16.4)</span>
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span className="mono" style={{ fontSize: 10, color: PALETTE.inkSoft }}>{answered}/{total}</span>
+          {open ? <ChevronUp size={14} color={PALETTE.teal} /> : <ChevronDown size={14} color={PALETTE.teal} />}
+        </span>
+      </button>
+      {open && (
+        <div style={{ padding: "12px 2px 0" }}>
+          {PIR_ELEMENTS.map((cat) => (
+            <div key={cat.id} style={{ marginBottom: 14 }}>
+              <div className="mono" style={{ fontSize: 10, letterSpacing: "0.1em", color: PALETTE.teal, opacity: 0.7, marginBottom: 8, textTransform: "uppercase" }}>{cat.label}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {cat.questions.map((q) => (
+                  <div key={q.id}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: PALETTE.ink, marginBottom: 3 }}>{q.q}</div>
+                    <textarea value={elements[q.id] || ""} onChange={(e) => onSet(q.id, e.target.value)} rows={2} placeholder="Finding…" style={{ width: "100%", fontSize: 12, resize: "vertical", boxSizing: "border-box" }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -2698,8 +2737,10 @@ function InstrumentsDrawer({ incident, update, addTimelineEntry, isClosed }) {
   const TABS = [
     { id: "boards", label: "Visual Boards", badge: BOARD_QUADRANTS.reduce((n, q) => n + bc[q.id], 0) || null },
     { id: "people", label: "People at Risk", badge: prc.total || null, alert: prc.unaccounted > 0 },
+    { id: "calltaker", label: "Call Taker", badge: callTakerProgress(incident).done || null },
     { id: "sitrep", label: "SITREP", badge: (incident.sitreps || []).length || null },
     { id: "iap", label: "Action Plan", badge: null },
+    { id: "meetings", label: "Meetings", badge: (incident.meetings || []).length || null },
   ];
   return (
     <div>
@@ -2726,8 +2767,122 @@ function InstrumentsDrawer({ incident, update, addTimelineEntry, isClosed }) {
       </div>
       {tab === "boards" && <BoardsTab incident={incident} update={update} isClosed={isClosed} />}
       {tab === "people" && <PeopleTab incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />}
+      {tab === "calltaker" && <CallTakerTab incident={incident} update={update} isClosed={isClosed} />}
       {tab === "sitrep" && <SitrepTab incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />}
       {tab === "iap" && <IAPTab incident={incident} update={update} isClosed={isClosed} />}
+      {tab === "meetings" && <MeetingsTab incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />}
+    </div>
+  );
+}
+
+function CallTakerTab({ incident, update, isClosed }) {
+  const ct = incident.callTaker || emptyCallTaker();
+  function setField(field, val) {
+    update((prev) => ({ ...prev, callTaker: { ...(prev.callTaker || emptyCallTaker()), [field]: val, updatedAt: Date.now() } }));
+  }
+  function setAnswer(qid, val) {
+    update((prev) => { const base = prev.callTaker || emptyCallTaker(); return { ...prev, callTaker: { ...base, answers: { ...(base.answers || {}), [qid]: val }, updatedAt: Date.now() } }; });
+  }
+  return (
+    <div>
+      <p style={{ fontSize: 12.5, color: PALETTE.inkSoft, lineHeight: 1.5, marginTop: 0, marginBottom: 14 }}>
+        First-notification intake — collect the facts as the incident is reported. Feeds the incident level and the Incident Action Plan.
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+        <div>
+          <div className="mono" style={{ fontSize: 9, letterSpacing: "0.08em", color: PALETTE.teal, opacity: 0.7, marginBottom: 4 }}>RECEIVED FROM</div>
+          <input value={ct.receivedFrom} onChange={(e) => setField("receivedFrom", e.target.value)} placeholder="Who reported it" disabled={isClosed} style={{ width: "100%", fontSize: 12.5, boxSizing: "border-box" }} />
+        </div>
+        <div>
+          <div className="mono" style={{ fontSize: 9, letterSpacing: "0.08em", color: PALETTE.teal, opacity: 0.7, marginBottom: 4 }}>CONTACT</div>
+          <input value={ct.contact} onChange={(e) => setField("contact", e.target.value)} placeholder="Phone / email" disabled={isClosed} style={{ width: "100%", fontSize: 12.5, boxSizing: "border-box" }} />
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {CALL_TAKER_QUESTIONS.map((x) => (
+          <div key={x.id}>
+            <div style={{ fontSize: 12.5, fontWeight: 500, color: PALETTE.ink, marginBottom: 3 }}>{x.q}</div>
+            <input value={(ct.answers || {})[x.id] || ""} onChange={(e) => setAnswer(x.id, e.target.value)} disabled={isClosed} style={{ width: "100%", fontSize: 12.5, boxSizing: "border-box" }} />
+          </div>
+        ))}
+        <div>
+          <div style={{ fontSize: 12.5, fontWeight: 500, color: PALETTE.ink, marginBottom: 3 }}>Notes</div>
+          <textarea value={ct.notes} onChange={(e) => setField("notes", e.target.value)} rows={2} disabled={isClosed} style={{ width: "100%", fontSize: 12.5, resize: "vertical", boxSizing: "border-box" }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MeetingsTab({ incident, update, addTimelineEntry, isClosed }) {
+  const meetings = incident.meetings || [];
+  const [openId, setOpenId] = useState(meetings[0]?.id || null);
+  function addMeeting() {
+    if (isClosed) return;
+    const m = newMeeting();
+    update((prev) => ({ ...prev, meetings: [m, ...(prev.meetings || [])] }));
+    addTimelineEntry({ type: "note", text: "CIMT meeting started." });
+    setOpenId(m.id);
+  }
+  function patch(id, changes) {
+    update((prev) => ({ ...prev, meetings: (prev.meetings || []).map((m) => (m.id === id ? { ...m, ...changes } : m)) }));
+  }
+  function toggleAgenda(id, agId) {
+    update((prev) => ({ ...prev, meetings: (prev.meetings || []).map((m) => {
+      if (m.id !== id) return m;
+      const checks = { ...(m.checks || {}) };
+      if (checks[agId]) delete checks[agId]; else checks[agId] = true;
+      return { ...m, checks };
+    }) }));
+  }
+  function removeMeeting(id) {
+    update((prev) => ({ ...prev, meetings: (prev.meetings || []).filter((m) => m.id !== id) }));
+  }
+  return (
+    <div>
+      {!isClosed && <button onClick={addMeeting} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginBottom: 14 }}><Plus size={13} /> New CIMT meeting</button>}
+      {meetings.length === 0 ? (
+        <p style={{ fontSize: 13, color: PALETTE.inkSoft, fontStyle: "italic" }}>No meetings recorded. Each CIMT meeting runs the standard agenda.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {meetings.map((m) => {
+            const done = CIMT_MEETING_AGENDA.filter((a) => m.checks?.[a.id]).length;
+            const open = openId === m.id;
+            return (
+              <div key={m.id} style={{ border: `1px solid rgba(0,48,94,0.14)`, background: PALETTE.paper }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px" }}>
+                  <button onClick={() => setOpenId(open ? null : m.id)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", flex: 1 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: PALETTE.ink }}>CIMT meeting · {formatTime(m.at)}</div>
+                    <div className="mono" style={{ fontSize: 9.5, color: PALETTE.inkSoft, marginTop: 2 }}>{done}/{CIMT_MEETING_AGENDA.length} agenda · {open ? "hide" : "open"}</div>
+                  </button>
+                  {!isClosed && <button onClick={() => removeMeeting(m.id)} className="btn-ghost" style={{ background: "none", border: "none", padding: 2, color: PALETTE.inkSoft, cursor: "pointer" }}><Trash2 size={13} /></button>}
+                </div>
+                {open && (
+                  <div style={{ borderTop: `1px solid rgba(0,48,94,0.1)`, padding: "8px 12px" }}>
+                    {CIMT_MEETING_AGENDA.map((a) => {
+                      const ok = !!m.checks?.[a.id];
+                      return (
+                        <button key={a.id} onClick={() => toggleAgenda(m.id, a.id)} disabled={isClosed} style={{ display: "flex", gap: 9, alignItems: "flex-start", textAlign: "left", width: "100%", padding: "6px 0", background: "none", border: "none", borderBottom: `1px solid rgba(0,48,94,0.06)`, cursor: isClosed ? "default" : "pointer" }}>
+                          {ok ? <CheckCircle2 size={15} color={PALETTE.sage} style={{ flexShrink: 0, marginTop: 1 }} /> : <Circle size={15} color={PALETTE.inkSoft} style={{ flexShrink: 0, marginTop: 1, opacity: 0.5 }} />}
+                          <span style={{ fontSize: 12.5, lineHeight: 1.4, color: ok ? PALETTE.inkSoft : PALETTE.ink }}>{a.text}</span>
+                        </button>
+                      );
+                    })}
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: PALETTE.ink, marginBottom: 3 }}>Notes / decisions</div>
+                      <textarea value={m.notes} onChange={(e) => patch(m.id, { notes: e.target.value })} rows={2} disabled={isClosed} style={{ width: "100%", fontSize: 12.5, resize: "vertical", boxSizing: "border-box" }} />
+                    </div>
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: PALETTE.ink, marginBottom: 3 }}>Next meeting</div>
+                      <input value={m.nextMeeting} onChange={(e) => patch(m.id, { nextMeeting: e.target.value })} placeholder="e.g. 14:30, Boardroom" disabled={isClosed} style={{ width: "100%", fontSize: 12.5, boxSizing: "border-box" }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -3519,6 +3674,8 @@ function ExportDrawer({ incident }) {
     { k: "Media Q&A / FAQ", v: (() => { const p = mediaQAProgress(incident); return p.done ? `${p.done}/${p.total} answered` : "not started"; })() },
     { k: "Visual boards", v: (() => { const b = boardCounts(incident); return `${b.facts}F · ${b.assumptions}A · ${b.issues}I · ${b.actions}Ac`; })() },
     { k: "People at risk", v: (() => { const p = peopleAtRiskCounts(incident); return p.total ? `${p.total} tracked · ${p.injured} injured · ${p.unaccounted} unaccounted` : "none logged"; })() },
+    { k: "Call Taker intake", v: (() => { const p = callTakerProgress(incident); return p.done ? `${p.done}/${p.total} captured` : "not started"; })() },
+    { k: "CIMT meetings", v: `${(incident.meetings || []).length}` },
     { k: "SITREPs filed", v: `${(incident.sitreps || []).length}` },
     { k: "Incident Action Plan", v: incident.iap?.updatedAt ? `updated ${formatTime(incident.iap.updatedAt)}` : "not started" },
     { k: "Recovery strategies active", v: (() => { const n = activeStrategyCount(incident); return n ? RECOVERY_STRATEGIES.filter((s) => strategyActivated(incident, s.id)).map((s) => s.label).join("; ") : "none"; })() },

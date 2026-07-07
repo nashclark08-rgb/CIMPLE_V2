@@ -1076,7 +1076,7 @@ export const BOARD_QUADRANTS = [
   { id: "actions", label: "Actions", blurb: "What we are doing / need to do." },
 ];
 export function newBoardItem(text) {
-  return { id: `bd${Date.now()}-${Math.floor(performance.now?.() || 0)}`, text: (text || "").trim(), ts: Date.now() };
+  return { id: `bd${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, text: (text || "").trim(), ts: Date.now() };
 }
 export function boardCounts(incident) {
   const b = incident?.boards || {};
@@ -1094,7 +1094,7 @@ export const PERSON_STATUS = {
 };
 export function newPersonAtRisk(data = {}) {
   return {
-    id: `pr${Date.now()}-${Math.floor(performance.now?.() || 0)}`,
+    id: `pr${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     name: data.name || "",
     category: data.category || "Student",
     status: data.status || "safe",     // safe | injured | hospital | unaccounted
@@ -1116,7 +1116,7 @@ export function peopleAtRiskCounts(incident) {
 // --- SITREP (§16.3): per-functional-area situation report → Planning ---
 export function newSitrep(data = {}) {
   return {
-    id: `sr${Date.now()}-${Math.floor(performance.now?.() || 0)}`,
+    id: `sr${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     ts: Date.now(),
     area: data.area || "",        // functional area / CIMT role
     situation: data.situation || "",   // what has happened
@@ -1148,6 +1148,89 @@ export const IAP_FIELDS = [
 export function emptyIAP() {
   return { situation: "", mission: "", execution: "", admin: "", command: "", safety: "", updatedAt: null };
 }
+
+// --- Call Taker Form (§16.1): the first-notification intake checklist ---
+export const CALL_TAKER_QUESTIONS = [
+  { id: "ct1", q: "What has happened?" },
+  { id: "ct2", q: "Where did it happen?" },
+  { id: "ct3", q: "Who is involved?" },
+  { id: "ct4", q: "Any casualties?" },
+  { id: "ct5", q: "Have emergency services been called? If yes, ETA?" },
+  { id: "ct6", q: "Has first aid been administered?" },
+  { id: "ct7", q: "Has the immediate area been contained or secured?" },
+  { id: "ct8", q: "Are there any hazards in the incident area?" },
+  { id: "ct9", q: "Are there any restrictions to accessing the site?" },
+  { id: "ct10", q: "Is the media on site?" },
+  { id: "ct11", q: "What action has been taken so far?" },
+  { id: "ct12", q: "What assistance is required?" },
+];
+export function emptyCallTaker() {
+  return { receivedFrom: "", contact: "", answers: {}, notes: "", updatedAt: null };
+}
+export function callTakerProgress(incident) {
+  const a = incident?.callTaker?.answers || {};
+  const done = CALL_TAKER_QUESTIONS.filter((x) => (a[x.id] || "").trim()).length;
+  return { done, total: CALL_TAKER_QUESTIONS.length };
+}
+
+// --- CIMT Meeting Agenda (§16.5 / §3.4 initial-meeting agenda) ---
+export const CIMT_MEETING_AGENDA = [
+  { id: "ag1", text: "Confirm the welfare of all CIMT members" },
+  { id: "ag2", text: "Provide an update to the CIMT on events to date" },
+  { id: "ag3", text: "CIMT members provide an update on their areas" },
+  { id: "ag4", text: "Conduct an impact assessment" },
+  { id: "ag5", text: "Conduct an issues assessment" },
+  { id: "ag6", text: "Confirm team objectives" },
+  { id: "ag7", text: "Establish protocols for CIMT communications" },
+  { id: "ag8", text: "Confirm team members are aware of their roles" },
+  { id: "ag9", text: "Agree the time for the next meeting" },
+];
+export function newMeeting() {
+  return { id: `mtg${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, at: Date.now(), checks: {}, notes: "", nextMeeting: "" };
+}
+
+// --- PIR structured elements (§16.4 Debriefing / PIR template) ---
+export const PIR_ELEMENTS = [
+  { id: "er", label: "Emergency Response", questions: [
+    { id: "er1", q: "Was an evacuation or lockdown required?" },
+    { id: "er2", q: "Were any staff, students or visitors injured or affected?" },
+    { id: "er3", q: "Was the building(s) secured to prevent re-entry?" },
+    { id: "er4", q: "Were evacuation/lockdown details reported to College Services?" },
+  ] },
+  { id: "an", label: "Activation & Notification", questions: [
+    { id: "an1", q: "Was the incident detected promptly?" },
+    { id: "an2", q: "Were emergency services notified promptly?" },
+    { id: "an3", q: "Was a member of the Leadership Team notified promptly and easily reachable?" },
+    { id: "an4", q: "Was the CIMT easily reachable, with current contact details?" },
+    { id: "an5", q: "Were the control rooms available and properly equipped?" },
+  ] },
+  { id: "bi", label: "Business Impacts", questions: [
+    { id: "bi1", q: "Was an incident assessment conducted, and how was it used?" },
+    { id: "bi2", q: "Was an impact assessment conducted, and how was it used?" },
+    { id: "bi3", q: "Were any buildings affected and deemed un-useable?" },
+    { id: "bi4", q: "Were critical business functions affected?" },
+    { id: "bi5", q: "Was a business continuity plan activated, and which strategy?" },
+    { id: "bi6", q: "Was an IT disaster recovery plan activated?" },
+  ] },
+  { id: "ir", label: "Incident Response", questions: [
+    { id: "ir1", q: "Were people and equipment mobilised efficiently and available?" },
+    { id: "ir2", q: "Were the procedures and tools available and flexible enough?" },
+    { id: "ir3", q: "Did staff/students know what to do? Is further training required?" },
+    { id: "ir4", q: "Were critical business functions restored within their RTOs?" },
+    { id: "ir5", q: "If required, were alternate sites activated and operational?" },
+  ] },
+  { id: "co", label: "Communication", questions: [
+    { id: "co1", q: "Were all key stakeholders notified appropriately and in a timely way?" },
+    { id: "co2", q: "Was consultation established with emergency services/agencies?" },
+    { id: "co3", q: "Was the media communicated with appropriately?" },
+    { id: "co4", q: "Were the communication templates used?" },
+    { id: "co5", q: "Was an action log maintained throughout?" },
+  ] },
+  { id: "sd", label: "Stand Down", questions: [
+    { id: "sd1", q: "Were ongoing site-security issues addressed?" },
+    { id: "sd2", q: "Were long-term restoration/relocation strategies assessed?" },
+  ] },
+];
 
 // ==================================================================
 // BUSINESS CONTINUITY (CIM & BCP V0.3 Section Three) — the recovery
