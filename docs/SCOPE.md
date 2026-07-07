@@ -1,101 +1,66 @@
-# CIMPLE — Scope Charter
+# CIMPLE — Scope Charter (v2, plan-fidelity)
 
-_The single test every feature must pass. Set by Nash Clark (product owner), 2026-07-06._
+_The single test every feature must pass. Set by Nash Clark (product owner). v1 2026-07-06 (incident-management-only). **v2 2026-07-07 — re-based onto the TAC Critical Incident & Business Continuity Management Plan (CIM & BCP V0.3, 15 June 2026), which is now CIMPLE's backbone.** See `docs/plan-alignment.md` for the full analysis behind this rewrite._
 
-## Purpose
+## Purpose (north star)
 
-CIMPLE exists for one purpose:
+CIMPLE exists to **operationalise the TAC Critical Incident & Business Continuity Management Plan** — to be its living, digital form.
 
-> **To help Trinity Anglican College manage a critical incident from detection through recovery.**
+> **Using CIMPLE *is* executing the plan.**
 
-## The command test (the core screen's job)
+CIMPLE is the **CIMT's digital control room**: the incident-management software the plan itself calls for (Control Room activation step: _"set up incident management program / software"_). It sits alongside Microsoft Teams, WhatsApp, the Trinity App, Vivi, SEQTA and the physical Boardroom — it structures and records the CIMT's work; it does not replace those tools.
 
-When an incident occurs, a staff member opening CIMPLE must **immediately** know:
+## The one reframe that governs everything — CIMT, not ECO
 
-1. **What is happening?**
-2. **Who is responsible?**
-3. **What needs to happen next?**
-4. **Who has been notified?**
-5. **What decisions have been made?**
-6. **What communications have been approved?**
-7. **What risks remain?**
-8. **How the incident is progressing toward resolution.**
+The plan is explicit (page 1): it **does not replace the Emergency Response Plan (ERP)**, which governs the **Emergency Control Organisation (ECO / warden team)** — the on-the-ground, protect-life layer.
 
-These eight questions are the specification for the incident command workspace. Every screen and feature should help answer one of them faster.
+- **CIMPLE models the CIMT** — the Critical Incident Leader + Coordinators who *manage* the whole incident.
+- **The ECO / wardens are an external actor** CIMPLE *liaises with* (a source of headcount/scene facts) — **not** roles inside CIMPLE.
+
+Any feature that pulls CIMPLE down into warden/evacuation/on-the-ground execution is out of scope: that is the ERP's job.
 
 ## The scope test (apply to every proposed feature)
 
-> **"Does this materially improve the management of an active incident?"**
+> **"Does this help the CIMT execute the TAC CIM & BCP?"**
 
 - **Yes →** in scope.
-- **No →** out of scope. No exceptions dressed up as "it also helps incidents."
+- **No →** out of scope — even if it "would be useful."
 
-CIMPLE is an **incident management platform** — the system TAC staff open when a critical incident occurs. Its mission is fixed and must not be redefined.
+## Fidelity principles (permanent)
 
-### What CIMPLE is NOT
-CIMPLE is **not**, and will not drift into becoming:
-- a broader school **operations** platform
-- a **student management** platform
-- a **wellbeing** platform
-- a **compliance** platform
-- a **resilience / readiness** platform
+1. **The plan is the source of truth.** CIMPLE's roles, phases, checklists, procedures, scripts and forms are *derived from the plan*, versioned against it (currently V0.3), and must never contradict it.
+2. **CIMT, not ECO** (see above).
+3. **Enrich, don't override.** Statutory / best-practice detail (SafeWork 13 10 50, DCJ 132 111, OCG reportable conduct, ACSC 1300 CYBER1, OAIC, Hazards Near Me, Poisons 13 11 26, safe-messaging, etc.) may *annotate* the plan's steps where the plan is thin — it may not replace or reorder them.
+4. **Surface placeholders, don't fabricate.** The plan is V0.3 with many `[insert]` gaps and some template residue (e.g. Victorian contacts). Where the plan is incomplete, CIMPLE presents a field for TAC to complete — it never invents authoritative content.
+5. **Complement the toolchain.** CIMPLE is the structured control-room record, not a competitor to Teams/WhatsApp/App/Vivi/SEQTA.
 
-Features that primarily serve administration, compliance, analytics, student management, HR, or general operations are **out of scope**. When a feature has an out-of-scope version and a genuine in-incident sliver, build **only the in-incident sliver** — and only if that sliver passes the test on its own.
+## Scope boundary — now that the backbone is the CIM & BCP
 
-### Priorities (what we build for)
-1. Incident command
-2. Decision support
-3. Activation
-4. Communications
-5. Accountability
-6. Coordination
-7. Situational awareness
-8. Recovery management
-9. Post-incident review
+**In scope** — everything the plan covers as part of critical-incident management:
+- The full **incident lifecycle**: Assessment → Activation → Response → Business Recovery → Business Resumption → Stand Down.
+- **Business Continuity (Section Three)** — recovery strategies, Critical Business Functions + RTOs, relocation, resumption. _This is now IN SCOPE_ because the plan defines it as integral to critical-incident management. (This supersedes v1's "not a business-continuity platform" exclusion — v1 was guarding against *inventing* scope; here the scope comes from the authoritative plan.) **Sequencing: built LAST, after the incident-management re-basing (Pivots 0–5).**
 
-Avoid feature creep and platform expansion beyond incident management.
+**Still out of scope** — anything the plan does not treat as CIMT work:
+- ECO / warden / evacuation execution (that is the ERP).
+- Peacetime school **operations, student management, HR, general compliance, analytics/BI** that do not serve an active incident or the plan's recovery phases.
+- Training/drill simulators, cross-incident analytics, long-tail wellbeing aftercare — unless a direct in-incident or plan-recovery justification exists.
 
-## Current coverage of the eight questions
+When a feature has an out-of-scope version and a genuine in-plan sliver, build **only** the in-plan sliver.
 
-| Question | Feature | Status |
-|---|---|---|
-| What is happening? | Incident overview, severity, live timeline | Built |
-| Who is responsible? | Roles rail (assign / confirm / conflicts) | Built |
-| What needs to happen next? | Tasks → Blind Spots (gap detection) | Partial — Blind Spots not built |
-| Who has been notified? | Activation & acknowledgements (M2) | Built (simulated) |
-| What decisions have been made? | Decision Log | **Built** (2026-07-06) |
-| What comms have been approved? | Communications (M4) | Built (simulated) |
-| What risks remain? | Risk / Watch register | **Built** (2026-07-06) |
-| Progress to resolution | Status + Recovery Readiness | Partial |
+## The re-basing roadmap (the pivots — see `docs/plan-alignment.md`)
 
-All nine "immediately know" questions now have at least a prototype answer. Decision Log and Risk/Watch Register both shipped 2026-07-06.
+1. **Pivot 0 · Reframe** — CIMPLE = CIMT digital control room; ECO externalised. _(This charter.)_
+2. **Pivot 1 · Roles & roster** — replace generic roles with the plan's **13 CIMT roles** + real primary/alternate roster (names, positions, mobiles — contacts stored under the backend/RBAC work, not hard-coded).
+3. **Pivot 2 · Phase lifecycle** — restructure the incident around the 6 phases, each driven by the plan's master checklist (Action · Responsible role · Reference · ✓).
+4. **Pivot 3 · Checklists as task engine** — the plan's role checklists + 17 response procedures become the task source of truth (superseding the invented `PLAYBOOK_TASKS`; keep the NSW statutory hooks as an enrichment layer).
+5. **Pivot 4 · Communications** — adopt the plan's comms Levels 1–4, Assess/Stabilise/Remedy, stakeholder × channel matrix, and exact scripts; FAQ as timestamped single-source-of-truth.
+6. **Pivot 5 · Instruments** — Call Taker intake · SMEAC IAP · SITREP · Visual Boards (Facts/Assumptions/Issues/Actions) · People at Risk Log · CIMT Meeting Agendas · Debrief/PIR mapped to the plan's PIR elements · Export = the plan's document set.
+7. **Pivot 6 · Business Continuity** — the 5 time-phased recovery strategies, Critical Business Functions + RTOs, Impact & Issues Assessment, relocation. _Built last._
 
-## Capability classification (from VISION_2030.md, re-cut through this charter)
+## The command test (retained as a UX heuristic, subordinate to plan fidelity)
 
-**In scope**
-- Decision Log · Blind Spots · Red Folder Mode · Dynamic Role Replacement
-- Reunification & Custody-Safe Release · Real-time Roll-Call / Accountability · Emergency-Services Handoff Pack
-- Incident Forecasting (live next-stage decision support) · Recovery Readiness Score
-- Incident Intelligence Graph — **in-incident slice only** ("who is affected / who not to contact")
-- Risk / Watch register
+The plan's control-room "visual boards" (Facts · Assumptions · Issues · Actions) plus the phase checklists must let a CIMT member opening CIMPLE immediately know: what is happening · who is responsible (which CIMT role) · what the plan says to do next · who has been notified · what decisions/comms are approved · what risks/impacts remain · progress through the phases. These are now *answered through the plan's own instruments*, not invented widgets.
 
-**Borderline — build only the in-incident sliver**
-- Parent Pressure Gauge → comms-demand signal only (not anxiety analytics)
-- Media Exposure Radar → risk/decision input only (not reputational analytics)
-- Live Lessons Learned → capture is cheap but payoff is post-incident; defer
-- Staff Cognitive Load Monitor → commander time-in-role visibility only; low priority
+## What already aligns (keep)
 
-**Out of scope (unless a direct in-incident justification emerges)**
-- Timeline Replay (training/governance) · Statutory Obligations / Mandatory-Reporting Engine (compliance; only the "notify now" sliver lives inside Activation)
-- Wellbeing Aftercare / long-tail welfare · Drill & Readiness Simulator (peacetime) · Cross-Incident Pattern / Early-Warning (analytics)
-- General M8 administration, except the parts that feed an active incident (staff directory currency, role-conflict rules)
-
-## Consequence for the roadmap
-
-The highest-leverage in-scope, no-backend builds are:
-1. **Decision Log** — fills question 5; the defensibility spine.
-2. **Risk / Watch register** — fills question 7; currently absent.
-3. **Blind Spots (MVP)** — completes question 3.
-4. **Red Folder Mode** — makes all eight answerable under peak stress.
-
-Backend-gated in-scope capabilities (Roll-Call, Reunification at scale, Intelligence Graph, live Parent-demand) wait behind the backend decision — but each still answers one of the eight questions, so they remain on-charter.
+Decision Log, Risk/Watch Register, live timeline (= Incident Log), Activation/notification cascade, PIR/export, the comms module (partly aligned — MWHI/Vivi/App), Blind Spots, Red Folder Mode. These are retained and re-mapped onto the plan's structure rather than discarded. The Increment-D **Firebase backend** (in flight) is *more* justified under this charter: a CIMT running from a control room across many devices, mirroring Teams, needs real multi-user + audit, not localStorage.
