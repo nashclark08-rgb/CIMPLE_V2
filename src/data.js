@@ -44,123 +44,130 @@ export const TYPE_CATEGORIES = {
   death: { label: "Death", color: "#8B2E1A" },
 };
 
-// ---------- Role templates per incident type ----------
+// ---------- CIMT role templates per incident type ----------
+// CIMPLE models the Critical Incident Management Team (CIMT) — the
+// management/coordination layer — NOT the Emergency Control Organisation
+// (warden team), which the Emergency Response Plan governs separately.
+// The CIMT core (Leader + Support + Planning) is always activated; the
+// Critical Incident Leader activates other coordinators as the incident
+// requires. Templates below list the coordinators most likely needed.
 const COMMON_ROLES = [
-  { role: "Incident Commander", required: true, isPrincipal: true },
-  { role: "Documenter", required: true },
+  { role: "Critical Incident Leader", required: true, isPrincipal: true },
+  { role: "Support Coordinator", required: true },
+  { role: "Planning Coordinator", required: true },
 ];
 
 const ROLE_TEMPLATES = {
   medical: [
     ...COMMON_ROLES,
-    { role: "First Aid", required: true },
-    { role: "Family Liaison", required: true },
+    { role: "Student Coordinator", required: true },
+    { role: "Student Wellbeing Services Coordinator", required: false },
+    { role: "Communications Coordinator", required: false },
   ],
   mental_health: [
     ...COMMON_ROLES,
-    { role: "Wellbeing Lead", required: true },
-    { role: "First Aid", required: true },
-    { role: "Family Liaison", required: true },
-    { role: "Counsellor (External)", required: false },
+    { role: "Student Coordinator", required: true },
+    { role: "Student Wellbeing Services Coordinator", required: true },
+    { role: "Communications Coordinator", required: false },
   ],
   behavioural: [
     ...COMMON_ROLES,
-    { role: "Wellbeing Lead", required: true },
-    { role: "Family Liaison", required: true },
+    { role: "Student Coordinator", required: true },
+    { role: "Student Wellbeing Services Coordinator", required: false },
   ],
   missing: [
     ...COMMON_ROLES,
-    { role: "Search Coordinator", required: true },
-    { role: "Family Liaison", required: true },
-    { role: "Police Liaison", required: false },
+    { role: "Student Coordinator", required: true },
+    { role: "College Services", required: true },
+    { role: "Communications Coordinator", required: false },
   ],
   bullying: [
     ...COMMON_ROLES,
-    { role: "Wellbeing Lead", required: true },
-    { role: "Family Liaison", required: true },
+    { role: "Student Coordinator", required: true },
+    { role: "Student Wellbeing Services Coordinator", required: false },
   ],
   lockdown: [
     ...COMMON_ROLES,
-    { role: "Communications Lead", required: true },
-    { role: "Floor Wardens", required: true },
-    { role: "Police Liaison", required: true },
+    { role: "College Services", required: true },
+    { role: "Facilities", required: false },
+    { role: "Communications Coordinator", required: true },
   ],
   evacuation: [
     ...COMMON_ROLES,
-    { role: "Floor Wardens", required: true },
-    { role: "Headcount Officer", required: true },
-    { role: "Communications Lead", required: true },
+    { role: "College Services", required: true },
+    { role: "Facilities", required: true },
+    { role: "Communications Coordinator", required: true },
   ],
   hazmat: [
     ...COMMON_ROLES,
-    { role: "Floor Wardens", required: true },
-    { role: "First Aid", required: true },
-    { role: "Communications Lead", required: true },
+    { role: "College Services", required: true },
+    { role: "Facilities", required: true },
+    { role: "Communications Coordinator", required: true },
   ],
   natural_disaster: [
     ...COMMON_ROLES,
-    { role: "Floor Wardens", required: true },
-    { role: "Communications Lead", required: true },
-    { role: "First Aid", required: false },
+    { role: "College Services", required: true },
+    { role: "Facilities", required: true },
+    { role: "Communications Coordinator", required: true },
+    { role: "Recovery Coordinator", required: false },
   ],
   parent_aggression: [
     ...COMMON_ROLES,
-    { role: "Front Office Lead", required: true },
-    { role: "Police Liaison", required: false },
+    { role: "College Services", required: true },
+    { role: "Communications Coordinator", required: false },
   ],
   external_threat: [
     ...COMMON_ROLES,
-    { role: "Police Liaison", required: true },
-    { role: "Communications Lead", required: true },
-    { role: "Floor Wardens", required: true },
+    { role: "College Services", required: true },
+    { role: "Communications Coordinator", required: true },
   ],
   transport: [
     ...COMMON_ROLES,
-    { role: "Family Liaison", required: true },
-    { role: "First Aid", required: false },
-    { role: "Communications Lead", required: true },
+    { role: "Student Coordinator", required: true },
+    { role: "Communications Coordinator", required: true },
   ],
   death_oncampus: [
     ...COMMON_ROLES,
-    { role: "Wellbeing Lead", required: true },
-    { role: "Family Liaison", required: true },
-    { role: "Communications Lead", required: true },
-    { role: "Police Liaison", required: true },
-    { role: "Counsellor (External)", required: true },
+    { role: "Student Coordinator", required: true },
+    { role: "Staff Coordinator", required: true },
+    { role: "Student Wellbeing Services Coordinator", required: true },
+    { role: "Communications Coordinator", required: true },
   ],
   death_offcampus: [
     ...COMMON_ROLES,
-    { role: "Wellbeing Lead", required: true },
-    { role: "Communications Lead", required: true },
-    { role: "Counsellor (External)", required: true },
+    { role: "Student Coordinator", required: true },
+    { role: "Staff Coordinator", required: true },
+    { role: "Student Wellbeing Services Coordinator", required: true },
+    { role: "Communications Coordinator", required: true },
   ],
   child_protection: [
     ...COMMON_ROLES,
-    { role: "Wellbeing Lead", required: true },
-    { role: "Family Liaison", required: true },
-    { role: "Police Liaison", required: false },
+    { role: "Student Coordinator", required: true },
+    { role: "Student Wellbeing Services Coordinator", required: false },
   ],
   disease_outbreak: [
     ...COMMON_ROLES,
-    { role: "First Aid", required: true },
-    { role: "Communications Lead", required: true },
-    { role: "Family Liaison", required: false },
+    { role: "Student Coordinator", required: true },
+    { role: "College Services", required: false },
+    { role: "Communications Coordinator", required: true },
   ],
   cyber: [
     ...COMMON_ROLES,
-    { role: "Communications Lead", required: true },
-    { role: "Front Office Lead", required: false },
+    { role: "Recovery – IT Coordinator", required: true },
+    { role: "College Services", required: false },
+    { role: "Communications Coordinator", required: true },
   ],
   infrastructure: [
     ...COMMON_ROLES,
-    { role: "Floor Wardens", required: true },
-    { role: "Communications Lead", required: true },
+    { role: "College Services", required: true },
+    { role: "Facilities", required: true },
+    { role: "Recovery Coordinator", required: false },
+    { role: "Communications Coordinator", required: false },
   ],
   excursion: [
     ...COMMON_ROLES,
-    { role: "First Aid", required: true },
-    { role: "Family Liaison", required: true },
-    { role: "Communications Lead", required: false },
+    { role: "Student Coordinator", required: true },
+    { role: "Communications Coordinator", required: false },
   ],
 };
 
@@ -239,6 +246,9 @@ export function createIncident({ type, severity, title, location, isDrill = fals
   const allIncidents = loadAll().incidents;
   const id = nextIncidentId(allIncidents);
   const effectiveRoles = roles || rolesForIncidentType(type);
+  const settings = loadAll().settings || {};
+  const opener = settings.principalName || "Critical Incident Leader";
+  const openerInitials = settings.principalInitials || "CIL";
 
   return {
     id,
@@ -260,8 +270,8 @@ export function createIncident({ type, severity, title, location, isDrill = fals
       {
         id: `t${Date.now()}`,
         ts: Date.now(),
-        actor: "K. Patel",
-        actorInitials: "KP",
+        actor: opener,
+        actorInitials: openerInitials,
         type: "system",
         text: `Incident opened. Initial severity: ${SEVERITY[severity || typeMeta.defaultSeverity].label}.`,
       },
@@ -358,28 +368,28 @@ export function buildSampleIncidents() {
       supportNotes: "Prefers female counsellor. Year advisor: Ms Nguyen.",
     },
     roles: [
-      { id: "r1", role: "Incident Commander", staff: "K. Patel", initials: "KP", status: "confirmed", required: true, isPrincipal: true },
-      { id: "r2", role: "Wellbeing Lead", staff: "S. Nguyen", initials: "SN", status: "confirmed", required: true },
-      { id: "r3", role: "First Aid", staff: "J. Okafor", initials: "JO", status: "confirmed", required: true },
-      { id: "r4", role: "Family Liaison", staff: "L. Martin", initials: "LM", status: "pending", required: true, backup: "R. Chen" },
-      { id: "r5", role: "Documenter", staff: "—", initials: "—", status: "unassigned", required: true, suggested: "A. Wright" },
-      { id: "r6", role: "Counsellor (External)", staff: "Headspace on call", initials: "HC", status: "contacted", required: false },
+      { id: "r1", role: "Critical Incident Leader", staff: "Adrian Johnson", initials: "AJ", status: "confirmed", required: true, isPrincipal: true },
+      { id: "r2", role: "Support Coordinator", staff: "Jessica Sevil", initials: "JS", status: "confirmed", required: true },
+      { id: "r3", role: "Planning Coordinator", staff: "Annika Fairley", initials: "AF", status: "confirmed", required: true },
+      { id: "r4", role: "Student Coordinator", staff: "Simon Fairall", initials: "SF", status: "pending", required: true, backup: "David Smith" },
+      { id: "r5", role: "Student Wellbeing Services Coordinator", staff: "Stephanie Kiesel", initials: "SK", status: "confirmed", required: true },
+      { id: "r6", role: "Communications Coordinator", staff: "—", initials: "—", status: "unassigned", required: false, suggested: "Megan Whitsed" },
     ],
     timeline: [
-      { id: "t1", ts: now - minutes(23), actor: "K. Patel", actorInitials: "KP", type: "system", text: "Incident opened. Initial severity: L3 Major." },
-      { id: "t2", ts: now - minutes(22), actor: "K. Patel", actorInitials: "KP", type: "action", text: "Activated EMP §4.3 — Student Mental Health Crisis Response." },
-      { id: "t3", ts: now - minutes(21), actor: "S. Nguyen", actorInitials: "SN", type: "note", text: "On site with student. Calm but distressed. No visible injury. Ventolin not required." },
-      { id: "t4", ts: now - minutes(18), actor: "J. Okafor", actorInitials: "JO", type: "note", text: "First aid assessment complete. No medical intervention required at this time." },
-      { id: "t5", ts: now - minutes(14), actor: "K. Patel", actorInitials: "KP", type: "action", text: "Contacted external counsellor (Headspace). On standby." },
-      { id: "t6", ts: now - minutes(9), actor: "L. Martin", actorInitials: "LM", type: "note", text: "Drafting parent communication for review. Will not send without sign-off." },
-      { id: "t7", ts: now - minutes(4), actor: "S. Nguyen", actorInitials: "SN", type: "note", text: "Student speaking with wellbeing lead. Refusing to call parent directly. Has agreed to remain on site with counsellor." },
+      { id: "t1", ts: now - minutes(23), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Incident opened. Initial severity: L3 Major." },
+      { id: "t2", ts: now - minutes(22), actor: "Adrian Johnson", actorInitials: "AJ", type: "action", text: "Activated EMP §4.3 — Student Mental Health Crisis Response. CIMT stood up." },
+      { id: "t3", ts: now - minutes(21), actor: "Stephanie Kiesel", actorInitials: "SK", type: "note", text: "On site with student. Calm but distressed. No visible injury. Ventolin not required." },
+      { id: "t4", ts: now - minutes(18), actor: "Stephanie Kiesel", actorInitials: "SK", type: "note", text: "Wellbeing assessment underway. Counselling Services activated; external counsellor on standby." },
+      { id: "t5", ts: now - minutes(14), actor: "Annika Fairley", actorInitials: "AF", type: "note", text: "Impact assessment: contained, single student, no operational impact. Level confirmed L3." },
+      { id: "t6", ts: now - minutes(9), actor: "Simon Fairall", actorInitials: "SF", type: "note", text: "Drafting parent communication for Leader approval. Will not send without sign-off." },
+      { id: "t7", ts: now - minutes(4), actor: "Stephanie Kiesel", actorInitials: "SK", type: "note", text: "Student refusing to call parent directly. Has agreed to remain on site with counsellor." },
     ],
     tasks: [
-      { id: "tk1", text: "Confirm parent contact attempt", owner: "LM", done: false, priority: "high" },
-      { id: "tk2", text: "Document incident in wellbeing register", owner: "SN", done: false, priority: "med" },
-      { id: "tk3", text: "Notify Year Advisor (Ms Nguyen)", owner: "KP", done: true, priority: "med" },
-      { id: "tk4", text: "Prepare head office notification draft", owner: "KP", done: false, priority: "high" },
-      { id: "tk5", text: "Schedule student check-in for tomorrow AM", owner: "SN", done: false, priority: "low" },
+      { id: "tk1", text: "Contact parents/guardians once Leader approves", owner: "SF", done: false, priority: "high" },
+      { id: "tk2", text: "Document the disclosure factually in the incident log", owner: "SK", done: false, priority: "med" },
+      { id: "tk3", text: "Determine whether a mandatory report is required (ROSH)", owner: "SK", done: true, priority: "high" },
+      { id: "tk4", text: "Notify Chair of College Council / AngliSchools if escalates", owner: "AJ", done: false, priority: "high" },
+      { id: "tk5", text: "Schedule student check-in for tomorrow AM", owner: "SK", done: false, priority: "low" },
     ],
   });
 
@@ -400,15 +410,15 @@ export function buildSampleIncidents() {
     policies: defaultPoliciesForType("medical"),
     student: null,
     roles: [
-      { id: "r1", role: "Incident Commander", staff: "K. Patel", initials: "KP", status: "confirmed", required: true, isPrincipal: true },
-      { id: "r2", role: "First Aid", staff: "J. Okafor", initials: "JO", status: "confirmed", required: true },
-      { id: "r3", role: "Family Liaison", staff: "—", initials: "—", status: "unassigned", required: true, suggested: "L. Martin" },
-      { id: "r4", role: "Documenter", staff: "A. Wright", initials: "AW", status: "confirmed", required: true },
+      { id: "r1", role: "Critical Incident Leader", staff: "Adrian Johnson", initials: "AJ", status: "confirmed", required: true, isPrincipal: true },
+      { id: "r2", role: "Support Coordinator", staff: "Jessica Sevil", initials: "JS", status: "confirmed", required: true },
+      { id: "r3", role: "Planning Coordinator", staff: "Annika Fairley", initials: "AF", status: "confirmed", required: true },
+      { id: "r4", role: "Student Coordinator", staff: "—", initials: "—", status: "unassigned", required: true, suggested: "Simon Fairall" },
     ],
     timeline: [
-      { id: "t1", ts: now - minutes(8), actor: "K. Patel", actorInitials: "KP", type: "system", text: "Incident opened. Initial severity: L2 Moderate." },
-      { id: "t2", ts: now - minutes(7), actor: "J. Okafor", actorInitials: "JO", type: "note", text: "On scene. Student conscious, ankle visibly swollen, painful on weight-bearing." },
-      { id: "t3", ts: now - minutes(3), actor: "J. Okafor", actorInitials: "JO", type: "action", text: "Splint applied. Awaiting parent collection / ambulance decision." },
+      { id: "t1", ts: now - minutes(8), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Incident opened. Initial severity: L2 Moderate." },
+      { id: "t2", ts: now - minutes(7), actor: "Annika Fairley", actorInitials: "AF", type: "note", text: "ECO first aider on scene (Oval). Student conscious, ankle swollen, painful on weight-bearing." },
+      { id: "t3", ts: now - minutes(3), actor: "Annika Fairley", actorInitials: "AF", type: "action", text: "Splint applied by first aider. Awaiting parent collection / ambulance decision." },
     ],
     tasks: tasksForIncidentType("medical"),
   });
@@ -430,21 +440,21 @@ export function buildSampleIncidents() {
     policies: defaultPoliciesForType("behavioural"),
     student: null,
     roles: [
-      { id: "r1", role: "Incident Commander", staff: "K. Patel", initials: "KP", status: "confirmed", required: true, isPrincipal: true },
-      { id: "r2", role: "Wellbeing Lead", staff: "S. Nguyen", initials: "SN", status: "confirmed", required: true },
-      { id: "r3", role: "Family Liaison", staff: "L. Martin", initials: "LM", status: "confirmed", required: true },
-      { id: "r4", role: "Documenter", staff: "A. Wright", initials: "AW", status: "confirmed", required: true },
+      { id: "r1", role: "Critical Incident Leader", staff: "Adrian Johnson", initials: "AJ", status: "confirmed", required: true, isPrincipal: true },
+      { id: "r2", role: "Support Coordinator", staff: "Jessica Sevil", initials: "JS", status: "confirmed", required: true },
+      { id: "r3", role: "Student Coordinator", staff: "Simon Fairall", initials: "SF", status: "confirmed", required: true },
+      { id: "r4", role: "Student Wellbeing Services Coordinator", staff: "Stephanie Kiesel", initials: "SK", status: "confirmed", required: true },
     ],
     timeline: [
-      { id: "t1", ts: now - minutes(60 * 26), actor: "K. Patel", actorInitials: "KP", type: "system", text: "Incident opened. Initial severity: L1 Minor." },
-      { id: "t2", ts: now - minutes(60 * 26 - 5), actor: "S. Nguyen", actorInitials: "SN", type: "note", text: "Two students separated and spoken with. No injuries." },
-      { id: "t3", ts: now - minutes(60 * 25), actor: "L. Martin", actorInitials: "LM", type: "action", text: "Both sets of parents notified by phone." },
-      { id: "t4", ts: now - minutes(60 * 24), actor: "K. Patel", actorInitials: "KP", type: "system", text: "Incident closed. Resolution: minor disagreement, both students reconciled, restorative conversation completed." },
+      { id: "t1", ts: now - minutes(60 * 26), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Incident opened. Initial severity: L1 Minor." },
+      { id: "t2", ts: now - minutes(60 * 26 - 5), actor: "Stephanie Kiesel", actorInitials: "SK", type: "note", text: "Two students separated and spoken with individually. No injuries." },
+      { id: "t3", ts: now - minutes(60 * 25), actor: "Simon Fairall", actorInitials: "SF", type: "action", text: "Both sets of parents notified by phone." },
+      { id: "t4", ts: now - minutes(60 * 24), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Incident closed. Resolution: minor disagreement, both students reconciled, restorative conversation completed." },
     ],
     tasks: [
-      { id: "tk1", text: "Restorative conversation with both students", owner: "SN", done: true, priority: "high" },
-      { id: "tk2", text: "Notify both sets of parents", owner: "LM", done: true, priority: "high" },
-      { id: "tk3", text: "Log in behaviour register", owner: "AW", done: true, priority: "med" },
+      { id: "tk1", text: "Restorative conversation with both students", owner: "SK", done: true, priority: "high" },
+      { id: "tk2", text: "Notify both sets of parents", owner: "SF", done: true, priority: "high" },
+      { id: "tk3", text: "Log in behaviour register", owner: "JS", done: true, priority: "med" },
     ],
   });
 
@@ -465,21 +475,22 @@ export function buildSampleIncidents() {
     policies: defaultPoliciesForType("evacuation"),
     student: null,
     roles: [
-      { id: "r1", role: "Incident Commander", staff: "K. Patel", initials: "KP", status: "confirmed", required: true, isPrincipal: true },
-      { id: "r2", role: "Floor Wardens", staff: "5 staff", initials: "FW", status: "confirmed", required: true },
-      { id: "r3", role: "Headcount Officer", staff: "A. Wright", initials: "AW", status: "confirmed", required: true },
-      { id: "r4", role: "Communications Lead", staff: "L. Martin", initials: "LM", status: "confirmed", required: true },
-      { id: "r5", role: "Documenter", staff: "R. Chen", initials: "RC", status: "confirmed", required: true },
+      { id: "r1", role: "Critical Incident Leader", staff: "Adrian Johnson", initials: "AJ", status: "confirmed", required: true, isPrincipal: true },
+      { id: "r2", role: "Support Coordinator", staff: "Jessica Sevil", initials: "JS", status: "confirmed", required: true },
+      { id: "r3", role: "Planning Coordinator", staff: "Annika Fairley", initials: "AF", status: "confirmed", required: true },
+      { id: "r4", role: "College Services", staff: "Matt Everon", initials: "ME", status: "confirmed", required: true },
+      { id: "r5", role: "Facilities", staff: "Warwick Rolls", initials: "WR", status: "confirmed", required: true },
+      { id: "r6", role: "Communications Coordinator", staff: "Megan Whitsed", initials: "MW", status: "confirmed", required: true },
     ],
     timeline: [
-      { id: "t1", ts: now - minutes(60 * 30), actor: "K. Patel", actorInitials: "KP", type: "system", text: "Drill commenced. Type: Fire / Evacuation." },
-      { id: "t2", ts: now - minutes(60 * 30 - 4), actor: "A. Wright", actorInitials: "AW", type: "note", text: "All 487 students accounted for at assembly point. Time: 4 min 12 sec." },
-      { id: "t3", ts: now - minutes(60 * 29), actor: "K. Patel", actorInitials: "KP", type: "system", text: "Drill closed. Performance: Within target. Minor delay in C-Block staircase noted for review." },
+      { id: "t1", ts: now - minutes(60 * 30), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Drill commenced. Type: Fire / Evacuation. ECO (warden team) leading the evacuation per the ERP; CIMT coordinating." },
+      { id: "t2", ts: now - minutes(60 * 30 - 4), actor: "Annika Fairley", actorInitials: "AF", type: "note", text: "Chief Warden reports all 487 students accounted for at assembly point. Time: 4 min 12 sec." },
+      { id: "t3", ts: now - minutes(60 * 29), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Drill closed. Performance: Within target. Minor delay in C-Block staircase noted for review." },
     ],
     tasks: [
-      { id: "tk1", text: "All students to assembly point", owner: "FW", done: true, priority: "high" },
-      { id: "tk2", text: "Complete headcount", owner: "AW", done: true, priority: "high" },
-      { id: "tk3", text: "Log drill in compliance register", owner: "RC", done: true, priority: "med" },
+      { id: "tk1", text: "Confirm whole-site headcount from the Chief Warden", owner: "AF", done: true, priority: "high" },
+      { id: "tk2", text: "Confirm assembly-area management and re-entry point", owner: "ME", done: true, priority: "high" },
+      { id: "tk3", text: "Log drill in compliance register", owner: "JS", done: true, priority: "med" },
     ],
   });
 
@@ -490,14 +501,56 @@ export function buildSampleIncidents() {
 function defaultState() {
   return {
     incidents: [],
-    staff: [],
+    staff: buildCimtRoster(),
     settings: {
-      principalName: "K. Patel",
-      principalInitials: "KP",
-      schoolName: "Demo School",
+      principalName: "Adrian Johnson",
+      principalInitials: "AJ",
+      schoolName: "Trinity Anglican College",
     },
-    version: 2,
+    version: 3,
   };
+}
+
+// Seed the real TAC CIMT roster from the CIM & BCP (V0.3): primary
+// role-holders + the alternate bench, mapped to the 13 CIMT roles.
+// Names + positions only — personal contact numbers are intentionally
+// NOT stored here; they are captured per-staff in-app (and, once the
+// backend lands, under RBAC). Alternates carry their role as a backup
+// (secondaryRoles) so they surface as failover candidates, not primaries.
+function buildCimtRoster() {
+  const P = (firstName, lastName, jobTitle, department, primaryRole, otherQualifiedRoles = []) =>
+    newStaffMember({ firstName, lastName, jobTitle, department, primaryRole, otherQualifiedRoles });
+  const A = (firstName, lastName, jobTitle, department, backupRole) =>
+    newStaffMember({ firstName, lastName, jobTitle, department, primaryRole: "", secondaryRoles: [backupRole] });
+  return [
+    // --- Primary CIMT ---
+    P("Adrian", "Johnson", "Principal", "Executive", "Critical Incident Leader"),
+    P("Jessica", "Sevil", "Executive Assistant – Principal", "Executive", "Support Coordinator"),
+    P("Annika", "Fairley", "Risk & Compliance Officer", "Operations", "Planning Coordinator", ["Recovery Coordinator"]),
+    P("Stephanie", "Gardiner", "Human Resources Officer", "Operations", "Staff Coordinator"),
+    P("Stephanie", "Kiesel", "Student Wellbeing Services Coordinator", "Wellbeing", "Student Wellbeing Services Coordinator"),
+    P("Simon", "Fairall", "Head of Junior School", "Teaching", "Student Coordinator"),
+    P("Sharon", "Finlay", "Business Manager", "Operations", "College Services"),
+    P("Matt", "Everon", "Facilities Manager", "Facilities", "Facilities", ["College Services"]),
+    P("Megan", "Whitsed", "Marketing Manager", "Marketing", "Communications Coordinator"),
+    P("Scott", "Barlow", "IT Manager", "IT", "Recovery – IT Coordinator"),
+    P("Nash", "Clark", "Director of Teaching & Learning", "Teaching", "Recovery – Curriculum", ["Recovery Coordinator"]),
+    P("Jarrod", "Monaghan", "Dean of Activities", "Activities", "Recovery – Co-Curriculum"),
+    // --- Alternate bench ---
+    A("Kathy", "Fletcher", "Deputy Principal", "Executive", "Critical Incident Leader"),
+    A("Sue", "James", "Senior School Attendance Officer", "Operations", "Support Coordinator"),
+    A("Victoria", "Fordham", "Academic Admin Officer", "Operations", "Support Coordinator"),
+    A("Angela", "Phillips", "Administration Assistant", "Operations", "Support Coordinator"),
+    A("Natisha", "Harrison", "Payroll Officer", "Operations", "Staff Coordinator"),
+    A("David", "Smith", "Head of Senior School", "Teaching", "Student Coordinator"),
+    A("Lydia", "Billington", "Kindy Coordinator", "Teaching", "Student Coordinator"),
+    A("Warwick", "Rolls", "Facilities & Groundsman", "Facilities", "Facilities"),
+    A("Tegan", "Hull", "Marketing & Events Officer", "Marketing", "Communications Coordinator"),
+    A("Sean", "Colemen", "IT Systems Administrator", "IT", "Recovery – IT Coordinator"),
+    A("Stephanie", "Davis", "Dean of Studies Senior", "Teaching", "Recovery – Curriculum"),
+    A("Lauren", "Naldrett", "Dean of Studies Junior", "Teaching", "Recovery – Curriculum"),
+    A("Linda", "Jensen", "Activities Administration Officer", "Activities", "Recovery – Co-Curriculum"),
+  ];
 }
 
 export function loadAll() {
@@ -548,6 +601,8 @@ export function loadSampleData() {
   for (const s of samples) {
     if (!existingIds.has(s.id)) state.incidents.push(s);
   }
+  // Seed the real CIMT roster if the directory is empty (existing installs).
+  if (!state.staff || state.staff.length === 0) state.staff = buildCimtRoster();
   saveAll(state);
 }
 
@@ -565,72 +620,180 @@ export function listIncidents() {
 
 // Master list of all role types CIMPLE knows about.
 // Each role has a description and reporting line.
+// The 13 CIMT roles from the TAC Critical Incident & Business Continuity
+// Management Plan (V0.3). Descriptions + reporting lines are the plan's.
 export const ROLE_DEFINITIONS = {
-  "Incident Commander": {
-    description: "Overall command of the incident. Final decision-maker on severity, escalation, role assignment, and closure. Signs off all external communications.",
-    reportsTo: "Head Office (in escalations)",
-    typicallyHeldBy: "Principal or Deputy Principal",
+  "Critical Incident Leader": {
+    description: "Manages and coordinates the incident protocol and procedures. Assumes control, sets objectives, determines the incident level and which CIMT roles to activate, is the media spokesperson, and approves all external communications. Uses the Critical Incident Escalation Checklist to guide actions start to finish.",
+    reportsTo: "Chair of College Council / CEO of AngliSchools (escalation)",
+    typicallyHeldBy: "Principal (Adrian Johnson); alternate Deputy Principal",
   },
-  "Deputy Commander": {
-    description: "Acts as second-in-charge to the Incident Commander. Steps into command if the IC is unavailable. Coordinates internal logistics during the response.",
-    reportsTo: "Incident Commander",
-    typicallyHeldBy: "Deputy Principal or senior leader",
+  "Support Coordinator": {
+    description: "Supports the administrative functions of the CIMT: notifies members (WhatsApp/Teams), activates and runs the Critical Incident Control Room, initiates and maintains the incident log, establishes the visual boards (Facts/Assumptions/Issues/Actions) and CIMT meeting schedule.",
+    reportsTo: "Critical Incident Leader",
+    typicallyHeldBy: "Executive Assistant – Principal (Jessica Sevil)",
   },
-  "Wellbeing Lead": {
-    description: "Coordinates psychological and emotional support for affected students and staff. Liaises with school counsellor and external mental health services.",
-    reportsTo: "Incident Commander",
-    typicallyHeldBy: "Head of Wellbeing or School Counsellor",
+  "Planning Coordinator": {
+    description: "Intelligence gathering and impact assessment to guide CIMT planning. Confirms scene facts, maintains liaison with the Chief Warden and emergency services, conducts the impact & issues assessment, monitors sources (BOM, emergency services), and develops the Incident Action Plan.",
+    reportsTo: "Critical Incident Leader",
+    typicallyHeldBy: "Risk & Compliance Officer (Annika Fairley)",
   },
-  "First Aid": {
-    description: "Provides immediate medical response. Triages injuries. Logs treatment given. Liaises with paramedics on arrival.",
-    reportsTo: "Incident Commander",
-    typicallyHeldBy: "First Aid Officer",
+  "Staff Coordinator": {
+    description: "Identifies staff at risk and manages ongoing staff wellbeing. Contacts families of injured staff, maintains contact with hospitalised staff, manages fatigue/trauma/IR issues, and arranges debriefing/EAP and counselling.",
+    reportsTo: "Critical Incident Leader",
+    typicallyHeldBy: "Human Resources Officer (Stephanie Gardiner)",
   },
-  "Family Liaison": {
-    description: "Sole point of contact with affected students' families. Ensures timely, consistent communication. All parent contact is logged through this role.",
-    reportsTo: "Incident Commander",
-    typicallyHeldBy: "Front Office Lead or designated staff member",
+  "Student Coordinator": {
+    description: "Identifies students at risk and manages ongoing student wellbeing. Locates students (on/off campus), contacts parents/guardians of injured students, maintains the parent staging area, and arranges counselling and debriefing.",
+    reportsTo: "Critical Incident Leader",
+    typicallyHeldBy: "Head of Junior/Senior School (Simon Fairall)",
   },
-  "Documenter": {
-    description: "Maintains the incident timeline. Records actions, decisions, and communications. Ensures audit-ready record-keeping.",
-    reportsTo: "Incident Commander",
-    typicallyHeldBy: "Admin Staff",
+  "Student Wellbeing Services Coordinator": {
+    description: "Coordinates psychological and counselling support. Activates College Counselling Services, identifies at-risk students and staff, develops support plans, and coordinates internal and external counsellors (WWCC, code of conduct).",
+    reportsTo: "Student Coordinator",
+    typicallyHeldBy: "Student Wellbeing Services Coordinator (Stephanie Kiesel)",
   },
-  "Communications Lead": {
-    description: "Drafts internal and external communications. All comms route through this role for consistency before Principal approval.",
-    reportsTo: "Incident Commander",
-    typicallyHeldBy: "Designated communications staff member",
+  "College Services": {
+    description: "Establishes the operational plan for on-the-ground responses. Coordinates operations at the scene, oversees staging areas (Control Room, Assembly, Triage, Media, Counselling/Wellbeing Hub), containment, security, alternate-site activation, transport and physical resources.",
+    reportsTo: "Critical Incident Leader",
+    typicallyHeldBy: "Business Manager (Sharon Finlay)",
   },
-  "Floor Wardens": {
-    description: "Lead evacuation/lockdown of their assigned area. Conduct headcounts. Report status to Incident Commander.",
-    reportsTo: "Incident Commander",
-    typicallyHeldBy: "Designated teaching staff per zone",
+  "Facilities": {
+    description: "Supports College Services with facilities and grounds. Makes affected areas safe, monitors life-essential services, assists with barriers/signage/containment, considers utility shut-off (water/gas/power), and supports clean-up.",
+    reportsTo: "College Services",
+    typicallyHeldBy: "Facilities Manager (Matt Everon)",
   },
-  "Headcount Officer": {
-    description: "Receives roll status from each Floor Warden. Reconciles against expected attendance. Reports any unaccounted persons to Incident Commander immediately.",
-    reportsTo: "Incident Commander",
-    typicallyHeldBy: "Admin Staff or Deputy",
+  "Communications Coordinator": {
+    description: "Communicates to internal and external stakeholders. Drafts the holding statement for Leader approval, briefs reception, monitors media/social, assesses the comms exposure level (1–4), confirms the communications strategy, and prepares key messages and the FAQ single-source-of-truth. All comms route through this role before Leader sign-off.",
+    reportsTo: "Critical Incident Leader",
+    typicallyHeldBy: "Marketing Manager (Megan Whitsed)",
   },
-  "Search Coordinator": {
-    description: "Coordinates organised search for missing student. Assigns search zones. Liaises with police if escalated.",
-    reportsTo: "Incident Commander",
-    typicallyHeldBy: "Deputy Principal or senior leader",
+  "Recovery Coordinator": {
+    description: "Maintains critical business functions and determines incident-related expenditure for approval. Runs impact assessments on critical business functions, establishes workarounds for functions that can't meet their RTO, activates alternate sites/relocation, manages insurance, and facilitates phased resumption.",
+    reportsTo: "Critical Incident Leader",
+    typicallyHeldBy: "Risk & Compliance Officer (Annika Fairley); alternate Director of Teaching & Learning",
   },
-  "Police Liaison": {
-    description: "Sole point of contact with attending police. Ensures information flow is controlled and accurate. Records all police interactions.",
-    reportsTo: "Incident Commander",
-    typicallyHeldBy: "Principal, Deputy, or designated leader",
+  "Recovery – IT Coordinator": {
+    description: "Leads IT recovery. Conducts the IT impact assessment, implements the IT Disaster Recovery Plan, approves back-up IT accesses, and reports status to the Recovery Coordinator.",
+    reportsTo: "Recovery Coordinator",
+    typicallyHeldBy: "IT Manager (Scott Barlow)",
   },
-  "Counsellor (External)": {
-    description: "External mental health professional brought in to provide additional support. Coordinated through Wellbeing Lead.",
-    reportsTo: "Wellbeing Lead",
-    typicallyHeldBy: "Headspace, school psychologist, or contracted service",
+  "Recovery – Curriculum": {
+    description: "Continuity of curriculum delivery. Reviews the impact on curriculum, establishes a continuity plan, decides timetable/scheduling changes, and communicates changes and event/excursion decisions to staff and students.",
+    reportsTo: "Recovery Coordinator",
+    typicallyHeldBy: "Director of Teaching & Learning (Nash Clark)",
   },
-  "Front Office Lead": {
-    description: "Manages the front-of-school during the incident. Handles unexpected visitors and gate control. First point of contact for arriving services.",
-    reportsTo: "Incident Commander",
-    typicallyHeldBy: "Front Office Manager",
+  "Recovery – Co-Curriculum": {
+    description: "Continuity of co-curricular activities (sport, music, tours). Reviews the impact on co-curricular programs, contacts departments with out-of-hours responsibilities, and communicates changes to families and staff.",
+    reportsTo: "Recovery Coordinator",
+    typicallyHeldBy: "Dean of Activities (Jarrod Monaghan)",
   },
+};
+
+// ------------------------------------------------------------------
+// CIMT ROLE CHECKLISTS — the plan's incident-agnostic role checklists
+// (CIM & BCP V0.3 §4.2–4.9). These are each role's standing actions for
+// ANY incident; the general Escalation Checklist covers most incidents,
+// with type-specific response procedures adding unique steps (Pivot 3).
+// Used as the baseline task/responsibility source for every CIMT role.
+// { text, due (min), approval, mandatory }.
+// ------------------------------------------------------------------
+export const CIMT_ROLE_CHECKLISTS = {
+  "Critical Incident Leader": [
+    { text: "Assume control; use the Critical Incident Escalation Checklist to guide actions start to finish", due: 5 },
+    { text: "Conduct an incident assessment and determine the incident level", due: 10 },
+    { text: "Determine which CIMT members and roles are required", due: 10 },
+    { text: "Formally declare a Critical Incident", due: 10 },
+    { text: "Notify the Chair of College Council and CEO of AngliSchools", due: 20, mandatory: true },
+    { text: "Assume responsibility as media spokesperson for the College", due: 20 },
+    { text: "Approve the communications strategy and all external communications", due: 20, approval: true },
+    { text: "Provide regular briefings to CIMT, Council, AngliSchools, media, parents, students", due: 30 },
+    { text: "Arrange a Post-Incident Review within 7 days of the incident", due: 300 },
+  ],
+  "Support Coordinator": [
+    { text: "When directed, notify CIMT members via WhatsApp and call out support personnel", due: 5 },
+    { text: "Set up the incident Teams channel (incident name + date); copy templates from the General channel", due: 10 },
+    { text: "Activate the Critical Incident Control Room (Boardroom) and confirm equipment is operational", due: 10 },
+    { text: "Initiate and maintain the incident log", due: 10 },
+    { text: "Establish the visual boards — Facts, Assumptions, Issues, Actions, CIMT structure, Impact", due: 15 },
+    { text: "Establish the CIMT meeting schedule and shift rosters", due: 20 },
+    { text: "For an extended disruption, organise food, water and accommodation", due: 120 },
+  ],
+  "Planning Coordinator": [
+    { text: "Confirm the safe, orderly evacuation of staff, students and visitors from the affected site", due: 10 },
+    { text: "Maintain liaison with the Chief Warden, emergency services and the Critical Incident Leader", due: 10 },
+    { text: "Gather information: what/when/where, injuries, escalation, media, and source reliability", due: 10 },
+    { text: "Conduct the impact & issues assessment to determine severity and the response procedure", due: 20 },
+    { text: "Monitor sources of information (BOM, emergency-services websites)", due: 20 },
+    { text: "Develop the Incident Action Plan / briefing", due: 30 },
+  ],
+  "Staff Coordinator": [
+    { text: "Assess current and potential people risks; identify vulnerable staff and visitors", due: 10 },
+    { text: "Contact families of injured staff; maintain contact with hospitalised staff", due: 15 },
+    { text: "Manage fatigue, trauma awareness and any industrial-relations issues", due: 25 },
+    { text: "Arrange debriefing/EAP for at-risk staff and counselling as needed", due: 30 },
+    { text: "Monitor the wellbeing of staff", due: 45 },
+  ],
+  "Student Coordinator": [
+    { text: "Identify the location of students (on campus / off campus)", due: 8 },
+    { text: "Assess current and potential student risks; identify vulnerable students", due: 10 },
+    { text: "Contact parents/guardians of injured students", due: 15, approval: true },
+    { text: "Maintain contact with hospitalised students and their families", due: 20 },
+    { text: "Maintain the parent liaison at the parent staging area", due: 30 },
+    { text: "Arrange counselling and debriefing for at-risk students", due: 30 },
+  ],
+  "Student Wellbeing Services Coordinator": [
+    { text: "Activate College Counselling Services", due: 10 },
+    { text: "Identify students and staff at risk of trauma and develop support plans", due: 20 },
+    { text: "Coordinate internal and external counsellors (WWCC, code of conduct)", due: 30 },
+    { text: "Monitor at-risk individuals and any memorial sites over time", due: 60 },
+  ],
+  "College Services": [
+    { text: "Develop operational objectives in line with the Leader's incident objectives", due: 10 },
+    { text: "Coordinate operations at the incident scene and any responding staff", due: 10 },
+    { text: "Oversee staging areas: Control Room, Assembly Area, Triage, Media, Counselling (Wellbeing Hub)", due: 15 },
+    { text: "Contain the incident area (barriers, signage) and organise security", due: 15 },
+    { text: "Activate alternate site(s); organise transport if required", due: 25 },
+    { text: "Procure and maintain physical resources and materials", due: 25 },
+  ],
+  "Facilities": [
+    { text: "Make affected areas safe; monitor life-essential services (e.g. smoke detectors)", due: 10 },
+    { text: "Assist with barriers, signage and containment", due: 15 },
+    { text: "Consider shutting down utilities (water/gas/power) if required", due: 15 },
+    { text: "Support site clean-up and asset-register updates", due: 60 },
+  ],
+  "Communications Coordinator": [
+    { text: "Draft a holding statement for the Critical Incident Leader to approve", due: 15, approval: true },
+    { text: "Email all staff the holding statement + reminder to refer media on and not post to social media", due: 20, approval: true },
+    { text: "Brief reception with a script for calls and enquiries", due: 20 },
+    { text: "Allocate a team member to monitor social media", due: 20 },
+    { text: "Assess the comms exposure level (1–4) and confirm the communications strategy", due: 25 },
+    { text: "Prepare key messages and the FAQ single-source-of-truth for Leader approval", due: 30, approval: true },
+    { text: "Coordinate the media staging area and spokesperson preparation", due: 35 },
+  ],
+  "Recovery Coordinator": [
+    { text: "Conduct impact assessments to determine effects on critical business functions", due: 20 },
+    { text: "Identify functions that cannot meet their RTO and establish workarounds", due: 30 },
+    { text: "Activate alternate site(s) and staff/student relocation as needed", due: 30 },
+    { text: "Manage insurance requirements during the incident", due: 45 },
+    { text: "Facilitate the phased resumption of operations", due: 120 },
+  ],
+  "Recovery – IT Coordinator": [
+    { text: "Conduct an IT impact assessment to determine the extent of disruption", due: 20 },
+    { text: "Lead IT recovery and implement the IT Disaster Recovery Plan", due: 30 },
+    { text: "Approve back-up IT accesses and privileges", due: 40 },
+    { text: "Provide the Recovery Coordinator with regular status updates", due: 60 },
+  ],
+  "Recovery – Curriculum": [
+    { text: "Review the impact on curriculum delivery and establish a continuity plan", due: 30 },
+    { text: "Decide timetable/scheduling changes; coordinate assemblies and staff meetings", due: 40 },
+    { text: "Communicate changes to staff and students; make event/excursion decisions", due: 45 },
+  ],
+  "Recovery – Co-Curriculum": [
+    { text: "Review the impact on co-curricular activities (sport, music, tours)", due: 30 },
+    { text: "Contact departments with out-of-hours responsibilities and advise of changes", due: 40 },
+    { text: "Communicate co-curricular changes to families and staff", due: 45 },
+  ],
 };
 
 // Per-incident-type responsibilities for each role.
@@ -1405,7 +1568,13 @@ function normResp(e) {
 }
 
 export function responsibilitiesFor(roleName, incidentType) {
-  const list = PLAYBOOK_TASKS[incidentType]?.[roleName] || ROLE_RESPONSIBILITIES[incidentType]?.[roleName];
+  // Type-specific response-procedure content (Pivot 3, keyed by legacy roles)
+  // takes precedence; otherwise fall back to the CIMT role's standing
+  // checklist from the plan (§4.2–4.9), which applies to any incident.
+  const list =
+    PLAYBOOK_TASKS[incidentType]?.[roleName] ||
+    ROLE_RESPONSIBILITIES[incidentType]?.[roleName] ||
+    CIMT_ROLE_CHECKLISTS[roleName];
   return list ? list.map(normResp) : null;
 }
 
@@ -1417,7 +1586,7 @@ export function generateIncidentTasks(typeId, roles) {
   const out = [];
   let i = 0;
   for (const role of (roles || [])) {
-    const entries = (PLAYBOOK_TASKS[typeId]?.[role.role] || ROLE_RESPONSIBILITIES[typeId]?.[role.role] || []).map(normResp);
+    const entries = (PLAYBOOK_TASKS[typeId]?.[role.role] || ROLE_RESPONSIBILITIES[typeId]?.[role.role] || CIMT_ROLE_CHECKLISTS[role.role] || []).map(normResp);
     const owner = roleIsAssigned(role) ? role.initials : "—";
     for (const e of entries) {
       const due = e.due ?? 60;
@@ -1509,8 +1678,8 @@ function csvCell(v) {
 
 export function staffCsvTemplate() {
   const rows = [
-    ["Adrian", "Johnson", "ajohnson@school.edu.au", "0412 000 001", "Principal", "Executive", "available", "Incident Commander", "Police Liaison; Deputy Commander"],
-    ["Annika", "Fairley", "afairley@school.edu.au", "0412 000 002", "Risk & Compliance Officer", "Operations", "available", "Search Coordinator", "Documenter"],
+    ["Adrian", "Johnson", "ajohnson@trinityac.nsw.edu.au", "", "Principal", "Executive", "available", "Critical Incident Leader", ""],
+    ["Annika", "Fairley", "afairley@trinityac.nsw.edu.au", "", "Risk & Compliance Officer", "Operations", "available", "Planning Coordinator", "Recovery Coordinator"],
   ];
   return STAFF_CSV_HEADERS.join(",") + "\n" + rows.map((r) => r.map(csvCell).join(",")).join("\n") + "\n";
 }
@@ -1664,20 +1833,18 @@ export function staffContactAgeDays(staff) {
 // Drawn from PRD §13.2 (e.g. the source plan flags the Risk & Compliance
 // Officer being both Planning Coordinator and Recovery Coordinator).
 // Each pair: [roleA, roleB, reason shown to user].
+// CIMT role pairs one person should not hold at once (they pull in different
+// directions during an active incident). Note: the plan deliberately pairs
+// Planning + Recovery on one person (Annika Fairley), so that is NOT a conflict.
 export const ROLE_CONFLICTS = [
-  ["Incident Commander", "Documenter", "Commander must lead; cannot also keep the timeline."],
-  ["Incident Commander", "Police Liaison", "Commander must keep oversight; cannot be tied up briefing police."],
-  ["Incident Commander", "Family Liaison", "Family contact is sustained, hands-on work — Commander can't be off the floor."],
-  ["Incident Commander", "First Aid", "Hands-on first aid removes Commander from oversight."],
-  ["Incident Commander", "Floor Wardens", "Wardens are tied to a zone; Commander must be free to move."],
-  ["Wellbeing Lead", "Communications Lead", "Wellbeing must stay with affected people; comms drafting needs separate focus."],
-  ["Wellbeing Lead", "Documenter", "Both demand sustained attention in different rooms."],
-  ["Family Liaison", "Police Liaison", "Two simultaneous high-stakes external conversations — split them."],
-  ["Family Liaison", "Documenter", "Family calls require full presence; logging needs separate hands."],
-  ["First Aid", "Documenter", "First aider is hands-on with the patient; cannot also log."],
-  ["First Aid", "Communications Lead", "First aid takes priority; comms drafting must not wait on it."],
-  ["Headcount Officer", "Floor Wardens", "Officer receives counts from wardens — can't be both."],
-  ["Search Coordinator", "Documenter", "Coordinator is mobile and directing search; needs separate logger."],
+  ["Critical Incident Leader", "Support Coordinator", "The Leader leads and decides; Support runs the control room and log — different focus."],
+  ["Critical Incident Leader", "Communications Coordinator", "The Leader approves comms and is spokesperson; drafting them is a separate job."],
+  ["Critical Incident Leader", "College Services", "The Leader keeps oversight; College Services is hands-on at the scene."],
+  ["Critical Incident Leader", "Planning Coordinator", "The Leader needs an independent planning/intelligence read, not to do it themselves."],
+  ["Communications Coordinator", "Student Coordinator", "Comms drafting and student-family welfare demand attention in different rooms."],
+  ["Communications Coordinator", "Staff Coordinator", "Comms drafting and staff welfare demand attention in different rooms."],
+  ["Support Coordinator", "Planning Coordinator", "Both are control-room-heavy at the same time — split them."],
+  ["College Services", "Communications Coordinator", "On-the-ground operations and external comms can't be run by one person."],
 ];
 
 // Returns array of conflict descriptions for a given staff member's role set.
@@ -1741,25 +1908,25 @@ export function recommendAlternate(incident, roleId) {
 
 // Lower number = higher priority. Drives fill order + escalation.
 export const ROLE_PRIORITY = {
-  "Incident Commander": 1,
-  "Deputy Commander": 2,
-  "Police Liaison": 3,
-  "Search Coordinator": 3,
-  "Wellbeing Lead": 4,
-  "Communications Lead": 4,
-  "Family Liaison": 5,
-  "First Aid": 5,
-  "Headcount Officer": 6,
-  "Floor Wardens": 6,
-  "Front Office Lead": 6,
-  "Documenter": 7,
-  "Counsellor (External)": 8,
+  "Critical Incident Leader": 1,
+  "Support Coordinator": 2,
+  "Planning Coordinator": 2,
+  "Communications Coordinator": 3,
+  "College Services": 3,
+  "Student Coordinator": 4,
+  "Staff Coordinator": 4,
+  "Student Wellbeing Services Coordinator": 4,
+  "Facilities": 5,
+  "Recovery Coordinator": 5,
+  "Recovery – IT Coordinator": 6,
+  "Recovery – Curriculum": 6,
+  "Recovery – Co-Curriculum": 6,
 };
 
 // Extra roles pulled in at higher severities (deduped against the template).
 export const SEVERITY_ROLE_ADDONS = {
-  3: ["Communications Lead"],
-  4: ["Deputy Commander", "Communications Lead"],
+  3: ["Communications Coordinator"],
+  4: ["Communications Coordinator", "Recovery Coordinator"],
 };
 
 // Required roles for a type at a given severity = template + severity add-ons.
@@ -1926,7 +2093,7 @@ export const COMMS_TEMPLATES = [
     owner: null,
     suggestedTypes: ["lockdown", "evacuation", "external_threat", "hazmat", "natural_disaster", "death_offcampus"],
     body:
-      "STAFF NOTICE — {{incident_type}}\n\nAn incident is currently being managed at {{location}}. Please follow the instructions of your Floor Warden and the Incident Commander. Do not speak with media or post on social media. Await the all-clear via this channel.\n\n— Incident Commander",
+      "STAFF NOTICE — {{incident_type}}\n\nAn incident is currently being managed at {{location}}. Please follow the instructions of your Chief Warden and the Critical Incident Leader. Do not speak with media or post on social media. Await the all-clear via this channel.\n\n— Critical Incident Leader",
   },
   {
     id: "tpl-all-clear",
@@ -1965,7 +2132,7 @@ export function fillTemplate(body, incident) {
     location: incident?.location || "the College",
     date: now.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
     time: `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`,
-    principal: settings.principalName || "K. Patel",
+    principal: settings.principalName || "Adrian Johnson",
     school: "Trinity Anglican College",
   };
   return String(body).replace(/\{\{(\w+)\}\}/g, (m, key) => (key in tokens ? tokens[key] : m));
@@ -2176,7 +2343,7 @@ export function newDecision({ decision, rationale, options, evidence, reviewBy }
   return {
     id: `dec${Date.now()}`,
     ts: Date.now(),
-    decidedBy: "K. Patel",
+    decidedBy: (loadAll().settings || {}).principalName || "Critical Incident Leader",
     decision: decision || "",
     rationale: rationale || "",
     options: options || "",   // options considered
@@ -2351,7 +2518,7 @@ export const COPILOT_RULES = [
   { id: "COMMS-02", category: "Communications", evaluate: (c) => c.commsDrafted > 0 && c.commsApproved === 0 && !c.isClosed
     ? { severity: "advisory", issue: "Communications drafted, none approved", why: "Draft messages exist but none have Principal approval to release.", evidence: `${c.commsDrafted} drafted · 0 approved.`, target: "comms" } : null },
   { id: "COMMS-03", category: "Communications", evaluate: (c) => (c.severityNum >= 3 || c.activation) && !c.commsRoleAssigned && !c.isClosed
-    ? { severity: "important", issue: "No Communications Lead assigned", why: "A significant incident should have someone owning communications.", evidence: `Severity ${c.severityLabel} · comms role unfilled.`, target: null } : null },
+    ? { severity: "important", issue: "No Communications Coordinator assigned", why: "A significant incident should have someone owning communications.", evidence: `Severity ${c.severityLabel} · comms role unfilled.`, target: null } : null },
 
   // ---- COMMAND ----
   { id: "CMD-01", category: "Command", evaluate: (c) => !c.isClosed && c.elapsedMin >= 15 && c.decisionsCount === 0

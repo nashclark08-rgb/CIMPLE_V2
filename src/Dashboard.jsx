@@ -614,9 +614,9 @@ function LeftRail({ incident, update, addTimelineEntry, isClosed, setDrawer }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {[
             { name: "Emergency · 000", urgent: true },
-            { name: "Head Office" },
-            { name: "Police Liaison" },
-            { name: "Headspace" },
+            { name: "Chair of College Council" },
+            { name: "CEO · AngliSchools" },
+            { name: "AISNSW critical-incident support" },
           ].map((c) => (
             <button key={c.name} style={{
               display: "flex", alignItems: "center", gap: 8,
@@ -2295,7 +2295,7 @@ function BriefingView({ incident, role, onBack }) {
           <ul style={{ margin: 0, paddingLeft: 18 }}>
             {responsibilities.map((r, i) => <li key={i} style={{ fontSize: 13, lineHeight: 1.6, color: PALETTE.ink }}>{r.text} <RespFlags r={r} /></li>)}
           </ul>
-        ) : <p style={{ fontSize: 13, color: PALETTE.inkSoft, margin: 0 }}>Follow the Incident Commander's direction and this incident's task list.</p>}
+        ) : <p style={{ fontSize: 13, color: PALETTE.inkSoft, margin: 0 }}>Follow the Critical Incident Leader's direction and this incident's task list.</p>}
       </Section>
 
       <Section title={`Assigned tasks (${tasks.length})`}>
