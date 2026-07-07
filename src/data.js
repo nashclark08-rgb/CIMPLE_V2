@@ -1514,21 +1514,32 @@ export function suggestStaffForRole(roleName) {
 export const COMMS_CHANNELS = [
   { id: "digistorm", label: "Trinity App (DigiStorm)", note: "Primary parent channel · push notification" },
   { id: "sms", label: "SMS", note: "Out-of-band · numbers sourced from DigiStorm" },
-  { id: "email", label: "Email", note: "Staff & parent distribution lists" },
+  { id: "email", label: "Email", note: "Staff & parent lists · Seqta email for parents" },
   { id: "website", label: "Website notice", note: "Holding page built & hidden — ready to publish" },
-  { id: "vivi", label: "Vivi screens", note: "On-campus screens · evac/lockdown captured (not CI levels yet)" },
+  { id: "facebook", label: "Facebook", note: "Official page · post only AFTER the official message is issued" },
+  { id: "instagram", label: "Instagram", note: "Official account · post only AFTER the official message is issued" },
+  { id: "linkedin", label: "LinkedIn", note: "Official account · corporate/community" },
+  { id: "vivi", label: "Vivi screens", note: "On-campus screens · evac/lockdown captured" },
+  { id: "phone", label: "Phone / reception", note: "Reception uses the approved script; log all media calls" },
+  { id: "newsletter", label: "Newsletter", note: "Slower cadence · community updates" },
+  { id: "media_release", label: "Media release", note: "Via the Communications Coordinator; Leader-approved only" },
 ];
 
 export function channelLabel(id) {
   return COMMS_CHANNELS.find((c) => c.id === id)?.label || id;
 }
 
-// Who a message is addressed to.
+// Who a message is addressed to (CIM & BCP §6 + Crisis Comms Plan stakeholders).
 export const COMMS_AUDIENCES = [
   { id: "families_affected", label: "Affected families" },
   { id: "parents_all", label: "All parents & carers" },
+  { id: "students", label: "Students" },
   { id: "staff_all", label: "All staff" },
+  { id: "council", label: "College Council" },
+  { id: "asc", label: "Anglican Schools Commission (ASC) / AngliSchools" },
   { id: "community", label: "Wider community" },
+  { id: "suppliers", label: "Suppliers & contractors" },
+  { id: "neighbours", label: "Neighbouring properties" },
   { id: "media", label: "Media" },
   { id: "head_office", label: "Head office / network" },
 ];
@@ -1537,15 +1548,86 @@ export function audienceLabel(id) {
   return COMMS_AUDIENCES.find((a) => a.id === id)?.label || id;
 }
 
+// Communications exposure level (CIM & BCP §7, Crisis Comms Strategy — Assess).
+// Sets the intensity of the comms response; stored on incident.commsLevel.
+export const COMMS_LEVELS = {
+  1: { label: "Minimal exposure", color: "#5B8C7C", blurb: "Little or no attention. Pre-event information requests; public/media largely unaware." },
+  2: { label: "Moderate exposure", color: "#B89460", blurb: "Slow but steady media coverage. Parents aware; public aware but paying little attention." },
+  3: { label: "High exposure", color: "#A85535", blurb: "Increased local/regional media enquiries; media contacting non-CIMT staff; stakeholders/partners on site." },
+  4: { label: "Very high exposure", color: "#7A1820", blurb: "Multi-channel media; broadcast/print on-site for live coverage; high negative social traffic; anger/outrage." },
+};
+
+// Comms phases (Crisis Comms Plan) — aligned to Assess → Stabilise → Remedy /
+// the incident phase spine. Templates are tagged with the phase they suit.
+export const COMMS_PHASES = [
+  { id: "start", label: "At the start", blurb: "Immediate & decisive: assess, issue a holding statement, brief reception, families before public, single spokesperson." },
+  { id: "persist", label: "If it persists", blurb: "Sustain: factual updates via website/social/media, three key messages, guidance on what to do/avoid, monitor & correct misinformation." },
+  { id: "recovery", label: "Recovery", blurb: "Wind down: continue updates as needed, reduce cadence as the situation stabilises, resumption messaging." },
+];
+
+// Spokesperson & media-handling protocol (Crisis Comms Plan, MW).
+export const MEDIA_PROTOCOL = {
+  spokesperson: "Critical Incident Leader (Principal) — the sole College spokesperson.",
+  activates: "Communications Coordinator (Marketing Manager) activates the Crisis Communications Plan under the Leader's direction.",
+  rules: [
+    "Only the designated spokesperson speaks to media — one voice.",
+    "All media interactions are pre-approved, factual and courteous — no speculation or unverified information.",
+    "Families of the injured/deceased are notified by the appropriate person BEFORE any public announcement.",
+    "Press conferences: single spokesperson; schedule before 2:00pm for evening-news coverage; location TBA.",
+    "Monitor coverage; promptly correct significant misinformation; archive all coverage and Q&A.",
+  ],
+};
+
+// What reception / key contacts do when a reporter makes contact (CCP).
+export const RECEPTION_SCRIPT = [
+  "Do not comment on the situation.",
+  "Direct all reporters to the Communications Coordinator / Critical Incident Leader.",
+  "Collect the reporter's name, outlet, contact details and their questions.",
+  "Relay every enquiry to the Communications Coordinator immediately.",
+];
+
+// Social-media guardrails during a crisis (CCP best practices).
+export const SOCIAL_RULES = [
+  "Release the official message BEFORE any social-media post about the crisis.",
+  "Cancel all scheduled social-media posts until the crisis is resolved.",
+  "Avoid engaging with followers/comments so critical updates stay visible.",
+  "Official channels only: Seqta email, website, Facebook, Instagram.",
+];
+
 // Seeded template library. Holding & media statements are
 // attributed to MWHI (Megan Whitshed, Marketing Manager), who
 // per the PRD review already has holding statements drafted.
 // Bodies use {{tokens}} filled by fillTemplate() at draft time.
 export const COMMS_TEMPLATES = [
   {
+    id: "tpl-initial-alert",
+    name: "Immediate alert",
+    category: "alert",
+    phase: "start",
+    audienceId: "parents_all",
+    channels: ["digistorm", "sms", "vivi"],
+    owner: "MWHI — M. Whitshed",
+    suggestedTypes: ["lockdown", "evacuation", "external_threat", "hazmat", "natural_disaster"],
+    body:
+      "Trinity Anglican College is managing an emergency at {{location}}. Staff are following emergency procedures and are directing students. Please do NOT attend or phone the College. Await official updates via the College website and Trinity App.",
+  },
+  {
+    id: "tpl-holding-assessing",
+    name: "Holding statement — assessing",
+    category: "holding",
+    phase: "start",
+    audienceId: "parents_all",
+    channels: ["digistorm", "website", "facebook"],
+    owner: "MWHI — M. Whitshed",
+    suggestedTypes: ["lockdown", "evacuation", "external_threat", "hazmat", "natural_disaster", "cyber", "infrastructure"],
+    body:
+      "We are aware of a situation at Trinity Anglican College and are currently assessing it. The safety and wellbeing of our students and staff is our top priority. Please expect a further update from the Principal within the next two hours. For updates, please check our website or social media channels. — Trinity Anglican College",
+  },
+  {
     id: "tpl-holding",
     name: "Holding statement — families",
     category: "holding",
+    phase: "start",
     audienceId: "parents_all",
     channels: ["digistorm", "sms", "website"],
     owner: "MWHI — M. Whitshed",
@@ -1554,20 +1636,58 @@ export const COMMS_TEMPLATES = [
       "Trinity Anglican College is currently managing an incident at the College. The safety and wellbeing of our students and staff is our absolute priority, and our emergency procedures are in place. Please do not attend the College at this time and await official communication. A further update will follow as soon as we are able. — Trinity Anglican College",
   },
   {
+    id: "tpl-parent-email",
+    name: "Parent email — situation being managed",
+    category: "parent",
+    phase: "start",
+    audienceId: "parents_all",
+    channels: ["digistorm", "email"],
+    owner: "MWHI — M. Whitshed",
+    suggestedTypes: ["lockdown", "evacuation", "external_threat", "hazmat", "natural_disaster"],
+    body:
+      "Dear Parents,\n\nTrinity Anglican College is currently managing an emergency situation involving {{incident_type}}. All students and staff are safe, and we are following our emergency protocols.\n\nWe will keep you updated with further information as it becomes available. Please avoid calling the College so that phone lines remain open for emergency communication.\n\nThank you for your understanding.\n\n{{principal}}\nPrincipal, Trinity Anglican College",
+  },
+  {
     id: "tpl-media-holding",
     name: "Media holding statement",
     category: "media",
+    phase: "start",
     audienceId: "media",
-    channels: ["email"],
+    channels: ["email", "media_release"],
     owner: "MWHI — M. Whitshed",
     suggestedTypes: ["external_threat", "death_oncampus", "death_offcampus", "lockdown", "hazmat", "natural_disaster"],
     body:
       "Trinity Anglican College can confirm it is responding to an incident today, {{date}}. The College's priority is the safety and wellbeing of its students and staff, and established emergency procedures have been followed. The College is cooperating with emergency services and will provide further information as appropriate. Media enquiries: Marketing Manager, M. Whitshed. — Trinity Anglican College",
   },
   {
+    id: "tpl-staff-notice",
+    name: "Staff notice",
+    category: "staff",
+    phase: "start",
+    audienceId: "staff_all",
+    channels: ["email", "vivi"],
+    owner: null,
+    suggestedTypes: ["lockdown", "evacuation", "external_threat", "hazmat", "natural_disaster", "death_offcampus"],
+    body:
+      "STAFF NOTICE — {{incident_type}}\n\nAn incident is currently being managed at {{location}}. Please follow the instructions of your Chief Warden and the Critical Incident Leader. Do not speak with media or post on social media. Refer any media enquiries to the Communications Coordinator. Await the all-clear via this channel.\n\n— Critical Incident Leader",
+  },
+  {
+    id: "tpl-key-messages",
+    name: "Key messages — ongoing updates",
+    category: "keymsg",
+    phase: "persist",
+    audienceId: "community",
+    channels: ["website", "facebook", "instagram", "email"],
+    owner: "MWHI — M. Whitshed",
+    suggestedTypes: [],
+    body:
+      "Our three key messages for this incident:\n\n1. Our priority is the safety of our community. We are working closely with authorities to ensure all necessary precautions are taken.\n\n2. We are actively managing the situation and will continue to provide accurate, timely updates as more information becomes available.\n\n3. We understand the concern this has caused and are committed to keeping all stakeholders informed every step of the way.\n\n[Tailor these three messages to the verified facts, and adapt per audience — students, parents, staff, media.]",
+  },
+  {
     id: "tpl-parent-notify",
-    name: "Parent notification",
+    name: "Parent notification — factual detail",
     category: "parent",
+    phase: "persist",
     audienceId: "families_affected",
     channels: ["digistorm", "email"],
     owner: null,
@@ -1576,20 +1696,10 @@ export const COMMS_TEMPLATES = [
       "Dear Parents and Carers,\n\nWe are writing to inform you of an incident involving {{incident_type}} at Trinity Anglican College today, {{date}}. Our staff responded in line with the College's emergency management procedures and all students are safe and accounted for.\n\n[Add specific, factual detail here — do not speculate.]\n\nIf you have any concerns, please contact the College office. We will provide any further updates as needed.\n\nKind regards,\n{{principal}}\nPrincipal, Trinity Anglican College",
   },
   {
-    id: "tpl-staff-notice",
-    name: "Staff notice",
-    category: "staff",
-    audienceId: "staff_all",
-    channels: ["email", "vivi"],
-    owner: null,
-    suggestedTypes: ["lockdown", "evacuation", "external_threat", "hazmat", "natural_disaster", "death_offcampus"],
-    body:
-      "STAFF NOTICE — {{incident_type}}\n\nAn incident is currently being managed at {{location}}. Please follow the instructions of your Chief Warden and the Critical Incident Leader. Do not speak with media or post on social media. Await the all-clear via this channel.\n\n— Critical Incident Leader",
-  },
-  {
     id: "tpl-all-clear",
     name: "All-clear",
     category: "allclear",
+    phase: "recovery",
     audienceId: "parents_all",
     channels: ["digistorm", "sms", "website"],
     owner: null,
@@ -1600,7 +1710,9 @@ export const COMMS_TEMPLATES = [
 ];
 
 export const COMMS_CATEGORIES = {
+  alert: { label: "Immediate alert", color: "#7A1820" },
   holding: { label: "Holding statement", color: "#B89460" },
+  keymsg: { label: "Key messages", color: "#4F6D8F" },
   parent: { label: "Parent notification", color: "#00305E" },
   staff: { label: "Staff notice", color: "#5B8C7C" },
   allclear: { label: "All-clear", color: "#5B8C7C" },
@@ -1612,6 +1724,10 @@ export function templatesForIncidentType(typeId) {
   const suited = COMMS_TEMPLATES.filter((t) => t.suggestedTypes.includes(typeId));
   const rest = COMMS_TEMPLATES.filter((t) => !t.suggestedTypes.includes(typeId));
   return [...suited, ...rest];
+}
+
+export function commsPhaseMeta(id) {
+  return COMMS_PHASES.find((p) => p.id === id) || null;
 }
 
 // Substitute {{tokens}} in a template body against an incident.

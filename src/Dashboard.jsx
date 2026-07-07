@@ -17,6 +17,7 @@ import {
   SEVERITY, getIncident, saveIncident, listStaff, responsibilitiesFor, ROLE_DEFINITIONS,
   COMMS_CHANNELS, COMMS_AUDIENCES, COMMS_CATEGORIES, COMMS_STATUS,
   templatesForIncidentType, fillTemplate, newComm, channelLabel, audienceLabel,
+  COMMS_LEVELS, COMMS_PHASES, commsPhaseMeta, MEDIA_PROTOCOL, RECEPTION_SCRIPT, SOCIAL_RULES,
   ACTIVATION_CHANNELS, NOTIFY_STATUS, roleIsAssigned,
   PIR_STATUS, newPIR, newCorrectiveAction, pirFacts,
   DECISION_STATUS, newDecision,
@@ -2662,12 +2663,34 @@ function RecipientRow({ role, isClosed, onAck, onNoResponse, onEscalate, onRenot
 }
 
 /* ---------- Communications drawer (PRD M4) ---------- */
+function MiniList({ title, items }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div className="mono" style={{ fontSize: 9, letterSpacing: "0.1em", color: PALETTE.teal, opacity: 0.7, marginBottom: 5, textTransform: "uppercase" }}>{title}</div>
+      <ul style={{ margin: 0, paddingLeft: 16 }}>
+        {items.map((it, i) => <li key={i} style={{ fontSize: 12, lineHeight: 1.5, color: PALETTE.ink, marginBottom: 3 }}>{it}</li>)}
+      </ul>
+    </div>
+  );
+}
+
 function CommsDrawer({ incident, update, addTimelineEntry, isClosed }) {
   const comms = incident.comms || [];
   const [view, setView] = useState("list"); // "list" | "compose"
   const [editing, setEditing] = useState(null); // draft comm being composed
   const [aiState, setAiState] = useState("idle"); // idle | loading | error | done
   const [aiNote, setAiNote] = useState("");
+  const [showMedia, setShowMedia] = useState(false);
+
+  const cilRole = (incident.roles || []).find((r) => r.role === "Critical Incident Leader" && roleIsAssigned(r));
+  const principalName = cilRole?.staff || "Principal";
+  const commsLevel = incident.commsLevel || null;
+
+  function setLevel(lvl) {
+    if (isClosed) return;
+    update({ commsLevel: lvl });
+    addTimelineEntry({ type: "system", text: `Communications exposure level set to L${lvl} — ${COMMS_LEVELS[lvl].label}.` });
+  }
 
   function persistComms(nextComms) {
     update((prev) => ({ ...prev, comms: nextComms }));
@@ -2731,8 +2754,8 @@ function CommsDrawer({ incident, update, addTimelineEntry, isClosed }) {
 
   function approve(id) {
     const c = comms.find((x) => x.id === id);
-    persistComms(comms.map((x) => (x.id === id ? { ...x, status: "approved", approvedBy: "K. Patel", approvedAt: Date.now() } : x)));
-    addTimelineEntry({ type: "comm", text: `Communication approved by Principal — "${c.name}".` });
+    persistComms(comms.map((x) => (x.id === id ? { ...x, status: "approved", approvedBy: principalName, approvedAt: Date.now() } : x)));
+    addTimelineEntry({ type: "comm", text: `Communication approved by ${principalName} (Critical Incident Leader) — "${c.name}".` });
   }
 
   function dispatchComm(id) {
@@ -2814,10 +2837,44 @@ function CommsDrawer({ incident, update, addTimelineEntry, isClosed }) {
         <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.sage, marginBottom: 6 }}>MODULE M4 · COMMUNICATIONS</div>
         <div className="display" style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.015em" }}>Draft, approve, dispatch.</div>
         <p style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.85, marginTop: 8 }}>
-          Every message is drafted, signed off by the Principal, then released. Nothing is sent automatically.
+          Every message is drafted, signed off by the Critical Incident Leader ({principalName}), then released. Nothing is sent automatically.
           {incident.isDrill && " Drill mode — dispatch is simulated."}
         </p>
       </div>
+
+      {/* Exposure level (Crisis Comms Strategy — Assess) */}
+      <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6, marginBottom: 8 }}>MEDIA EXPOSURE LEVEL</div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+        {[1, 2, 3, 4].map((lvl) => {
+          const cfg = COMMS_LEVELS[lvl];
+          const on = commsLevel === lvl;
+          return (
+            <button key={lvl} onClick={() => setLevel(lvl)} disabled={isClosed} title={cfg.blurb} style={{
+              flex: 1, padding: "7px 6px", cursor: isClosed ? "default" : "pointer",
+              background: on ? cfg.color : PALETTE.paper, color: on ? PALETTE.paper : PALETTE.ink,
+              border: `1px solid ${on ? cfg.color : "rgba(0,48,94,0.18)"}`, fontSize: 11, fontWeight: on ? 600 : 500,
+            }}>L{lvl}</button>
+          );
+        })}
+      </div>
+      <p style={{ fontSize: 11.5, color: PALETTE.inkSoft, lineHeight: 1.5, margin: "0 0 16px" }}>
+        {commsLevel ? <><strong style={{ color: COMMS_LEVELS[commsLevel].color }}>{COMMS_LEVELS[commsLevel].label}.</strong> {COMMS_LEVELS[commsLevel].blurb}</> : "Assess the exposure level to set the intensity of the comms response."}
+      </p>
+
+      {/* Media handling & spokesperson protocol (Crisis Comms Plan) */}
+      <button onClick={() => setShowMedia((s) => !s)} className="btn-ghost" style={{ background: PALETTE.parchment, border: `1px solid rgba(0,48,94,0.12)`, width: "100%", textAlign: "left", padding: "10px 12px", marginBottom: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 600, color: PALETTE.teal }}><Mic size={14} /> Media handling & spokesperson</span>
+        {showMedia ? <ChevronUp size={14} color={PALETTE.teal} /> : <ChevronDown size={14} color={PALETTE.teal} />}
+      </button>
+      {showMedia && (
+        <div style={{ marginBottom: 18, padding: "2px 2px 0", fontSize: 12.5, lineHeight: 1.55, color: PALETTE.ink }}>
+          <p style={{ margin: "0 0 8px" }}><strong>Spokesperson:</strong> {MEDIA_PROTOCOL.spokesperson}</p>
+          <p style={{ margin: "0 0 10px", color: PALETTE.inkSoft }}>{MEDIA_PROTOCOL.activates}</p>
+          <MiniList title="Media rules" items={MEDIA_PROTOCOL.rules} />
+          <MiniList title="Reception script (when a reporter calls)" items={RECEPTION_SCRIPT} />
+          <MiniList title="Social-media guardrails" items={SOCIAL_RULES} />
+        </div>
+      )}
 
       {isClosed && <p style={{ fontSize: 12, color: PALETTE.inkSoft, marginBottom: 16 }}>This incident is closed — messages are read-only.</p>}
 
@@ -2834,7 +2891,10 @@ function CommsDrawer({ incident, update, addTimelineEntry, isClosed }) {
                   border: `1px solid rgba(0,48,94,0.15)`, borderLeft: `3px solid ${cat.color || PALETTE.teal}`, cursor: "pointer",
                 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 600, color: PALETTE.ink, lineHeight: 1.3 }}>{tpl.name}</div>
-                  <div className="mono" style={{ fontSize: 9, letterSpacing: "0.08em", color: cat.color || PALETTE.inkSoft, marginTop: 5, textTransform: "uppercase" }}>{cat.label}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
+                    <span className="mono" style={{ fontSize: 9, letterSpacing: "0.08em", color: cat.color || PALETTE.inkSoft, textTransform: "uppercase" }}>{cat.label}</span>
+                    {tpl.phase && <span className="mono" style={{ fontSize: 8.5, letterSpacing: "0.06em", color: PALETTE.inkSoft }}>· {commsPhaseMeta(tpl.phase)?.label}</span>}
+                  </div>
                   {tpl.owner && <div className="mono" style={{ fontSize: 9, color: PALETTE.inkSoft, marginTop: 3 }}>{tpl.owner}</div>}
                   {suited && <div className="mono" style={{ fontSize: 8.5, letterSpacing: "0.1em", color: PALETTE.sage, marginTop: 4, textTransform: "uppercase" }}>◆ suggested</div>}
                 </button>
