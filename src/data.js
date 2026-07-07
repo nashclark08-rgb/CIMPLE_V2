@@ -1031,14 +1031,15 @@ export const PLAYBOOK_TASKS = {
       { text: "Confirm the student is safe, supervised, and any means of harm is removed", due: 5 },
       { text: "Activate the Mental Health / Self-Harm procedure (EMP §4.3)", due: 5 },
       { text: "Decide whether 000 / medical attention is required", due: 10 },
-      { text: "Determine whether a mandatory reporting obligation exists (risk of harm — DCJ 132 111)", due: 15, mandatory: true },
+      { text: "Determine whether a mandatory reporting obligation exists (Risk of Significant Harm — DCJ Child Protection Helpline 132 111)", due: 15, mandatory: true },
       { text: "Approve any family communication before it is made", due: 15, approval: true },
     ],
     "Wellbeing Lead": [
       { text: "Locate and stay with the student — do not leave them unsupervised", due: 5 },
       { text: "Conduct an initial wellbeing/risk assessment using the school framework", due: 15 },
       { text: "Document the disclosure factually, in the student's own words", due: 20 },
-      { text: "Determine whether a mandatory reporting trigger is present", due: 20, mandatory: true },
+      { text: "When briefing family or staff, describe in general terms — do NOT broadcast the method of self-harm (safe-messaging)", due: 20 },
+      { text: "Determine whether the threshold for a mandatory report is met (Risk of Significant Harm)", due: 20, mandatory: true },
       { text: "Arrange immediate counsellor support (internal or external)", due: 30 },
     ],
     "First Aid": [
@@ -1067,12 +1068,13 @@ export const PLAYBOOK_TASKS = {
       { text: "Confirm the immediate safety of all students and staff", due: 5 },
       { text: "Direct de-escalation and separation of those involved", due: 5 },
       { text: "Decide whether Police (000) are required", due: 10 },
+      { text: "Determine whether the incident meets Risk of Significant Harm — if so, report to DCJ Child Protection Helpline (132 111)", due: 15, mandatory: true },
       { text: "Approve any communication to families", due: 15, approval: true },
     ],
     "Wellbeing Lead": [
       { text: "Separate the parties — do not debrief them jointly", due: 5 },
       { text: "Ensure any injured party receives first aid", due: 10 },
-      { text: "Conduct individual, factual debriefs", due: 20 },
+      { text: "Check on the welfare of each party individually — support, not interrogation", due: 20 },
       { text: "Put immediate safety measures in place", due: 25 },
     ],
     "Family Liaison": [
@@ -1081,7 +1083,7 @@ export const PLAYBOOK_TASKS = {
     ],
     "Documenter": [
       { text: "Record the sequence of events and who was involved", due: 10 },
-      { text: "Capture witness accounts factually and separately", due: 20 },
+      { text: "Record what staff directly observed, factually — do not run formal witness interviews (manage, don't investigate)", due: 20 },
       { text: "Note any injuries and the actions taken", due: 25 },
     ],
   },
@@ -1095,8 +1097,8 @@ export const PLAYBOOK_TASKS = {
     ],
     "Wellbeing Lead": [
       { text: "Separate the students involved", due: 10 },
-      { text: "Speak with the affected student and document their account", due: 20 },
-      { text: "Speak with others involved separately", due: 25 },
+      { text: "Speak with and support the affected student; document their account", due: 20 },
+      { text: "If it may be a child-protection or Police matter, do NOT interview the alleged student(s) — preserve that process", due: 25, mandatory: true },
       { text: "Put immediate safety and support measures in place", due: 30 },
     ],
     "Family Liaison": [
@@ -1104,7 +1106,7 @@ export const PLAYBOOK_TASKS = {
       { text: "Provide factual information and the next steps", due: 35 },
     ],
     "Documenter": [
-      { text: "Record accounts from all parties factually", due: 20 },
+      { text: "Record the affected student's account and staff observations factually", due: 20 },
       { text: "Log the response pathway decided and by whom", due: 30 },
     ],
   },
@@ -1117,6 +1119,7 @@ export const PLAYBOOK_TASKS = {
       { text: "Call 000 (Fire & Rescue) if fire is confirmed", due: 5, mandatory: true },
       { text: "Confirm the whole-site headcount is complete", due: 20 },
       { text: "Brief emergency services on arrival", due: 20 },
+      { text: "If there is a death, serious injury/illness, or dangerous incident, notify SafeWork NSW immediately (13 10 50) — notifiable incident", due: 25, mandatory: true },
       { text: "Authorise re-entry only when services confirm it is safe", due: 45, approval: true },
     ],
     "Floor Wardens": [
@@ -1148,18 +1151,20 @@ export const PLAYBOOK_TASKS = {
       { text: "Identify the substance only if safe to do so — do NOT approach", due: 5 },
       { text: "Evacuate or isolate the affected zone", due: 5 },
       { text: "Call 000 (Fire & Rescue / Hazmat)", due: 5, mandatory: true },
-      { text: "Establish an upwind exclusion zone", due: 10 },
+      { text: "Establish an exclusion zone upwind AND uphill (upstream if near water)", due: 10 },
       { text: "Brief emergency services on the substance and location", due: 15 },
+      { text: "An uncontrolled chemical release is a notifiable dangerous incident — notify SafeWork NSW immediately (13 10 50)", due: 20, mandatory: true },
     ],
     "Floor Wardens": [
-      { text: "Move students away from the affected zone, upwind", due: 5 },
+      { text: "Move students away from the affected zone — upwind and uphill", due: 5 },
       { text: "Keep everyone clear of the exclusion zone", due: 10 },
       { text: "Account for all students and staff", due: 15 },
     ],
     "First Aid": [
       { text: "Assess anyone exposed — do not enter the hazard zone", due: 10 },
+      { text: "Call the Poisons Information Centre (13 11 26) for first-aid/decontamination advice on the substance", due: 12 },
       { text: "Follow decontamination advice from emergency services", due: 15 },
-      { text: "Call 000 for any exposure symptoms", due: 10, mandatory: true },
+      { text: "Call 000 for any life-threatening exposure symptoms", due: 10, mandatory: true },
     ],
     "Communications Lead": [
       { text: "Prepare a parent holding statement — hold until approved", due: 25, approval: true },
@@ -1173,7 +1178,7 @@ export const PLAYBOOK_TASKS = {
   // ---------- NATURAL DISASTER ----------
   natural_disaster: {
     "Incident Commander": [
-      { text: "Confirm the threat and monitor official warnings (Fires Near Me / SES 132 500 / BOM)", due: 5, mandatory: true },
+      { text: "Confirm the threat and monitor official warnings (Hazards Near Me NSW / NSW SES 132 500 / Bureau of Meteorology)", due: 5, mandatory: true },
       { text: "Decide shelter-in-place vs evacuation vs early closure", due: 10, approval: true },
       { text: "Activate the relevant plan (Bushfire / Flood / Storm)", due: 10 },
       { text: "Notify head office and coordinate with emergency services", due: 15, mandatory: true },
@@ -1201,7 +1206,7 @@ export const PLAYBOOK_TASKS = {
   disease_outbreak: {
     "Incident Commander": [
       { text: "Isolate affected individual(s) from others", due: 5 },
-      { text: "Notify the NSW Health Public Health Unit (1300 066 055) if notifiable", due: 15, mandatory: true },
+      { text: "For a school-notifiable condition (measles, mumps, rubella, whooping cough, meningococcal, diphtheria, Hib, polio, tetanus, or 2+ linked gastro cases), notify the local Public Health Unit (1300 066 055) as soon as possible", due: 15, mandatory: true },
       { text: "Decide on enhanced cleaning, cohorting, or partial closure", due: 20, approval: true },
       { text: "Follow Public Health Unit directions", due: 30, mandatory: true },
       { text: "Approve communications to families", due: 30, approval: true },
@@ -1209,6 +1214,7 @@ export const PLAYBOOK_TASKS = {
     "First Aid": [
       { text: "Assess symptoms and isolate the affected person", due: 10 },
       { text: "Apply infection-control precautions (PPE, hygiene)", due: 15 },
+      { text: "Exclude the case and advise return-to-school timing per NSW Health exclusion periods", due: 18 },
       { text: "Arrange collection by parent or medical care", due: 20 },
     ],
     "Communications Lead": [
@@ -1230,6 +1236,8 @@ export const PLAYBOOK_TASKS = {
       { text: "Confirm what has failed and the impact on operations", due: 5 },
       { text: "Make the affected area safe and restrict access", due: 10 },
       { text: "Call 000 if there is any danger (gas, electrical, structural)", due: 5, mandatory: true },
+      { text: "Suspected gas leak: evacuate; do NOT operate switches, phones, or naked flames (ignition risk); ventilate; call 000 and the gas network — 1800 GAS LEAK (1800 427 532)", due: 5, mandatory: true },
+      { text: "A gas/electrical/structural failure creating serious risk is a notifiable dangerous incident even with no injury — notify SafeWork NSW immediately (13 10 50)", due: 15, mandatory: true },
       { text: "Decide on relocation, early closure, or continuation", due: 20, approval: true },
       { text: "Notify head office and the relevant suppliers/contractors", due: 20 },
     ],
@@ -1253,7 +1261,7 @@ export const PLAYBOOK_TASKS = {
       { text: "Ensure children are moved away from the aggressive person", due: 5 },
       { text: "Direct de-escalation by a trained staff member", due: 5 },
       { text: "Call 000 if there is a threat of violence", due: 10, mandatory: true },
-      { text: "Decide on trespass notice / conditions of entry", due: 20, approval: true },
+      { text: "Decide whether to issue a written, principal-signed Ban Notice withdrawing consent to enter (Inclosed Lands Protection Act 1901)", due: 20, approval: true },
     ],
     "Front Office Lead": [
       { text: "Keep the front office calm — do not escalate", due: 5 },
@@ -1268,15 +1276,16 @@ export const PLAYBOOK_TASKS = {
     "Documenter": [
       { text: "Record what was said and done, with times", due: 10 },
       { text: "Note any threats and witnesses (for a possible AVO / trespass)", due: 20 },
+      { text: "If a Ban Notice is issued, record how and when it was served (needed to prove service)", due: 25 },
     ],
   },
 
   // ---------- EXTERNAL THREAT / POLICE ----------
   external_threat: {
     "Incident Commander": [
-      { text: "Assess the threat and decide lockdown vs evacuation", due: 5, approval: true },
-      { text: "Call 000 / Police immediately", due: 5, mandatory: true },
-      { text: "Initiate the chosen protective action (lockdown or evacuation)", due: 5 },
+      { text: "Assess the threat and decide the protective action — apply Escape. Hide. Tell. (NSW Police): escape to safety if a safe route exists, otherwise hide", due: 5, approval: true },
+      { text: "Call 000 / Police immediately when it is safe to do so", due: 5, mandatory: true },
+      { text: "Initiate the chosen protective action (escape/evacuate or lockdown)", due: 5 },
       { text: "Account for all students, staff, and visitors", due: 20 },
       { text: "Make the all-clear decision only when Police confirm it is safe", due: 45, approval: true },
     ],
@@ -1305,7 +1314,8 @@ export const PLAYBOOK_TASKS = {
     "Incident Commander": [
       { text: "Confirm the welfare and count of all students involved", due: 5 },
       { text: "Ensure 000 (ambulance / Police) is called for any injury", due: 5, mandatory: true },
-      { text: "Notify head office; if serious injury or death, notify SafeWork NSW (13 10 50)", due: 15, mandatory: true },
+      { text: "A death, serious injury/illness, or dangerous incident arising from the school's activity is notifiable — notify SafeWork NSW immediately (13 10 50)", due: 15, mandatory: true },
+      { text: "If a bus was involved: ensure the operator notifies OTSI immediately (1800 677 766) and Transport for NSW within 3 days — do it if College-run, confirm it if contracted", due: 20, mandatory: true },
       { text: "Approve communications to affected families", due: 20, approval: true },
     ],
     "First Aid": [
@@ -1333,6 +1343,7 @@ export const PLAYBOOK_TASKS = {
       { text: "Confirm the welfare and headcount of all students on the excursion", due: 5 },
       { text: "Ensure local 000 is called for any emergency", due: 5, mandatory: true },
       { text: "Contact the College / Principal immediately", due: 10, mandatory: true },
+      { text: "A death, serious injury/illness, or dangerous incident on the excursion is notifiable — notify SafeWork NSW immediately (13 10 50); if a bus was involved, the OTSI/Transport for NSW duty also applies", due: 15, mandatory: true },
       { text: "Decide whether to continue, relocate, or return", due: 20, approval: true },
       { text: "Coordinate with the venue and local emergency services", due: 25 },
     ],
@@ -1366,12 +1377,16 @@ export const PLAYBOOK_TASKS = {
     ],
     "Wellbeing Lead": [
       { text: "Identify students and staff most affected (siblings, close friends)", due: 15 },
+      { text: "Identify and monitor other at-risk students beyond close friends/siblings; arrange individual risk assessment where needed", due: 18 },
       { text: "Activate the grief / psychological support plan", due: 20 },
+      { text: "Inform students in class or small-group settings — avoid a whole-school assembly announcement", due: 25 },
+      { text: "Ensure any memorial does not glamorise the death; treat it as you would a non-suicide death", due: 30 },
       { text: "Brief teaching staff on supporting students once authorised", due: 30, approval: true },
     ],
     "Communications Lead": [
       { text: "Prepare the staff notification (brief staff before students)", due: 25, approval: true },
-      { text: "Prepare the community communication — withhold details; safe-messaging", due: 30, approval: true },
+      { text: "Prepare the community communication — withhold details; do NOT state or speculate cause of death (a matter for the Coroner); safe-messaging", due: 30, approval: true },
+      { text: "Include help-seeking information (e.g. Lifeline 13 11 14) in every staff and community communication", due: 30, approval: true },
       { text: "Prepare a media holding statement if required", due: 35, approval: true },
     ],
     "Counsellor (External)": [
