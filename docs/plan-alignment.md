@@ -126,7 +126,7 @@ These can be reconciled: the earlier charter was guarding against *inventing* ou
 - ✅ **Pivot 0 · Reframe** — CIMT-not-ECO reframe locked; `SCOPE.md` v2 (plan-fidelity charter). _2026-07-07_
 - ✅ **Pivot 1 · Roles & roster** — 13 CIMT roles replace the generic ones; real 25-person TAC roster seeded (names/positions, no mobiles); auto-allocation fills real people + backups; CIMT role checklists (§4.2–4.9) are the baseline task source. _2026-07-07_
 - ✅ **Pivot 2 · Phase lifecycle** — 6-phase spine (Assessment→…→Stand Down) with the plan's 57-item master checklist (Action · responsible role · reference · mandatory); PhaseStepper + PhaseDrawer in the Dashboard. _2026-07-07_
-- ⬜ **Pivot 3 · Checklists as task engine** — merge the 17 response-procedure specifics + NSW statutory hooks onto the CIMT roles (legacy `PLAYBOOK_TASKS` currently dormant).
+- ✅ **Pivot 3 · Checklists as task engine** — `RESPONSE_PROCEDURES` (plan §5.x type-specific steps + NSW statutory hooks) mapped to CIMT roles for all 19 types; task board + role responsibilities compose type-specific + baseline; legacy `PLAYBOOK_TASKS`/`ROLE_RESPONSIBILITIES` deleted. _2026-07-07_
 - ⬜ **Pivot 4 · Communications** — plan's Levels 1–4, Assess/Stabilise/Remedy, stakeholder×channel matrix, exact scripts, FAQ SSOT.
 - ⬜ **Pivot 5 · Instruments** — Call Taker intake · SMEAC IAP · SITREP · Visual Boards · People at Risk Log · CIMT Meeting Agendas · PIR mapped to plan elements.
 - ⬜ **Pivot 6 · Business Continuity** — recovery strategies, Critical Business Functions + RTOs, relocation (built last).
