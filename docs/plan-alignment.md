@@ -129,7 +129,9 @@ These can be reconciled: the earlier charter was guarding against *inventing* ou
 - ✅ **Pivot 3 · Checklists as task engine** — `RESPONSE_PROCEDURES` (plan §5.x type-specific steps + NSW statutory hooks) mapped to CIMT roles for all 19 types; task board + role responsibilities compose type-specific + baseline; legacy `PLAYBOOK_TASKS`/`ROLE_RESPONSIBILITIES` deleted. _2026-07-07_
 - ✅ **Pivot 4 · Communications** — **COMPLETE** _2026-07-07_ (fuses CIM & BCP §6–10 + Megan Whitshed's Crisis Communications Plan). 4A: exposure Levels 1–4, comms phases, spokesperson/media-handling protocol + reception script + social guardrails, extended stakeholder×channel model, MW's phase-tagged script library. 4B: Media Q&A / FAQ builder (5 categories / 35 journalist questions → FAQ single-source-of-truth). See `docs/pivot4-comms-integration.md`.
 - 🟡 **Pivot 5 · Instruments** — **core SHIPPED** _2026-07-07_: Instruments hub (§16) with **Visual Boards** (Facts/Assumptions/Issues/Actions), **People at Risk Log** (+ Blind Spots critical rule for unaccounted persons), **SITREP**, and the **SMEAC Incident Action Plan**; all in the export pack. **Remaining (lighter):** Call Taker intake, CIMT Meeting Agendas, PIR re-mapped to the plan's PIR elements.
-- ⬜ **Pivot 6 · Business Continuity** — recovery strategies, Critical Business Functions + RTOs, relocation (built last).
+- ✅ **Pivot 6 · Business Continuity** — **SHIPPED** _2026-07-07_: Continuity drawer with the 5 time-phased recovery strategies (§11), the Critical Business Functions register + RTOs (§13, from the BIA), and the 6-dimension Impact Assessment (§12); Blind Spots REC-03 (recovery phase, no strategy) + export coverage.
+
+**Re-basing complete** — CIMPLE is now a living instrument of the TAC CIM & BCP across the whole incident lifecycle (command · phases · procedures · communications · instruments · continuity). Small remainder: the 3 lighter Pivot-5 instruments (Call Taker intake, CIMT Meeting Agendas, PIR re-mapped to §16.4 elements).
 
 ## 8. Recommended sequence
 
