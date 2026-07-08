@@ -342,7 +342,7 @@ function RedFolderView({ incident, now, isClosed, onExit, onToggleTask, onActiva
   const openT = sortTasks((incident.tasks || []).filter((t) => !t.done), now).slice(0, 6);
   const contacts = incident.student?.emergencyContacts || [];
   const keyRoles = (incident.roles || []).filter(roleIsAssigned).slice(0, 6);
-  const needsActivation = !incident.activation && incident.severity >= 3 && !isClosed;
+  const needsActivation = !incident.activation && incident.severity >= 2 && !isClosed;
 
   const C = { bg: "#04182E", card: "rgba(255,255,255,0.05)", line: "rgba(255,255,255,0.13)", text: "#F4F7FB", soft: "rgba(255,255,255,0.6)" };
 
@@ -526,7 +526,7 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6 }}>SEVERITY</span>
               <div style={{ display: "flex", border: `1px solid rgba(0, 48, 94, 0.2)`, opacity: isClosed ? 0.5 : 1 }}>
-                {[1, 2, 3, 4].map((lvl) => {
+                {[0, 1, 2, 3].map((lvl) => {
                   const isActive = lvl === incident.severity;
                   const cfg = SEVERITY[lvl];
                   return (
@@ -535,7 +535,7 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
                       background: isActive ? cfg.color : PALETTE.paper,
                       color: isActive ? PALETTE.paper : PALETTE.ink,
                       border: "none",
-                      borderRight: lvl < 4 ? `1px solid rgba(0, 48, 94, 0.15)` : "none",
+                      borderRight: lvl < 3 ? `1px solid rgba(0, 48, 94, 0.15)` : "none",
                       fontSize: 12,
                       fontWeight: 500,
                       letterSpacing: "0.04em",

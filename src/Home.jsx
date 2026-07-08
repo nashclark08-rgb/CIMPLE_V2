@@ -93,7 +93,7 @@ export default function Home({ onOpenIncident, onNew, onTriage }) {
       return d.toDateString() === today.toDateString();
     });
     const drills = incidents.filter((i) => i.isDrill);
-    const critical = active.filter((i) => i.severity >= 3);
+    const critical = active.filter((i) => i.severity >= 2); // L2 Incident + L3 Critical Incident — the CIMT-activating levels
     return { active: active.length, closedToday: closedToday.length, drills: drills.length, critical: critical.length };
   }, [incidents]);
 
@@ -127,7 +127,7 @@ export default function Home({ onOpenIncident, onNew, onTriage }) {
         {/* Stats */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 1, background: "rgba(0, 48, 94, 0.15)", marginBottom: 24, border: `1px solid rgba(0, 48, 94, 0.14)` }}>
           <Stat label="Active" value={stats.active} icon={Activity} color={PALETTE.teal} />
-          <Stat label="Critical" value={stats.critical} icon={AlertCircle} color={PALETTE.rust} />
+          <Stat label="CIMT-level" value={stats.critical} icon={AlertCircle} color={PALETTE.rust} />
           <Stat label="Closed today" value={stats.closedToday} icon={CheckCircle2} color={PALETTE.sage} />
           <Stat label="Drills logged" value={stats.drills} icon={PlayCircle} color={PALETTE.amber} />
         </div>

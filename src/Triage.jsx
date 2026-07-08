@@ -75,11 +75,12 @@ function calculateSeverity(answers) {
   const external = answers.external ?? 0;
   const media = answers.media ?? 0;
 
-  // harm dominates
-  if (harm >= 3) return 4;
-  if (harm >= 2 || external >= 2 || scope >= 3) return 3;
-  if (harm >= 1 || scope >= 1 || external >= 1 || media >= 2) return 2;
-  return 1;
+  // harm dominates. Levels map to the plan's escalation matrix:
+  // 3 Critical Incident · 2 Incident · 1 Emergency · 0 Business as Usual.
+  if (harm >= 3) return 3;
+  if (harm >= 2 || external >= 2 || scope >= 3) return 2;
+  if (harm >= 1 || scope >= 1 || external >= 1 || media >= 2) return 1;
+  return 0;
 }
 
 export default function Triage({ onCancel, onCreated }) {
@@ -270,10 +271,10 @@ function Result({ severity, answers, title, setTitle, location, setLocation, det
       </div>
 
       <div style={{ height: 6, background: "rgba(0, 48, 94, 0.1)", position: "relative", marginBottom: 8 }}>
-        <div style={{ height: "100%", width: `${severity * 25}%`, background: sev.color }} />
+        <div style={{ height: "100%", width: `${(severity + 1) * 25}%`, background: sev.color }} />
       </div>
       <div className="mono" style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: PALETTE.teal, opacity: 0.5, marginBottom: 24, letterSpacing: "0.1em" }}>
-        <span>L1 MINOR</span><span>L2 MODERATE</span><span>L3 MAJOR</span><span>L4 CRITICAL</span>
+        <span>L0 BAU</span><span>L1 EMERGENCY</span><span>L2 INCIDENT</span><span>L3 CRITICAL</span>
       </div>
 
       <h2 className="display" style={{ fontSize: 38, lineHeight: 1.05, color: sev.color, fontWeight: 500, margin: "0 0 8px", letterSpacing: "-0.02em" }}>

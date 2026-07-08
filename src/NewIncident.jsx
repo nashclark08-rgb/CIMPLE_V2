@@ -26,7 +26,7 @@ export default function NewIncident({ onCancel, onCreated }) {
   const [pickedType, setPickedType] = useState(null);
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
-  const [severity, setSeverity] = useState(2);
+  const [severity, setSeverity] = useState(1);
   const [isDrill, setIsDrill] = useState(false);
   const [allocation, setAllocation] = useState([]);
 
@@ -210,7 +210,7 @@ export default function NewIncident({ onCancel, onCreated }) {
               <div>
                 <Label>Initial severity</Label>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {[1, 2, 3, 4].map((lvl) => {
+                  {[0, 1, 2, 3].map((lvl) => {
                     const cfg = SEVERITY[lvl];
                     const selected = lvl === severity;
                     return (
@@ -232,6 +232,7 @@ export default function NewIncident({ onCancel, onCreated }) {
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 13, fontWeight: 500 }}>{cfg.label}</div>
                           <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>{cfg.tone}</div>
+                          <div style={{ fontSize: 10, opacity: 0.7, marginTop: 3 }}>Activates: {cfg.who} · {cfg.plan}</div>
                         </div>
                       </button>
                     );

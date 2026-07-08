@@ -4,36 +4,42 @@
 // ============================================================
 
 const STORAGE_KEY = "cimple-v2-state";
+const STATE_VERSION = 4;
 
-// ---------- Severity definitions ----------
+// ---------- Severity / incident level ----------
+// Aligned to the CIM & BCP escalation matrix (plan §, "Level 0–3" flowchart):
+// Level 0 Business as Usual · 1 Emergency · 2 Incident · 3 Critical Incident.
+// `who` = who activates, `plan` = which plan governs, `activatesCIMT` = does this
+// level stand up the CIMT (CIMPLE's remit). Level 0–1 defer to SOPs / the Warden
+// Team (ECO) under the Emergency Response Plan; the CIMT engages at Level 2+.
 export const SEVERITY = {
-  1: { label: "L1 Minor", short: "L1", color: "#5B8C7C", bg: "#DEE9E4", tone: "No injury, low disruption" },
-  2: { label: "L2 Moderate", short: "L2", color: "#B89460", bg: "#EFE6D0", tone: "Medical attention required, parent contact" },
-  3: { label: "L3 Major", short: "L3", color: "#A85535", bg: "#EAD5C7", tone: "Emergency services involved, significant disruption" },
-  4: { label: "L4 Critical", short: "L4", color: "#7A1820", bg: "#E4C8C9", tone: "Death, serious injury, major threat, media" },
+  0: { label: "L0 Business as Usual", short: "L0", color: "#5B8C7C", bg: "#DEE9E4", tone: "Minimal impact — handled locally within standard operating procedures", who: "Facilities / WHS", plan: "Standard Operating Procedures", activatesCIMT: false },
+  1: { label: "L1 Emergency", short: "L1", color: "#B89460", bg: "#EFE6D0", tone: "Contained emergency — Warden Team (ECO) responds; emergency services notified", who: "Warden Team (ECO), HR", plan: "Emergency Response Plan", activatesCIMT: false },
+  2: { label: "L2 Incident", short: "L2", color: "#A85535", bg: "#EAD5C7", tone: "Whole-campus impact — the CIMT coordinates the response", who: "Critical Incident Management Team", plan: "Critical Incident Management Plan", activatesCIMT: true },
+  3: { label: "L3 Critical Incident", short: "L3", color: "#7A1820", bg: "#E4C8C9", tone: "Large-scale / strategic — CIMT with strategic decision-making; possibly multi-site or media", who: "CIMT (Strategic)", plan: "CIM & Business Continuity Plan", activatesCIMT: true },
 };
 
 // ---------- Incident types with metadata ----------
 export const INCIDENT_TYPES = [
-  { id: "medical", label: "Medical / Injury", category: "student", icon: "Heart", emp: "EMP §3.1 — Medical Emergency Response", defaultSeverity: 2 },
-  { id: "mental_health", label: "Student Mental Health / Self-Harm", category: "student", icon: "Brain", emp: "EMP §4.3 — Student Mental Health Crisis Response", defaultSeverity: 3 },
-  { id: "behavioural", label: "Behavioural / Violent Incident", category: "student", icon: "AlertTriangle", emp: "EMP §5.2 — Behavioural Crisis Response", defaultSeverity: 2 },
-  { id: "missing", label: "Missing Student", category: "student", icon: "UserX", emp: "EMP §6.1 — Missing Student Procedure", defaultSeverity: 3 },
-  { id: "bullying", label: "Bullying / Harassment", category: "student", icon: "Users", emp: "EMP §5.4 — Bullying Response", defaultSeverity: 2 },
-  { id: "child_protection", label: "Child Protection / Serious Allegation", category: "student", icon: "ShieldCheck", emp: "EMP §2.2 — Child Protection Response", defaultSeverity: 3 },
-  { id: "lockdown", label: "Lockdown", category: "school", icon: "Lock", emp: "EMP §1.1 — Lockdown Procedure", defaultSeverity: 4 },
-  { id: "evacuation", label: "Fire / Evacuation", category: "school", icon: "Flame", emp: "EMP §1.2 — Evacuation Procedure", defaultSeverity: 3 },
-  { id: "hazmat", label: "Hazardous Material", category: "school", icon: "AlertOctagon", emp: "EMP §1.4 — Hazmat Response", defaultSeverity: 3 },
-  { id: "natural_disaster", label: "Natural Disaster", category: "school", icon: "CloudLightning", emp: "EMP §1.5 — Natural Disaster Response", defaultSeverity: 3 },
-  { id: "disease_outbreak", label: "Disease Outbreak / Public Health", category: "school", icon: "Activity", emp: "EMP §12.1 — Public Health / Outbreak Response", defaultSeverity: 2 },
-  { id: "cyber", label: "Cyber / Data Incident", category: "tech", icon: "ServerCrash", emp: "EMP §11.1 — Cyber & Data Incident Response", defaultSeverity: 3 },
-  { id: "infrastructure", label: "Utilities / Infrastructure Failure", category: "tech", icon: "Zap", emp: "EMP §13.1 — Utilities & Infrastructure Failure", defaultSeverity: 2 },
-  { id: "parent_aggression", label: "Parent / Visitor Aggression", category: "external", icon: "UserCheck", emp: "EMP §7.3 — Parent & Visitor Conflict Response", defaultSeverity: 2 },
-  { id: "external_threat", label: "External Threat / Police", category: "external", icon: "Shield", emp: "EMP §1.3 — External Threat Response", defaultSeverity: 4 },
-  { id: "transport", label: "Transport Accident", category: "external", icon: "Bus", emp: "EMP §8.2 — Transport Incident Response", defaultSeverity: 3 },
-  { id: "excursion", label: "Excursion / Off-Site Incident", category: "external", icon: "Tent", emp: "EMP §8.4 — Off-Site / Excursion Incident", defaultSeverity: 3 },
-  { id: "death_oncampus", label: "Death — On Campus", category: "death", icon: "AlertCircle", emp: "EMP §9.1 — Critical Incident: Death", defaultSeverity: 4 },
-  { id: "death_offcampus", label: "Death — Off-Campus / Community Tragedy", category: "death", icon: "AlertCircle", emp: "EMP §9.2 — Off-Campus Death & Community Tragedy Response", defaultSeverity: 4 },
+  { id: "medical", label: "Medical / Injury", category: "student", icon: "Heart", emp: "EMP §3.1 — Medical Emergency Response", defaultSeverity: 1 },
+  { id: "mental_health", label: "Student Mental Health / Self-Harm", category: "student", icon: "Brain", emp: "EMP §4.3 — Student Mental Health Crisis Response", defaultSeverity: 2 },
+  { id: "behavioural", label: "Behavioural / Violent Incident", category: "student", icon: "AlertTriangle", emp: "EMP §5.2 — Behavioural Crisis Response", defaultSeverity: 1 },
+  { id: "missing", label: "Missing Student", category: "student", icon: "UserX", emp: "EMP §6.1 — Missing Student Procedure", defaultSeverity: 2 },
+  { id: "bullying", label: "Bullying / Harassment", category: "student", icon: "Users", emp: "EMP §5.4 — Bullying Response", defaultSeverity: 1 },
+  { id: "child_protection", label: "Child Protection / Serious Allegation", category: "student", icon: "ShieldCheck", emp: "EMP §2.2 — Child Protection Response", defaultSeverity: 2 },
+  { id: "lockdown", label: "Lockdown", category: "school", icon: "Lock", emp: "EMP §1.1 — Lockdown Procedure", defaultSeverity: 3 },
+  { id: "evacuation", label: "Fire / Evacuation", category: "school", icon: "Flame", emp: "EMP §1.2 — Evacuation Procedure", defaultSeverity: 2 },
+  { id: "hazmat", label: "Hazardous Material", category: "school", icon: "AlertOctagon", emp: "EMP §1.4 — Hazmat Response", defaultSeverity: 2 },
+  { id: "natural_disaster", label: "Natural Disaster", category: "school", icon: "CloudLightning", emp: "EMP §1.5 — Natural Disaster Response", defaultSeverity: 2 },
+  { id: "disease_outbreak", label: "Disease Outbreak / Public Health", category: "school", icon: "Activity", emp: "EMP §12.1 — Public Health / Outbreak Response", defaultSeverity: 1 },
+  { id: "cyber", label: "Cyber / Data Incident", category: "tech", icon: "ServerCrash", emp: "EMP §11.1 — Cyber & Data Incident Response", defaultSeverity: 2 },
+  { id: "infrastructure", label: "Utilities / Infrastructure Failure", category: "tech", icon: "Zap", emp: "EMP §13.1 — Utilities & Infrastructure Failure", defaultSeverity: 1 },
+  { id: "parent_aggression", label: "Parent / Visitor Aggression", category: "external", icon: "UserCheck", emp: "EMP §7.3 — Parent & Visitor Conflict Response", defaultSeverity: 1 },
+  { id: "external_threat", label: "External Threat / Police", category: "external", icon: "Shield", emp: "EMP §1.3 — External Threat Response", defaultSeverity: 3 },
+  { id: "transport", label: "Transport Accident", category: "external", icon: "Bus", emp: "EMP §8.2 — Transport Incident Response", defaultSeverity: 2 },
+  { id: "excursion", label: "Excursion / Off-Site Incident", category: "external", icon: "Tent", emp: "EMP §8.4 — Off-Site / Excursion Incident", defaultSeverity: 2 },
+  { id: "death_oncampus", label: "Death — On Campus", category: "death", icon: "AlertCircle", emp: "EMP §9.1 — Critical Incident: Death", defaultSeverity: 3 },
+  { id: "death_offcampus", label: "Death — Off-Campus / Community Tragedy", category: "death", icon: "AlertCircle", emp: "EMP §9.2 — Off-Campus Death & Community Tragedy Response", defaultSeverity: 3 },
 ];
 
 export const TYPE_CATEGORIES = {
@@ -256,7 +262,7 @@ export function createIncident({ type, severity, title, location, isDrill = fals
     type,
     typeLabel: typeMeta.label,
     typeCategory: typeMeta.category,
-    severity: severity || typeMeta.defaultSeverity,
+    severity: severity ?? typeMeta.defaultSeverity,
     status: "active",
     isDrill,
     startedAt: Date.now(),
@@ -275,7 +281,7 @@ export function createIncident({ type, severity, title, location, isDrill = fals
         actor: opener,
         actorInitials: openerInitials,
         type: "system",
-        text: `Incident opened. Initial severity: ${SEVERITY[severity || typeMeta.defaultSeverity].label}.`,
+        text: `Incident opened. Initial severity: ${SEVERITY[severity ?? typeMeta.defaultSeverity].label}.`,
       },
     ],
     tasks: generateIncidentTasks(type, effectiveRoles),
@@ -349,7 +355,7 @@ export function buildSampleIncidents() {
     type: "mental_health",
     typeLabel: "Student Mental Health / Self-Harm",
     typeCategory: "student",
-    severity: 3,
+    severity: 2,
     status: "active",
     isDrill: false,
     startedAt: now - minutes(23),
@@ -389,11 +395,11 @@ export function buildSampleIncidents() {
       { id: "r6", role: "Communications Coordinator", staff: "—", initials: "—", status: "unassigned", required: false, suggested: "Megan Whitsed" },
     ],
     timeline: [
-      { id: "t1", ts: now - minutes(23), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Incident opened. Initial severity: L3 Major." },
+      { id: "t1", ts: now - minutes(23), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Incident opened. Initial severity: L2 Incident." },
       { id: "t2", ts: now - minutes(22), actor: "Adrian Johnson", actorInitials: "AJ", type: "action", text: "Activated EMP §4.3 — Student Mental Health Crisis Response. CIMT stood up." },
       { id: "t3", ts: now - minutes(21), actor: "Stephanie Kiesel", actorInitials: "SK", type: "note", text: "On site with student. Calm but distressed. No visible injury. Ventolin not required." },
       { id: "t4", ts: now - minutes(18), actor: "Stephanie Kiesel", actorInitials: "SK", type: "note", text: "Wellbeing assessment underway. Counselling Services activated; external counsellor on standby." },
-      { id: "t5", ts: now - minutes(14), actor: "Annika Fairley", actorInitials: "AF", type: "note", text: "Impact assessment: contained, single student, no operational impact. Level confirmed L3." },
+      { id: "t5", ts: now - minutes(14), actor: "Annika Fairley", actorInitials: "AF", type: "note", text: "Impact assessment: serious student-welfare risk, contained to one student but CIMT-coordinated. Level confirmed L2." },
       { id: "t6", ts: now - minutes(9), actor: "Simon Fairall", actorInitials: "SF", type: "note", text: "Drafting parent communication for Leader approval. Will not send without sign-off." },
       { id: "t7", ts: now - minutes(4), actor: "Stephanie Kiesel", actorInitials: "SK", type: "note", text: "Student refusing to call parent directly. Has agreed to remain on site with counsellor." },
     ],
@@ -413,7 +419,7 @@ export function buildSampleIncidents() {
     type: "medical",
     typeLabel: "Medical / Injury",
     typeCategory: "student",
-    severity: 2,
+    severity: 1,
     status: "active",
     isDrill: false,
     startedAt: now - minutes(8),
@@ -431,7 +437,7 @@ export function buildSampleIncidents() {
       { id: "r4", role: "Student Coordinator", staff: "—", initials: "—", status: "unassigned", required: true, suggested: "Simon Fairall" },
     ],
     timeline: [
-      { id: "t1", ts: now - minutes(8), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Incident opened. Initial severity: L2 Moderate." },
+      { id: "t1", ts: now - minutes(8), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Incident opened. Initial severity: L1 Emergency." },
       { id: "t2", ts: now - minutes(7), actor: "Annika Fairley", actorInitials: "AF", type: "note", text: "ECO first aider on scene (Oval). Student conscious, ankle swollen, painful on weight-bearing." },
       { id: "t3", ts: now - minutes(3), actor: "Annika Fairley", actorInitials: "AF", type: "action", text: "Splint applied by first aider. Awaiting parent collection / ambulance decision." },
     ],
@@ -445,7 +451,7 @@ export function buildSampleIncidents() {
     type: "behavioural",
     typeLabel: "Behavioural / Violent Incident",
     typeCategory: "student",
-    severity: 1,
+    severity: 0,
     status: "closed",
     isDrill: false,
     startedAt: now - minutes(60 * 26),
@@ -461,7 +467,7 @@ export function buildSampleIncidents() {
       { id: "r4", role: "Student Wellbeing Services Coordinator", staff: "Stephanie Kiesel", initials: "SK", status: "confirmed", required: true },
     ],
     timeline: [
-      { id: "t1", ts: now - minutes(60 * 26), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Incident opened. Initial severity: L1 Minor." },
+      { id: "t1", ts: now - minutes(60 * 26), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Incident opened. Initial severity: L0 Business as Usual." },
       { id: "t2", ts: now - minutes(60 * 26 - 5), actor: "Stephanie Kiesel", actorInitials: "SK", type: "note", text: "Two students separated and spoken with individually. No injuries." },
       { id: "t3", ts: now - minutes(60 * 25), actor: "Simon Fairall", actorInitials: "SF", type: "action", text: "Both sets of parents notified by phone." },
       { id: "t4", ts: now - minutes(60 * 24), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Incident closed. Resolution: minor disagreement, both students reconciled, restorative conversation completed." },
@@ -480,7 +486,7 @@ export function buildSampleIncidents() {
     type: "evacuation",
     typeLabel: "Fire / Evacuation",
     typeCategory: "school",
-    severity: 1,
+    severity: 0,
     status: "closed",
     isDrill: true,
     startedAt: now - minutes(60 * 30),
@@ -522,8 +528,28 @@ function defaultState() {
       principalInitials: "AJ",
       schoolName: "Trinity Anglican College",
     },
-    version: 3,
+    version: STATE_VERSION,
   };
+}
+
+// Forward-migrate stored state so a schema change never crashes a returning user.
+// v3 → v4: the severity scale shifted from 1–4 to the plan's Level 0–3 matrix, so
+// every stored incident severity moves down one notch (clamped into 0–3).
+function migrateState(state) {
+  if (!state || typeof state !== "object") return state;
+  let s = state;
+  if (!s.version || s.version < 4) {
+    s = {
+      ...s,
+      incidents: (s.incidents || []).map((i) =>
+        typeof i.severity === "number"
+          ? { ...i, severity: Math.max(0, Math.min(3, i.severity - 1)) }
+          : i
+      ),
+      version: 4,
+    };
+  }
+  return s;
 }
 
 // Seed the real TAC CIMT roster from the CIM & BCP (V0.3): primary
@@ -572,7 +598,7 @@ export function loadAll() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultState();
-    const parsed = JSON.parse(raw);
+    const parsed = migrateState(JSON.parse(raw));
     return { ...defaultState(), ...parsed };
   } catch {
     return defaultState();
@@ -1768,16 +1794,18 @@ export const ROLE_PRIORITY = {
   "Recovery – Co-Curriculum": 6,
 };
 
-// Extra roles pulled in at higher severities (deduped against the template).
+// Extra roles pulled in at higher levels (deduped against the template).
+// Keyed to the plan's Level 0–3: L2 Incident adds Communications; L3 Critical
+// Incident adds Recovery (Business Continuity engages).
 export const SEVERITY_ROLE_ADDONS = {
-  3: ["Communications Coordinator"],
-  4: ["Communications Coordinator", "Recovery Coordinator"],
+  2: ["Communications Coordinator"],
+  3: ["Communications Coordinator", "Recovery Coordinator"],
 };
 
-// Required roles for a type at a given severity = template + severity add-ons.
-export function requiredRolesFor(typeId, severity = 1) {
+// Required roles for a type at a given level = template + level add-ons.
+export function requiredRolesFor(typeId, severity = 0) {
   const template = (ROLE_TEMPLATES[typeId] || COMMON_ROLES).map((t) => ({ ...t }));
-  for (let lvl = 1; lvl <= severity; lvl++) {
+  for (let lvl = 0; lvl <= severity; lvl++) {
     for (const rn of (SEVERITY_ROLE_ADDONS[lvl] || [])) {
       if (!template.some((t) => t.role === rn)) template.push({ role: rn, required: true });
     }
@@ -1804,7 +1832,7 @@ export function availableQualifiedStaff(role) {
 }
 
 // Auto-allocate staff to the required roles. Returns incident-role objects.
-export function autoAllocate(typeId, severity = 1) {
+export function autoAllocate(typeId, severity = 0) {
   const required = requiredRolesFor(typeId, severity);
   const pool = listStaff().filter((s) => s.available);
   // Fill highest-priority roles first so the best people land in critical roles.
@@ -2566,26 +2594,26 @@ export function buildCopilotContext(incident, now = Date.now()) {
 export const COPILOT_RULES = [
   // ---- COMMUNICATIONS ----
   { id: "COMMS-01", category: "Communications", evaluate: (c) => c.activation && c.commsDrafted === 0 && !c.isClosed
-    ? { severity: c.severityNum >= 3 ? "critical" : "important", issue: "No communication after declaration", why: "The incident was activated but no communication has been drafted.", evidence: `Declared ${c.minsSinceActivation}m ago · 0 messages drafted.`, target: "comms" } : null },
+    ? { severity: c.severityNum >= 2 ? "critical" : "important", issue: "No communication after declaration", why: "The incident was activated but no communication has been drafted.", evidence: `Declared ${c.minsSinceActivation}m ago · 0 messages drafted.`, target: "comms" } : null },
   { id: "COMMS-02", category: "Communications", evaluate: (c) => c.commsDrafted > 0 && c.commsApproved === 0 && !c.isClosed
     ? { severity: "advisory", issue: "Communications drafted, none approved", why: "Draft messages exist but none have Principal approval to release.", evidence: `${c.commsDrafted} drafted · 0 approved.`, target: "comms" } : null },
-  { id: "COMMS-03", category: "Communications", evaluate: (c) => (c.severityNum >= 3 || c.activation) && !c.commsRoleAssigned && !c.isClosed
+  { id: "COMMS-03", category: "Communications", evaluate: (c) => (c.severityNum >= 2 || c.activation) && !c.commsRoleAssigned && !c.isClosed
     ? { severity: "important", issue: "No Communications Coordinator assigned", why: "A significant incident should have someone owning communications.", evidence: `Severity ${c.severityLabel} · comms role unfilled.`, target: null } : null },
 
   // ---- COMMAND ----
   { id: "CMD-01", category: "Command", evaluate: (c) => !c.isClosed && c.elapsedMin >= 15 && c.decisionsCount === 0
     ? { severity: "important", issue: "No decisions recorded", why: "15+ minutes in with no decisions logged — key calls may be going undocumented.", evidence: `${c.elapsedMin}m elapsed · 0 decisions.`, target: "decisions" } : null },
-  { id: "CMD-02", category: "Command", evaluate: (c) => !c.isClosed && c.requiredUnfilled.length > 0 && (c.activation || c.severityNum >= 3)
-    ? { severity: c.severityNum >= 4 ? "critical" : "important", issue: "Required roles unfilled", why: "Key command roles have no one assigned.", evidence: `${c.requiredUnfilled.length} unfilled: ${c.requiredUnfilled.map((r) => r.role).join(", ")}.`, target: null } : null },
+  { id: "CMD-02", category: "Command", evaluate: (c) => !c.isClosed && c.requiredUnfilled.length > 0 && (c.activation || c.severityNum >= 2)
+    ? { severity: c.severityNum >= 3 ? "critical" : "important", issue: "Required roles unfilled", why: "Key command roles have no one assigned.", evidence: `${c.requiredUnfilled.length} unfilled: ${c.requiredUnfilled.map((r) => r.role).join(", ")}.`, target: null } : null },
   { id: "CMD-03", category: "Command", evaluate: (c) => !c.isClosed && c.openDecisionsCount > 0 && c.decisionsWithReviewCount === 0
     ? { severity: "advisory", issue: "No review point on decisions", why: "Open decisions have no scheduled review — assumptions may go unchecked.", evidence: `${c.openDecisionsCount} open · 0 with a review point.`, target: "decisions" } : null },
 
   // ---- TASKS ----
   { id: "TASK-01", category: "Tasks", evaluate: (c) => c.overdueTasksCount > 0 && !c.isClosed
-    ? { severity: c.severityNum >= 3 ? "important" : "advisory", issue: "Tasks overdue", why: "Tasks past their due time may be slipping.", evidence: `${c.overdueTasksCount} task(s) overdue.`, target: null } : null },
+    ? { severity: c.severityNum >= 2 ? "important" : "advisory", issue: "Tasks overdue", why: "Tasks past their due time may be slipping.", evidence: `${c.overdueTasksCount} task(s) overdue.`, target: null } : null },
   { id: "TASK-02", category: "Tasks", evaluate: (c) => !c.isClosed && c.openTasksCount > 0 && c.ownedOpenTasksCount === 0
     ? { severity: "advisory", issue: "Open tasks unassigned", why: "No owner on any open task.", evidence: `${c.openTasksCount} open · 0 owned.`, target: null } : null },
-  { id: "TASK-03", category: "Tasks", evaluate: (c) => !c.isClosed && c.severityNum >= 3 && c.openTasksCount < 2
+  { id: "TASK-03", category: "Tasks", evaluate: (c) => !c.isClosed && c.severityNum >= 2 && c.openTasksCount < 2
     ? { severity: "advisory", issue: "Few active tasks for a major incident", why: "A major incident usually has more tracked actions — is everything being captured?", evidence: `Severity ${c.severityLabel} · ${c.openTasksCount} open task(s).`, target: null } : null },
 
   // ---- RISK ----
@@ -2597,8 +2625,8 @@ export const COPILOT_RULES = [
     ? { severity: "important", issue: "Open risk without an owner", why: "An open risk has no one accountable for watching it.", evidence: `${c.unownedOpenCount} open risk(s) unowned.`, target: "risks" } : null },
 
   // ---- ACTIVATION ----
-  { id: "ACT-01", category: "Activation", evaluate: (c) => !c.isClosed && c.severityNum >= 3 && !c.activation
-    ? { severity: c.severityNum >= 4 ? "critical" : "important", issue: "Activation not run", why: "This severity usually warrants notifying role-holders.", evidence: `Severity ${c.severityLabel} · not activated.`, target: "activation" } : null },
+  { id: "ACT-01", category: "Activation", evaluate: (c) => !c.isClosed && c.severityNum >= 2 && !c.activation
+    ? { severity: c.severityNum >= 3 ? "critical" : "important", issue: "Activation not run", why: "This severity usually warrants notifying role-holders.", evidence: `Severity ${c.severityLabel} · not activated.`, target: "activation" } : null },
   { id: "ACT-02", category: "Activation", evaluate: (c) => c.activation && c.unackedCount > 0 && c.minsSinceActivation >= 5
     ? { severity: "important", issue: "Notified staff haven't acknowledged", why: "Some notified role-holders have not confirmed receipt.", evidence: `${c.unackedCount} of ${c.notifiedCount} not acknowledged · ${c.minsSinceActivation}m since declaration.`, target: "activation" } : null },
   { id: "ACT-03", category: "Activation", evaluate: (c) => c.activation && c.requiredWithoutBackup > 0 && !c.isClosed
