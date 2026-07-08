@@ -11,6 +11,7 @@ import {
   UserCheck, UserX, UserPlus, Settings, MessageSquare, Megaphone,
   Sparkles, Check, Radio, Bell, ClipboardCheck, Trash2, Scale, Lightbulb,
   AlertOctagon, Minimize2, ListChecks, ArrowRight, LayoutGrid, ClipboardList, Building2,
+  GitBranch, CornerDownRight,
 } from "lucide-react";
 import { PALETTE, TopBarShell, formatTime, formatRelative, formatElapsed } from "./shared.jsx";
 import {
@@ -36,6 +37,7 @@ import {
   RECOVERY_STRATEGIES, suggestedStrategyIds, recoveryStrategyById, strategyActivated,
   strategyProgress, activeStrategyCount, CRITICAL_BUSINESS_FUNCTIONS, cbfTierColor,
   impactedCBFCount, IMPACT_DIMENSIONS, IMPACT_LEVELS, IMPACT_LEVEL_COLORS,
+  decisionFlowsFor, decisionFlowById, summarizeFlowPath,
 } from "./data.js";
 
 export default function Dashboard({ incidentId, onBack }) {
@@ -220,6 +222,11 @@ export default function Dashboard({ incidentId, onBack }) {
       {drawer === "pir" && (
         <Drawer onClose={() => setDrawer(null)} title="Post-Incident Review">
           <PIRDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} />
+        </Drawer>
+      )}
+      {drawer === "flowcharts" && (
+        <Drawer onClose={() => setDrawer(null)} title="Guided Flowcharts">
+          <FlowchartsDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} setDrawer={setDrawer} isClosed={isClosed} />
         </Drawer>
       )}
       {drawer && typeof drawer === "object" && drawer.kind === "phases" && (
@@ -557,6 +564,11 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
               <button className="btn" onClick={() => setDrawer({ kind: "phases", phaseId: incidentPhase(incident) })}>
                 <ListChecks size={14} /> Phase · {phaseMeta(incidentPhase(incident)).label}
               </button>
+              {(() => { const done = Object.keys(incident.decisionFlows || {}).length; return (
+                <button className="btn" onClick={() => setDrawer("flowcharts")}>
+                  <GitBranch size={14} /> Flowcharts{done ? ` · ${done} run` : ""}
+                </button>
+              ); })()}
               <button className="btn" onClick={() => setDrawer("copilot")} style={copilotFindings.length ? { borderColor: copilotCrit ? PALETTE.crimson : PALETTE.rust, color: copilotCrit ? PALETTE.crimson : PALETTE.rust } : undefined}>
                 <Lightbulb size={14} /> Blind Spots{copilotFindings.length ? ` · ${copilotFindings.length}` : ""}
               </button>
@@ -3081,6 +3093,167 @@ function Stat({ label, value, color }) {
 }
 
 /* ---------- Business Continuity (Section Three of the plan) ---------- */
+/* ---------- Guided decision flowcharts (the plan's flowcharts, interactive) ---------- */
+function FlowchartsDrawer({ incident, update, addTimelineEntry, setDrawer, isClosed }) {
+  const flows = decisionFlowsFor(incident.type);
+  const [activeId, setActiveId] = useState(null);
+  const runs = incident.decisionFlows || {};
+
+  if (activeId) {
+    const flow = decisionFlowById(activeId);
+    return (
+      <DecisionFlowRunner
+        flow={flow}
+        saved={runs[activeId]}
+        isClosed={isClosed}
+        onExit={() => setActiveId(null)}
+        onJump={(drawerId) => setDrawer(drawerId)}
+        persist={(record) => update((prev) => ({ ...prev, decisionFlows: { ...(prev.decisionFlows || {}), [activeId]: record } }))}
+        addTimelineEntry={addTimelineEntry}
+      />
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ padding: 16, background: PALETTE.tealDeep, color: PALETTE.paper, marginBottom: 16 }}>
+        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.sage, marginBottom: 6 }}>PLAN FLOWCHARTS · GUIDED</div>
+        <div className="display" style={{ fontSize: 20, fontWeight: 500 }}>Walk the decision, step by step.</div>
+        <p style={{ fontSize: 12.5, lineHeight: 1.5, opacity: 0.85, marginTop: 8 }}>The plan's flowcharts, made interactive. Answer each fork and CIMPLE routes you down the correct path — the exact route you take is logged to the timeline.</p>
+      </div>
+      {flows.map((f) => {
+        const run = runs[f.id];
+        const typeSpecific = f.appliesTo !== "all";
+        return (
+          <div key={f.id} style={{ border: `1px solid rgba(0,48,94,0.16)`, padding: 14, marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+              <GitBranch size={15} color={PALETTE.teal} />
+              <div style={{ fontSize: 14.5, fontWeight: 600, color: PALETTE.teal }}>{f.label}</div>
+              {typeSpecific && <span className="chip" style={{ background: PALETTE.parchment, color: PALETTE.rust, borderColor: "rgba(168,85,53,0.3)" }}>For this incident type</span>}
+            </div>
+            <p style={{ fontSize: 12.5, color: PALETTE.inkSoft, lineHeight: 1.5, margin: "0 0 8px" }}>{f.blurb}</p>
+            <div className="mono" style={{ fontSize: 10, color: PALETTE.teal, opacity: 0.6, marginBottom: 10 }}>{f.reference}</div>
+            {run && (
+              <div style={{ fontSize: 11.5, color: PALETTE.inkSoft, background: PALETTE.bone, padding: "8px 10px", marginBottom: 10, borderLeft: `3px solid ${run.done ? PALETTE.sage : PALETTE.amber}`, lineHeight: 1.5 }}>
+                <strong style={{ color: PALETTE.teal }}>{run.done ? "Last walked" : "In progress"}</strong> {formatRelative(run.at)}
+                {summarizeFlowPath(run.path) ? <> · {summarizeFlowPath(run.path)}</> : null}
+              </div>
+            )}
+            <button className="btn" onClick={() => setActiveId(f.id)}>
+              {run ? (run.done ? "Walk again" : "Resume") : "Start"} <ArrowRight size={13} />
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DecisionFlowRunner({ flow, saved, isClosed, onExit, onJump, persist, addTimelineEntry }) {
+  const resumable = saved && !saved.done && saved.currentId && flow.nodes[saved.currentId];
+  const [currentId, setCurrentId] = useState(resumable ? saved.currentId : flow.start);
+  const [path, setPath] = useState(resumable ? (saved.path || []) : []);
+  const node = flow.nodes[currentId];
+
+  const KIND_LABEL = { decision: "Decision", action: "Action", terminal: "Outcome" };
+  const toneColor = node.kind === "terminal"
+    ? (node.tone === "calm" ? PALETTE.sage : node.tone === "done" ? PALETTE.teal : PALETTE.rust)
+    : node.kind === "decision" ? PALETTE.rust : PALETTE.teal;
+
+  function stepTo(choiceLabel, toId) {
+    setPath((p) => [...p, { nodeId: currentId, title: node.title, kind: node.kind, choice: choiceLabel }]);
+    setCurrentId(toId);
+  }
+  function goBack() {
+    if (!path.length) return;
+    const prev = path[path.length - 1];
+    setPath((p) => p.slice(0, -1));
+    setCurrentId(prev.nodeId);
+  }
+  function restart() { setPath([]); setCurrentId(flow.start); }
+  function finish() {
+    const finalPath = [...path, { nodeId: currentId, title: node.title, kind: node.kind, choice: "reached" }];
+    persist({ path: finalPath, currentId, done: true, at: Date.now() });
+    const summary = summarizeFlowPath(finalPath);
+    addTimelineEntry({ type: "action", text: `Flowchart walked — ${flow.label}. ${summary ? "Path: " + summary + ". " : ""}Ended at: ${node.title}.` });
+    onExit();
+  }
+  function jump(drawerId) {
+    persist({ path, currentId, done: false, at: Date.now() }); // keep progress across the hand-off
+    onJump(drawerId);
+  }
+
+  return (
+    <div>
+      <button className="btn-ghost" onClick={onExit} style={{ background: "none", border: "none", padding: 0, color: PALETTE.teal, fontSize: 12, display: "flex", alignItems: "center", gap: 6, marginBottom: 14, opacity: 0.8 }}>
+        <ArrowLeft size={13} /> All flowcharts
+      </button>
+
+      <div className="mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6, marginBottom: 4 }}>{flow.label.toUpperCase()}</div>
+
+      {/* Trail of forks taken so far */}
+      {path.length > 0 && (
+        <div style={{ marginBottom: 16, paddingLeft: 4 }}>
+          {path.map((s, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 11.5, color: PALETTE.inkSoft, lineHeight: 1.5, marginBottom: 2 }}>
+              <CornerDownRight size={12} style={{ marginTop: 2, opacity: 0.5, flexShrink: 0 }} />
+              <span>{s.title.replace(/\?$/, "")}{s.kind === "decision" ? <> — <strong style={{ color: PALETTE.teal }}>{s.choice}</strong></> : null}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Current node */}
+      <div style={{ border: `1px solid ${toneColor}`, borderTop: `3px solid ${toneColor}`, padding: 18, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+          <span className="chip" style={{ background: toneColor, color: PALETTE.paper, borderColor: toneColor }}>{KIND_LABEL[node.kind]}</span>
+          {node.reference && <span className="mono" style={{ fontSize: 9.5, color: PALETTE.teal, opacity: 0.6 }}>{node.reference}</span>}
+        </div>
+        <div className="display" style={{ fontSize: 20, fontWeight: 500, color: PALETTE.teal, lineHeight: 1.2, letterSpacing: "-0.01em" }}>{node.title}</div>
+        {node.help && <p style={{ fontSize: 12.5, color: PALETTE.inkSoft, lineHeight: 1.5, margin: "8px 0 0" }}>{node.help}</p>}
+        {node.body && (
+          <ul style={{ margin: "12px 0 0", paddingLeft: 18 }}>
+            {node.body.map((b, i) => (
+              <li key={i} style={{ fontSize: 13, color: PALETTE.ink, lineHeight: 1.55, marginBottom: 4 }}>{b}</li>
+            ))}
+          </ul>
+        )}
+
+        {/* Controls per node kind */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16 }}>
+          {node.kind === "decision" && node.options.map((opt, i) => (
+            <button key={i} className="btn" onClick={() => stepTo(opt.label, opt.to)} style={{ justifyContent: "space-between", width: "100%", borderColor: toneColor, color: toneColor, fontWeight: 600 }}>
+              {opt.label} <ArrowRight size={14} />
+            </button>
+          ))}
+          {node.action && (
+            <button className="btn" onClick={() => jump(node.action.drawer)} style={{ width: "100%", justifyContent: "center" }}>
+              {node.action.label} <ArrowRight size={13} />
+            </button>
+          )}
+          {node.kind === "action" && node.to && (
+            <button className="btn btn-primary" onClick={() => stepTo("continued", node.to)} style={{ width: "100%", justifyContent: "center" }}>
+              Continue <ArrowRight size={14} />
+            </button>
+          )}
+          {node.kind === "terminal" && (
+            <button className="btn btn-primary" onClick={finish} disabled={isClosed} style={{ width: "100%", justifyContent: "center", opacity: isClosed ? 0.5 : 1 }}>
+              <Check size={14} /> Done — log this path
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Walk controls */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {path.length > 0 && <button className="btn" onClick={goBack}><ArrowLeft size={13} /> Back a step</button>}
+        {path.length > 0 && <button className="btn" onClick={restart}><RotateCcw size={13} /> Start over</button>}
+      </div>
+      {isClosed && <p style={{ fontSize: 11.5, color: PALETTE.inkSoft, marginTop: 12 }}>This incident is closed — you can review the path, but completing it won't be logged.</p>}
+    </div>
+  );
+}
+
 function ContinuityDrawer({ incident, update, addTimelineEntry, isClosed }) {
   const [tab, setTab] = useState("strategies");
   const TABS = [
@@ -3681,6 +3854,7 @@ function ExportDrawer({ incident }) {
     { k: "Recovery strategies active", v: (() => { const n = activeStrategyCount(incident); return n ? RECOVERY_STRATEGIES.filter((s) => strategyActivated(incident, s.id)).map((s) => s.label).join("; ") : "none"; })() },
     { k: "Critical functions impacted", v: `${impactedCBFCount(incident)} of ${CRITICAL_BUSINESS_FUNCTIONS.length}` },
     { k: "Post-incident review", v: incident.pir ? `${(PIR_STATUS[incident.pir.status] || {}).label || "Draft"} · ${(incident.pir.correctiveActions || []).length} actions` : "not started" },
+    { k: "Flowcharts walked", v: (() => { const runs = Object.entries(incident.decisionFlows || {}); if (!runs.length) return "none"; return runs.map(([id, r]) => { const f = decisionFlowById(id); const s = summarizeFlowPath(r.path); return `${f ? f.label : id}${r.done ? "" : " (in progress)"}${s ? " — " + s : ""}`; }).join(" | "); })() },
     { k: "Blind spots", v: copilotSummary(incident) },
   ];
 

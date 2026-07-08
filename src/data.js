@@ -1259,6 +1259,124 @@ export const PIR_ELEMENTS = [
 ];
 
 // ==================================================================
+// GUIDED DECISION FLOWS — the plan's flowcharts as interactive,
+// branching guides. Each flow is a node graph the CIMT walks in real
+// time; the path taken is logged to the incident timeline.
+//
+//   node.kind = "decision" → a Yes/No/multi fork; each option → { to }
+//   node.kind = "action"   → a step to take, then → { to } (next node)
+//   node.kind = "terminal" → an end state (no `to`)
+//
+// Sources: CIM & BCP V0.3 "Critical Incident Flowchart" and
+// "Child Safety Incident — Flowchart".
+// ==================================================================
+export const DECISION_FLOWS = {
+  critical_incident: {
+    id: "critical_incident",
+    label: "Critical Incident Flowchart",
+    reference: "CIM & BCP V0.3 — Critical Incident Flowchart",
+    blurb: "The master path: from first threat assessment, through choosing the incident level and standing up the right team, to recovery, stand down and review.",
+    appliesTo: "all",
+    start: "life",
+    nodes: {
+      life: { kind: "decision", title: "Is there a threat to life and/or property?",
+        options: [{ label: "Yes", to: "confirm" }, { label: "No", to: "business" }] },
+      confirm: { kind: "action", title: "Confirm safety and welfare",
+        body: ["Confirm the safety and welfare of all staff, students and visitors before anything else."], to: "business" },
+      business: { kind: "decision", title: "Is there a threat to business operations?",
+        help: "This shapes whether Business Continuity will be engaged later — you still assess the level next either way.",
+        options: [{ label: "Yes", to: "assess" }, { label: "No", to: "assess" }] },
+      assess: { kind: "decision", title: "Assess the incident level",
+        help: "Match the situation to the escalation matrix (Level 0–3).",
+        options: [
+          { label: "Level 0 — Business as Usual", to: "l0" },
+          { label: "Level 1 — Emergency", to: "l1" },
+          { label: "Level 2 — Incident", to: "cimt" },
+          { label: "Level 3 — Critical Incident", to: "cimt" },
+        ] },
+      l0: { kind: "terminal", tone: "calm", title: "Manage locally — CIMT not required",
+        body: ["No action / Standard Operating Procedures.", "Handled by Facilities / WHS. This level does not stand up the CIMT."] },
+      l1: { kind: "terminal", tone: "calm", title: "Activate the Warden Team (ECO)",
+        body: ["Activate the Warden Team under the Emergency Response Plan.", "Notify emergency services. This is an ECO response — outside CIMPLE's CIMT remit."] },
+      cimt: { kind: "action", title: "Activate the CIMT",
+        body: ["Activate the Critical Incident Management Team.", "Run the Critical Incident Management Plan."],
+        action: { label: "Open Activation", drawer: "activation" }, to: "impact" },
+      impact: { kind: "decision", title: "Impact on a critical business function?",
+        options: [{ label: "Yes", to: "recovery" }, { label: "No", to: "standdown" }] },
+      recovery: { kind: "action", title: "Business Recovery", reference: "CIM & BCP §5.0 — Business Recovery",
+        body: ["Activate recovery strategies for the impacted critical business functions."],
+        action: { label: "Open Continuity", drawer: "continuity" }, to: "standdown" },
+      standdown: { kind: "action", title: "Recovery strategy → Stand Down",
+        body: ["Work the recovery strategy.", "Stand down when it is safe to do so."], to: "pir" },
+      pir: { kind: "terminal", tone: "done", title: "Post-Incident Review → Learning & Improvement",
+        body: ["Complete the post-incident review and capture learning and improvement."],
+        action: { label: "Open Review", drawer: "pir" } },
+    },
+  },
+  child_safety: {
+    id: "child_safety",
+    label: "Child Safety Incident Flowchart",
+    reference: "CIM & BCP V0.3 — Child Safety Incident Flowchart",
+    blurb: "Decision path for a child-safety disclosure or concern: immediate danger, mandatory reporting, and when to contact family.",
+    appliesTo: ["child_protection"],
+    start: "danger",
+    nodes: {
+      danger: { kind: "decision", title: "Is the child in immediate danger?",
+        options: [{ label: "Yes", to: "immediateYes" }, { label: "No", to: "immediateNo" }] },
+      immediateYes: { kind: "action", title: "Immediate actions",
+        body: [
+          "Remove the child from danger, where safe to do so.",
+          "Notify the Principal and/or Child Safety Officer.",
+          "Notify Police and the Child Protection Agency.",
+          "Record the disclosure — facts only.",
+        ], to: "mandatory" },
+      immediateNo: { kind: "action", title: "Immediate actions",
+        body: [
+          "Record the disclosure — facts only.",
+          "Notify the Principal and/or Child Safety Officer.",
+          "Determine who needs to be informed.",
+        ], to: "mandatory" },
+      mandatory: { kind: "decision", title: "Is mandatory reporting required?",
+        help: "Assess Risk of Significant Harm (ROSH) using the Mandatory Reporter Guide.",
+        options: [{ label: "Yes", to: "consult" }, { label: "No", to: "control" }] },
+      consult: { kind: "action", title: "Consult before contacting family",
+        body: [
+          "Contact Police and the Child Protection Agency if not already done — report ROSH to the DCJ Child Protection Helpline (132 111).",
+          "Follow Police / Agency advice.",
+          "Contact parents sensitively — only if permitted.",
+        ], to: "support" },
+      control: { kind: "action", title: "Control before contacting family",
+        body: ["Contact parents sensitively."], to: "support" },
+      support: { kind: "action", title: "Support communication",
+        body: ["Inform key leadership discreetly.", "Prepare an internal communications plan if needed."],
+        action: { label: "Open Communications", drawer: "comms" }, to: "recovery" },
+      recovery: { kind: "action", title: "Recovery and monitoring",
+        body: ["Implement supervision / risk-management strategies.", "Reintegration planning if needed."], to: "review" },
+      review: { kind: "terminal", tone: "done", title: "Post-Incident Review",
+        body: ["Complete the post-incident review."],
+        action: { label: "Open Review", drawer: "pir" } },
+    },
+  },
+};
+
+// Flows relevant to an incident: type-specific ones first, then the master.
+export function decisionFlowsFor(incidentType) {
+  return Object.values(DECISION_FLOWS)
+    .filter((f) => f.appliesTo === "all" || (Array.isArray(f.appliesTo) && f.appliesTo.includes(incidentType)))
+    .sort((a, b) => (a.appliesTo === "all" ? 1 : 0) - (b.appliesTo === "all" ? 1 : 0));
+}
+export function decisionFlowById(id) {
+  return DECISION_FLOWS[id] || null;
+}
+// Human-readable audit trail of the forks taken (decisions only).
+export function summarizeFlowPath(path) {
+  return (path || [])
+    .filter((s) => s.kind === "decision")
+    .map((s) => `${s.title.replace(/\?$/, "")} → ${s.choice}`)
+    .join(" · ");
+}
+
+// ==================================================================
 // BUSINESS CONTINUITY (CIM & BCP V0.3 Section Three) — the recovery
 // half of the plan. Time-phased recovery strategies, the Critical
 // Business Functions register (with RTOs from the BIA), and the impact
