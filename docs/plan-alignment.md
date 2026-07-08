@@ -131,7 +131,14 @@ These can be reconciled: the earlier charter was guarding against *inventing* ou
 - ✅ **Pivot 5 · Instruments** — **COMPLETE** _2026-07-07_: Instruments hub (§16) — **Visual Boards** (Facts/Assumptions/Issues/Actions), **People at Risk Log** (+ Blind Spots critical rule for unaccounted persons), **Call Taker intake** (§16.1), **SITREP** (§16.3), **SMEAC Incident Action Plan** (§16.2), **CIMT Meeting Agendas** (§16.5); plus the **PIR re-mapped to the plan's §16.4 elements** (6 categories / 27 questions in the Review drawer). All in the export pack.
 - ✅ **Pivot 6 · Business Continuity** — **SHIPPED** _2026-07-07_: Continuity drawer with the 5 time-phased recovery strategies (§11), the Critical Business Functions register + RTOs (§13, from the BIA), and the 6-dimension Impact Assessment (§12); Blind Spots REC-03 (recovery phase, no strategy) + export coverage.
 
-**Re-basing complete** — CIMPLE is now a living instrument of the TAC CIM & BCP across the whole incident lifecycle (command · phases · procedures · communications · instruments · continuity). Small remainder: the 3 lighter Pivot-5 instruments (Call Taker intake, CIMT Meeting Agendas, PIR re-mapped to §16.4 elements).
+**Re-basing complete** — CIMPLE is now a living instrument of the TAC CIM & BCP across the whole incident lifecycle (command · phases · procedures · communications · instruments · continuity).
+
+## 7b. Post-re-basing enhancements (from the V0.3 flowcharts) — _2026-07-08_
+
+Reviewing the diagrams embedded in V0.3 drove two follow-ups. (The document's real diagrams are the master **Critical Incident Flowchart**, the **Level 0–3 escalation matrix**, the **CIMT org chart**, and the **Child Safety Incident Flowchart**. The Crisis Communications Plan_MW.docx contains no diagrams.)
+
+- ✅ **Severity ⇄ Level 0–3 alignment** — the severity scale now literally matches the plan's escalation matrix: **L0 Business as Usual · L1 Emergency · L2 Incident · L3 Critical Incident**, each carrying the matrix's *who activates* and *which plan* columns and an `activatesCIMT` flag. Level 0–1 defer to SOPs / the Warden Team (ECO) under the ERP; the CIMT engages at Level 2+. A v3→v4 state migration moves any stored incident down one notch so returning users don't break.
+- ✅ **Guided decision flowcharts** — the two decision trees (master Critical Incident + Child Safety) are now interactive branching guides (Flowcharts button → drawer). The CIMT answers each fork, CIMPLE routes down the correct path (L0/L1 correctly dead-end to SOPs/ECO, outside CIMPLE's remit; L2/L3 stand up the CIMT), and the route taken is logged to the timeline and export pack. This closes the PRD's long-standing "decision-tree engine" gap.
 
 ## 8. Recommended sequence
 
