@@ -917,6 +917,9 @@ function RoleRow({ role, incidentType, onConfirm, onAssign, onAssignSelf, onMana
 /* ---------- Center column: timeline + composer + tasks ---------- */
 function CenterColumn({ incident, addTimelineEntry, update, now, isClosed }) {
   const [composerType, setComposerType] = useState("note");
+  const [showAllPhases, setShowAllPhases] = useState(false);
+  const [showDone, setShowDone] = useState(false);
+  const [taskRole, setTaskRole] = useState("all");
 
   function handleSubmit(text) {
     if (!text.trim()) return;
@@ -947,18 +950,67 @@ function CenterColumn({ incident, addTimelineEntry, update, now, isClosed }) {
         {!isClosed && <Composer composerType={composerType} setComposerType={setComposerType} onSubmit={handleSubmit} />}
       </div>
 
-      <div className="card">
-        <div className="panel-h">
-          <span className="panel-h-label">ACTIVE TASKS · {incident.tasks.filter((t) => !t.done).length} OPEN{incident.tasks.some((t) => !t.done && t.dueAt && t.dueAt < now) ? ` · ${incident.tasks.filter((t) => !t.done && t.dueAt && t.dueAt < now).length} OVERDUE` : ""}</span>
-          <span className="panel-h-meta">FROM EMP</span>
-        </div>
-        <div>
-          {sortTasks(incident.tasks, now).map((t, i, arr) => (
-            <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleTask(t.id)} isLast={i === arr.length - 1} disabled={isClosed} />
-          ))}
-        </div>
-        {!isClosed && <TaskAdder onAdd={addTask} />}
-      </div>
+      {(() => {
+        const curPhase = incidentPhase(incident);
+        const curIdx = phaseIndex(curPhase);
+        const all = incident.tasks || [];
+        // Roles present on this incident's task board, for the role filter.
+        const roleOptions = [...new Set(all.map((t) => t.role).filter(Boolean))];
+        const roleFilter = (t) => taskRole === "all" || t.role === taskRole;
+        const pool = all.filter(roleFilter);
+        const open = pool.filter((t) => !t.done);
+        // In scope = this phase and any still-open jobs from earlier phases.
+        const inScope = open.filter((t) => t.phase == null || phaseIndex(t.phase) <= curIdx);
+        const future = open.filter((t) => t.phase != null && phaseIndex(t.phase) > curIdx);
+        const done = pool.filter((t) => t.done);
+        const overdue = inScope.filter((t) => t.dueAt && t.dueAt < now).length;
+        const shown = sortTasks([...(showAllPhases ? open : inScope), ...(showDone ? done : [])], now);
+        return (
+          <div className="card">
+            <div className="panel-h">
+              <span className="panel-h-label">ACTIVE TASKS · {phaseMeta(curPhase).label.toUpperCase()} · {inScope.length} OPEN{overdue ? ` · ${overdue} OVERDUE` : ""}</span>
+              <span className="panel-h-meta">BY PHASE</span>
+            </div>
+            {roleOptions.length > 1 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 24px", borderBottom: `1px solid rgba(0,48,94,0.08)` }}>
+                <span className="mono" style={{ fontSize: 10, letterSpacing: "0.12em", color: PALETTE.inkSoft }}>ROLE</span>
+                <select value={taskRole} onChange={(e) => setTaskRole(e.target.value)} style={{ fontSize: 12.5, padding: "5px 8px", border: `1px solid rgba(0,48,94,0.18)`, background: PALETTE.paper, color: PALETTE.ink, maxWidth: 280 }}>
+                  <option value="all">All roles ({all.filter((t) => !t.done).length})</option>
+                  {roleOptions.map((r) => {
+                    const c = all.filter((t) => t.role === r && !t.done).length;
+                    return <option key={r} value={r}>{r} ({c})</option>;
+                  })}
+                </select>
+              </div>
+            )}
+            <div>
+              {shown.length === 0 && (
+                <div style={{ padding: "18px 24px", fontSize: 13, color: PALETTE.inkSoft, lineHeight: 1.5 }}>
+                  No open jobs in the {phaseMeta(curPhase).label} phase.{future.length ? " More appear as you advance the phase." : ""}
+                </div>
+              )}
+              {shown.map((t, i, arr) => (
+                <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleTask(t.id)} isLast={i === arr.length - 1} disabled={isClosed} />
+              ))}
+            </div>
+            {(future.length > 0 || done.length > 0) && (
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap", padding: "11px 24px", borderTop: `1px solid rgba(0,48,94,0.1)` }}>
+                {future.length > 0 && (
+                  <button onClick={() => setShowAllPhases((v) => !v)} style={{ background: "none", border: "none", padding: 0, fontSize: 11.5, color: PALETTE.teal, cursor: "pointer", fontWeight: 500 }}>
+                    {showAllPhases ? "Hide later-phase jobs" : `Show ${future.length} upcoming (later phases)`}
+                  </button>
+                )}
+                {done.length > 0 && (
+                  <button onClick={() => setShowDone((v) => !v)} style={{ background: "none", border: "none", padding: 0, fontSize: 11.5, color: PALETTE.inkSoft, cursor: "pointer", fontWeight: 500 }}>
+                    {showDone ? "Hide completed" : `Show ${done.length} completed`}
+                  </button>
+                )}
+              </div>
+            )}
+            {!isClosed && <TaskAdder onAdd={addTask} />}
+          </div>
+        );
+      })()}
     </div>
   );
 }

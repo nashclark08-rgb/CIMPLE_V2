@@ -1575,6 +1575,20 @@ function normResp(e) {
   return typeof e === "string" ? { text: e } : e;
 }
 
+// Which of the 6 phases a job belongs to, from its due-time (and a couple of
+// unambiguous text signals). Lets the incident view reveal a job when its phase
+// is active, instead of dumping every job open at minute one.
+export function phaseForDue(mins, text = "") {
+  const t = (text || "").toLowerCase();
+  if (/post-incident review|debrief|stand down|stand-down|deactivate the cimt/.test(t)) return "standdown";
+  if (mins == null) return "response";
+  if (mins <= 10) return "assessment";   // first read of the situation
+  if (mins <= 30) return "activation";   // declare, stand up, brief
+  if (mins <= 240) return "response";    // up to ~4h — the active response
+  if (mins <= 1440) return "recovery";   // up to ~24h — business recovery
+  return "resumption";                    // beyond a day — resumption
+}
+
 export function responsibilitiesFor(roleName, incidentType) {
   // What this CIMT role does in THIS incident = the type-specific response
   // procedure steps owned by the role (plan §5.x + statutory hooks), then the
@@ -1605,6 +1619,7 @@ export function generateIncidentTasks(typeId, roles) {
         text: e.text,
         owner,
         role: role.role,
+        phase: phaseForDue(e.due, e.text),
         done: false,
         priority: due <= 15 ? "high" : due <= 30 ? "med" : "low",
         dueAt: e.due ? now + e.due * 60000 : undefined,
