@@ -117,7 +117,7 @@ function StaffTab() {
   }, [staff, search]);
 
   const stale = staff.filter((s) => staffContactAgeDays(s) > VERIFY_THRESHOLD_DAYS).length;
-  const conflicted = staff.filter((s) => detectRoleConflicts(s.qualifiedFor).length > 0).length;
+  const conflicted = staff.filter((s) => detectRoleConflicts(s.qualifiedFor, s.canDoubleHat).length > 0).length;
 
   return (
     <>
@@ -200,7 +200,7 @@ function StaffRow({ staff, onEdit, onDelete, onVerify, isLast }) {
   const ageDays = staffContactAgeDays(staff);
   const stale = ageDays > VERIFY_THRESHOLD_DAYS;
   const verifyLabel = ageDays === Infinity ? "Never verified" : ageDays === 0 ? "Verified today" : `Verified ${ageDays}d ago`;
-  const conflicts = detectRoleConflicts(staff.qualifiedFor);
+  const conflicts = detectRoleConflicts(staff.qualifiedFor, staff.canDoubleHat);
 
   return (
     <div
@@ -352,7 +352,7 @@ function StaffEditor({ staff, onSave, onCancel }) {
   }
 
   const derivedQualified = [form.primaryRole, ...(form.secondaryRoles || []), ...(form.otherQualifiedRoles || [])].filter(Boolean);
-  const conflicts = detectRoleConflicts(derivedQualified);
+  const conflicts = detectRoleConflicts(derivedQualified, form.canDoubleHat);
 
   function handleSubmit() {
     if (!(form.firstName || "").trim() && !(form.lastName || "").trim()) {
@@ -421,6 +421,14 @@ function StaffEditor({ staff, onSave, onCancel }) {
       <Label>Other qualified roles</Label>
       <p style={{ fontSize: 12, color: PALETTE.inkSoft, margin: "0 0 8px", lineHeight: 1.5 }}>Additional roles they are qualified for.</p>
       <RolePickGrid roles={ROLE_NAMES} exclude={[form.primaryRole, ...(form.secondaryRoles || [])]} selected={form.otherQualifiedRoles || []} onToggle={(r) => toggleIn("otherQualifiedRoles", r)} />
+
+      <label style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "11px 14px", marginBottom: 18, background: form.canDoubleHat ? PALETTE.tealMist : PALETTE.paper, border: `1px solid ${form.canDoubleHat ? PALETTE.teal : "rgba(0,48,94,0.18)"}`, cursor: "pointer" }}>
+        <input type="checkbox" checked={form.canDoubleHat === true} onChange={(e) => update("canDoubleHat", e.target.checked)} style={{ width: 14, height: 14, marginTop: 2, cursor: "pointer", accentColor: PALETTE.teal }} />
+        <span style={{ fontSize: 13, color: PALETTE.ink, lineHeight: 1.5 }}>
+          <strong>Can fulfil two or more roles at once</strong>
+          <span style={{ display: "block", fontSize: 12, color: PALETTE.inkSoft, marginTop: 2 }}>Allows this person to hold more than one live role in the same incident if you're short-staffed — CIMPLE won't flag it as a conflict.</span>
+        </span>
+      </label>
 
       <Label>Notes (optional)</Label>
       <textarea rows={2} value={form.notes || ""} onChange={(e) => update("notes", e.target.value)} placeholder="e.g. lead first aider; on extended leave from week 4." style={{ resize: "vertical", marginBottom: 20 }} />

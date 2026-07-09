@@ -4,7 +4,7 @@
 // ============================================================
 
 const STORAGE_KEY = "cimple-v2-state";
-const STATE_VERSION = 4;
+const STATE_VERSION = 5;
 
 // ---------- Severity / incident level ----------
 // Aligned to the CIM & BCP escalation matrix (plan §, "Level 0–3" flowchart):
@@ -549,6 +549,11 @@ function migrateState(state) {
       version: 4,
     };
   }
+  // v4 → v5: the CIMT roster gained 2 named backups per role, the double-hat flag,
+  // and 3 new people (2 counsellors + a 3rd IT). Refresh the seeded directory.
+  if (s.version < 5) {
+    s = { ...s, staff: buildCimtRoster(), version: 5 };
+  }
   return s;
 }
 
@@ -559,38 +564,54 @@ function migrateState(state) {
 // backend lands, under RBAC). Alternates carry their role as a backup
 // (secondaryRoles) so they surface as failover candidates, not primaries.
 function buildCimtRoster() {
-  const P = (firstName, lastName, jobTitle, department, primaryRole, otherQualifiedRoles = []) =>
-    newStaffMember({ firstName, lastName, jobTitle, department, primaryRole, otherQualifiedRoles });
-  const A = (firstName, lastName, jobTitle, department, backupRole) =>
-    newStaffMember({ firstName, lastName, jobTitle, department, primaryRole: "", secondaryRoles: [backupRole] });
+  // S(firstName, lastName, jobTitle, department, { primary, secondary[], other[], doubleHat })
+  //   primary   = the role they lead
+  //   secondary = Backup 1 (ranks first among stand-ins)
+  //   other     = Backup 2 (also qualified)
+  //   doubleHat = may knowingly hold two or more live roles at once (no conflict warning)
+  // Each of the 13 CIMT roles now has a Lead + 2 named backups. Where the same
+  // person appears under several roles (the reality of a school this size), they
+  // carry the doubleHat flag. Recovery Coordinator has no dedicated primary — Adrian
+  // Johnson is first for it (double-hatted with Critical Incident Leader).
+  const S = (firstName, lastName, jobTitle, department, roles = {}) =>
+    newStaffMember({
+      firstName, lastName, jobTitle, department,
+      primaryRole: roles.primary || "",
+      secondaryRoles: roles.secondary || [],
+      otherQualifiedRoles: roles.other || [],
+      canDoubleHat: roles.doubleHat === true,
+    });
   return [
-    // --- Primary CIMT ---
-    P("Adrian", "Johnson", "Principal", "Executive", "Critical Incident Leader"),
-    P("Jessica", "Sevil", "Executive Assistant – Principal", "Executive", "Support Coordinator"),
-    P("Annika", "Fairley", "Risk & Compliance Officer", "Operations", "Planning Coordinator", ["Recovery Coordinator"]),
-    P("Stephanie", "Gardiner", "Human Resources Officer", "Operations", "Staff Coordinator"),
-    P("Stephanie", "Kiesel", "Student Wellbeing Services Coordinator", "Wellbeing", "Student Wellbeing Services Coordinator"),
-    P("Simon", "Fairall", "Head of Junior School", "Teaching", "Student Coordinator"),
-    P("Sharon", "Finlay", "Business Manager", "Operations", "College Services"),
-    P("Matt", "Everon", "Facilities Manager", "Facilities", "Facilities", ["College Services"]),
-    P("Megan", "Whitsed", "Marketing Manager", "Marketing", "Communications Coordinator"),
-    P("Scott", "Barlow", "IT Manager", "IT", "Recovery – IT Coordinator"),
-    P("Nash", "Clark", "Director of Teaching & Learning", "Teaching", "Recovery – Curriculum", ["Recovery Coordinator"]),
-    P("Jarrod", "Monaghan", "Dean of Activities", "Activities", "Recovery – Co-Curriculum"),
-    // --- Alternate bench ---
-    A("Kathy", "Fletcher", "Deputy Principal", "Executive", "Critical Incident Leader"),
-    A("Sue", "James", "Senior School Attendance Officer", "Operations", "Support Coordinator"),
-    A("Victoria", "Fordham", "Academic Admin Officer", "Operations", "Support Coordinator"),
-    A("Angela", "Phillips", "Administration Assistant", "Operations", "Support Coordinator"),
-    A("Natisha", "Harrison", "Payroll Officer", "Operations", "Staff Coordinator"),
-    A("David", "Smith", "Head of Senior School", "Teaching", "Student Coordinator"),
-    A("Lydia", "Billington", "Kindy Coordinator", "Teaching", "Student Coordinator"),
-    A("Warwick", "Rolls", "Facilities & Groundsman", "Facilities", "Facilities"),
-    A("Tegan", "Hull", "Marketing & Events Officer", "Marketing", "Communications Coordinator"),
-    A("Sean", "Colemen", "IT Systems Administrator", "IT", "Recovery – IT Coordinator"),
-    A("Stephanie", "Davis", "Dean of Studies Senior", "Teaching", "Recovery – Curriculum"),
-    A("Lauren", "Naldrett", "Dean of Studies Junior", "Teaching", "Recovery – Curriculum"),
-    A("Linda", "Jensen", "Activities Administration Officer", "Activities", "Recovery – Co-Curriculum"),
+    // --- Role leads (primary role-holders) ---
+    S("Adrian", "Johnson", "Principal", "Executive", { primary: "Critical Incident Leader", secondary: ["Recovery Coordinator"], doubleHat: true }),
+    S("Jessica", "Sevil", "Executive Assistant – Principal", "Executive", { primary: "Support Coordinator", other: ["Communications Coordinator"], doubleHat: true }),
+    S("Annika", "Fairley", "Risk & Compliance Officer", "Operations", { primary: "Planning Coordinator", other: ["Recovery Coordinator"], doubleHat: true }),
+    S("Stephanie", "Gardiner", "Human Resources Officer", "Operations", { primary: "Staff Coordinator" }),
+    S("Stephanie", "Kiesel", "Student Wellbeing Services Coordinator", "Wellbeing", { primary: "Student Wellbeing Services Coordinator" }),
+    S("Simon", "Fairall", "Head of Junior School", "Teaching", { primary: "Student Coordinator" }),
+    S("Sharon", "Finlay", "Business Manager", "Operations", { primary: "College Services", secondary: ["Planning Coordinator"], other: ["Facilities"], doubleHat: true }),
+    S("Matt", "Everon", "Facilities Manager", "Facilities", { primary: "Facilities", secondary: ["College Services"], doubleHat: true }),
+    S("Megan", "Whitsed", "Marketing Manager", "Marketing", { primary: "Communications Coordinator" }),
+    S("Scott", "Barlow", "IT Manager", "IT", { primary: "Recovery – IT Coordinator" }),
+    S("Nash", "Clark", "Director of Teaching & Learning", "Teaching", { primary: "Recovery – Curriculum", other: ["Planning Coordinator", "Recovery Coordinator"], doubleHat: true }),
+    S("Jarrod", "Monaghan", "Dean of Activities", "Activities", { primary: "Recovery – Co-Curriculum" }),
+    // --- Backup bench ---
+    S("Kathy", "Fletcher", "Deputy Principal", "Executive", { secondary: ["Critical Incident Leader"] }),
+    S("David", "Smith", "Head of Senior School", "Teaching", { secondary: ["Student Coordinator"], other: ["Critical Incident Leader", "Recovery – Co-Curriculum"], doubleHat: true }),
+    S("Victoria", "Fordham", "Academic Admin Officer", "Operations", { secondary: ["Support Coordinator"] }),
+    S("Angela", "Phillips", "Administration Assistant", "Operations", { other: ["Support Coordinator"] }),
+    S("Natisha", "Harrison", "Payroll Officer", "Operations", { secondary: ["Staff Coordinator"], other: ["College Services"] }),
+    S("Sue", "James", "Senior School Attendance Officer", "Operations", { other: ["Staff Coordinator"] }),
+    S("Lydia", "Billington", "Kindy Coordinator", "Teaching", { other: ["Student Coordinator"] }),
+    S("Counsellor", "2", "School Counsellor", "Wellbeing", { secondary: ["Student Wellbeing Services Coordinator"] }),
+    S("Counsellor", "3", "School Counsellor", "Wellbeing", { other: ["Student Wellbeing Services Coordinator"] }),
+    S("Warwick", "Rolls", "Facilities & Groundsman", "Facilities", { secondary: ["Facilities"] }),
+    S("Tegan", "Hull", "Marketing & Events Officer", "Marketing", { secondary: ["Communications Coordinator"] }),
+    S("Sean", "Colemen", "IT Systems Administrator", "IT", { secondary: ["Recovery – IT Coordinator"] }),
+    S("Adrian", "Clark", "IT Support Officer", "IT", { other: ["Recovery – IT Coordinator"] }),
+    S("Stephanie", "Davis", "Dean of Studies Senior", "Teaching", { secondary: ["Recovery – Curriculum"] }),
+    S("Lauren", "Naldrett", "Dean of Studies Junior", "Teaching", { other: ["Recovery – Curriculum"] }),
+    S("Linda", "Jensen", "Activities Administration Officer", "Activities", { secondary: ["Recovery – Co-Curriculum"] }),
   ];
 }
 
@@ -1649,6 +1670,7 @@ export function normalizeStaff(s) {
     available: availabilityStatus === "available",
     primaryRole, secondaryRoles, otherQualifiedRoles,
     qualifiedFor,
+    canDoubleHat: s.canDoubleHat === true,
     notes: s.notes || "",
     verifiedAt: s.verifiedAt || Date.now(),
   };
@@ -1794,6 +1816,7 @@ export function newStaffMember(data = {}) {
     secondaryRoles: data.secondaryRoles,
     otherQualifiedRoles: data.otherQualifiedRoles,
     qualifiedFor: data.qualifiedFor,
+    canDoubleHat: data.canDoubleHat,
     notes: data.notes,
     verifiedAt: data.verifiedAt,
   });
@@ -1838,7 +1861,8 @@ export const ROLE_CONFLICTS = [
 
 // Returns array of conflict descriptions for a given staff member's role set.
 // Each item: { roles: [roleA, roleB], reason }
-export function detectRoleConflicts(qualifiedFor) {
+export function detectRoleConflicts(qualifiedFor, canDoubleHat = false) {
+  if (canDoubleHat) return []; // explicitly cleared to hold two or more roles at once
   if (!qualifiedFor || qualifiedFor.length < 2) return [];
   const set = new Set(qualifiedFor);
   return ROLE_CONFLICTS
