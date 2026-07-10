@@ -17,6 +17,7 @@ import Triage from "./Triage.jsx";
 import Admin from "./Admin.jsx";
 import SignIn from "./SignIn.jsx";
 import { useAuth } from "./auth.jsx";
+import { startSync } from "./sync.js";
 import { Construction, ArrowLeft } from "lucide-react";
 
 function parseHash() {
@@ -35,12 +36,23 @@ function parseHash() {
 export default function App() {
   const [route, setRoute] = useState(parseHash());
   const { user, ready, connected } = useAuth();
+  // D2: in connected mode, wait for the first Firestore sync before rendering,
+  // and bump syncTick on remote changes so the incidents list stays live.
+  const [syncReady, setSyncReady] = useState(!connected);
+  const [syncTick, setSyncTick] = useState(0);
 
   useEffect(() => {
     const onChange = () => setRoute(parseHash());
     window.addEventListener("hashchange", onChange);
     return () => window.removeEventListener("hashchange", onChange);
   }, []);
+
+  useEffect(() => {
+    if (!connected || !user) return;
+    let alive = true;
+    startSync(() => alive && setSyncTick((t) => t + 1)).then(() => alive && setSyncReady(true));
+    return () => { alive = false; };
+  }, [connected, user]);
 
   const navigate = useCallback((path) => {
     window.location.hash = path;
@@ -68,12 +80,24 @@ export default function App() {
       </>
     );
   }
+  if (connected && user && !syncReady) {
+    return (
+      <>
+        <GlobalStyles />
+        <TopBarShell />
+        <div style={{ maxWidth: 600, margin: "140px auto", textAlign: "center", color: PALETTE.inkSoft, fontSize: 14 }}>
+          Syncing incident data…
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
       <GlobalStyles />
       {route.route === "home" && (
         <Home
+          key={syncTick}
           onOpenIncident={(id) => navigate(`#/incident/${id}`)}
           onNew={() => navigate("#/new")}
           onTriage={() => navigate("#/triage")}

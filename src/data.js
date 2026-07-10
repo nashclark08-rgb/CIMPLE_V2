@@ -519,7 +519,7 @@ export function buildSampleIncidents() {
 }
 
 // ---------- localStorage operations ----------
-function defaultState() {
+export function defaultState() {
   return {
     incidents: [],
     staff: buildCimtRoster(),
@@ -626,12 +626,23 @@ export function loadAll() {
   }
 }
 
+// Connected mode (D2) registers a write hook here so every local save also
+// pushes to Firestore. In local mode this stays null and nothing extra happens.
+let _writeHook = null;
+export function registerWriteHook(fn) { _writeHook = fn; }
+// Write to localStorage WITHOUT firing the sync hook — used by the Firestore
+// subscription to update the local mirror without echoing back to Firestore.
+export function writeLocalOnly(state) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { console.warn("Could not mirror state:", e); }
+}
+
 export function saveAll(state) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (e) {
     console.warn("Could not save state:", e);
   }
+  if (_writeHook) { try { _writeHook(state); } catch (e) { console.warn("sync hook failed:", e); } }
 }
 
 export function getIncident(id) {
