@@ -1,57 +1,42 @@
-# CIMPLE — Firebase setup (the one manual step)
+# CIMPLE — Firebase setup (status)
 
-_Increment D foundation is built and in the code. CIMPLE runs today in **local mode** (localStorage, no sign-in) and will keep doing so until the six env vars are set. This is the click-path to switch on the real backend. It takes ~10 minutes and only you can do it (it needs your Google login)._
+_The backend project is **created and wired**. Project: **`cimple-v2-tac`**. This doc records what's done and the one console click still outstanding._
 
-## 1. Create the project
-1. Go to <https://console.firebase.google.com> and sign in.
-2. **Add project** → name it e.g. `cimple` → you can disable Google Analytics (not needed) → **Create**.
+## Done (automated, 2026-07-10)
+- ✅ **Firebase project created** — `cimple-v2-tac` (console: <https://console.firebase.google.com/project/cimple-v2-tac/overview>).
+- ✅ **Web app registered** + SDK config captured.
+- ✅ **Firestore database** created in **australia-southeast1 (Sydney)** — AU data residency for a tool handling child/incident data.
+- ✅ **Security rules deployed** (`firestore.rules`) — authenticated users only; the public gets nothing.
+- ✅ **Identity Toolkit API enabled** (the API behind Auth).
+- ✅ **Local config** written to `.env.local` (gitignored) — running `npm run dev` locally now starts in **connected mode**.
+- ✅ **Production kept in local mode on purpose** — the Vercel **production** env vars are deliberately NOT set, so the live prototype (cimple-v2.vercel.app) stays sign-in-free during the Annika trial.
 
-## 2. Enable Authentication
-1. Left menu → **Build → Authentication → Get started**.
-2. **Sign-in method** tab → enable **Email/Password** → Save.
-3. (Later, optional) add Microsoft SSO to the TAC tenant — not needed to launch.
+## Outstanding — the one console click (needs your Google login)
+**Enable the Email/Password sign-in provider.** The API is on, but the provider toggle only initialises cleanly from the console (doing it via the raw API risks provisioning the paid Identity Platform product, which I won't do on your account):
 
-## 3. Enable Firestore
-1. Left menu → **Build → Firestore Database → Create database**.
-2. Choose location **australia-southeast1 (Sydney)** → Next.
-3. Start in **production mode** (we ship real Security Rules in the next step, D2) → Enable.
+1. Go to <https://console.firebase.google.com/project/cimple-v2-tac/authentication>
+2. Click **Get started**
+3. Select **Email/Password** → toggle **Enable** → **Save**
 
-## 4. Register the web app + copy the config
-1. Project **⚙ Settings → General → Your apps → </> (Web)**.
-2. Nickname `cimple-web` → **Register app** (skip Hosting).
-3. Copy the `firebaseConfig` values. You'll map them to the env vars below.
+That's it. Tell me when it's done and I'll create the first sign-in user and verify connected mode end-to-end.
 
-## 5. Set the env vars
-**In Vercel** (Project → Settings → Environment Variables), add these for Production + Preview:
-
-| Env var | From firebaseConfig |
+## The env var values (already in `.env.local`)
+| Env var | Value |
 |---|---|
-| `VITE_FIREBASE_API_KEY` | `apiKey` |
-| `VITE_FIREBASE_AUTH_DOMAIN` | `authDomain` |
-| `VITE_FIREBASE_PROJECT_ID` | `projectId` |
-| `VITE_FIREBASE_STORAGE_BUCKET` | `storageBucket` |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | `messagingSenderId` |
-| `VITE_FIREBASE_APP_ID` | `appId` |
+| `VITE_FIREBASE_API_KEY` | `AIzaSyBfZzLpV7n6WDImIvXEV3c5NiNI2IBYrHw` |
+| `VITE_FIREBASE_AUTH_DOMAIN` | `cimple-v2-tac.firebaseapp.com` |
+| `VITE_FIREBASE_PROJECT_ID` | `cimple-v2-tac` |
+| `VITE_FIREBASE_STORAGE_BUCKET` | `cimple-v2-tac.firebasestorage.app` |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | `278695974250` |
+| `VITE_FIREBASE_APP_ID` | `1:278695974250:web:58f42eb2b89212e8b6c113` |
 
-**For local dev** (optional): copy `.env.example` → `.env.local` and paste the same values.
+(The web `apiKey` is **not a secret** — Firebase web config is public by design; access is controlled by the Security Rules + Auth, not by hiding it.)
 
-Then redeploy. On next load CIMPLE will show the **sign-in screen** instead of going straight in.
+## What comes next (the real build — D2)
+This turn stood up the **infrastructure**. The functional multi-user backend is the next build, and it will be done on a **`firebase-connected` branch → Vercel Preview URL** so production stays safe until you deliberately flip it:
+1. Migrate the localStorage data shape into Firestore collections (incidents, roster, timeline…).
+2. Real-time Team Board + real acknowledgements from responders' own devices.
+3. Per-user sign-in seeded from the CIMT roster; RBAC in the rules.
+4. Swap `simulateNotification()` for FCM push (+ later a Cloud Function → Twilio for SMS).
 
-## 6. Create the first user
-Firebase console → **Authentication → Users → Add user** → your email + a password. That's your first sign-in. (In D2 we'll seed users from the staff roster.)
-
-## Safety notes
-- These `VITE_FIREBASE_*` values are **not secrets** — Firebase web config is public by design; security is enforced by Firestore **Security Rules** (built in D2), not by hiding the config.
-- `.env.local` is git-ignored, so nothing here gets committed.
-- Cost at one-school scale is effectively nil (Spark free tier; Blaze pay-per-use only kicks in for Cloud Functions/Twilio later).
-
----
-
-### What happens after this
-Once the project exists and env vars are set, the next build increment (**D2**) can:
-1. Migrate the localStorage data shape into Firestore collections.
-2. Write the Security Rules (RBAC).
-3. Make the Team Board real-time and acknowledgements real (from responders' own devices).
-4. Swap `simulateNotification()` for FCM push + a Cloud Function → Twilio for SMS.
-
-The Increment-C data model was deliberately built as normalized, append-only records that map 1:1 to Firestore collections — so D2 is mostly wiring, not redesign.
+Only when that's tested on the preview URL do we add the six env vars to Vercel **Production** and flip the live site to connected mode.
