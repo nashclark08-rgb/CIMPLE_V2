@@ -1599,6 +1599,44 @@ export function responsibilitiesFor(roleName, incidentType) {
   return list.length ? list.map(normResp) : null;
 }
 
+// The 13 CIMT roles grouped into clusters, for the role-tab UI on the
+// incident page (matches the plan's org-chart groupings).
+export const ROLE_GROUPS = [
+  { id: "command", label: "Command", roles: ["Critical Incident Leader", "Support Coordinator", "Planning Coordinator"] },
+  { id: "people", label: "Students & Staff", roles: ["Student Coordinator", "Staff Coordinator", "Student Wellbeing Services Coordinator"] },
+  { id: "services", label: "Services & Facilities", roles: ["College Services", "Facilities"] },
+  { id: "comms", label: "Communications", roles: ["Communications Coordinator"] },
+  { id: "recovery", label: "Recovery", roles: ["Recovery Coordinator", "Recovery – IT Coordinator", "Recovery – Curriculum", "Recovery – Co-Curriculum"] },
+];
+export function roleGroupOf(role) {
+  return ROLE_GROUPS.find((g) => g.roles.includes(role)) || null;
+}
+
+// Soft lock-outs. Given a role's jobs (any order), returns them due-ordered with
+// a `locked` flag: everything after the first still-open MANDATORY job is soft-
+// locked ("do this first"), until that job is done or explicitly overridden.
+// Soft, not hard — the UI greys locked jobs but the Leader can override (logged).
+export function applySoftLocks(jobs) {
+  const ordered = [...(jobs || [])].sort((a, b) => (a.dueAt || Infinity) - (b.dueAt || Infinity));
+  let gate = null; // first open, non-overridden mandatory job = the gate
+  return ordered.map((t) => {
+    const locked = !!gate && !t.done && !t.overrideLock;
+    if (!gate && t.mandatory && !t.done && !t.overrideLock) gate = t;
+    return { ...t, locked, blockedBy: locked ? gate.text : null };
+  });
+}
+
+// "Which role am I?" — a per-device preference so a role-holder's page defaults
+// to their own jobs. (In connected mode this will be derived from the signed-in
+// user's assigned role; until then it's a local choice.)
+const MY_ROLE_KEY = "cimple-my-role";
+export function getMyRole() {
+  try { return localStorage.getItem(MY_ROLE_KEY) || null; } catch { return null; }
+}
+export function setMyRole(role) {
+  try { role ? localStorage.setItem(MY_ROLE_KEY, role) : localStorage.removeItem(MY_ROLE_KEY); } catch { /* ignore */ }
+}
+
 // Generate a role-owned operational task board from the playbook, after
 // triage + allocation. Each assigned role receives its immediate actions;
 // tasks carry owner, due time, status, priority, and approval/mandatory flags.
