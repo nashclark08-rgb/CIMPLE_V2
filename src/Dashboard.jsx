@@ -13,7 +13,7 @@ import {
   AlertOctagon, Minimize2, ListChecks, ArrowRight, LayoutGrid, ClipboardList, Building2,
   GitBranch, CornerDownRight, Star, Zap,
 } from "lucide-react";
-import { PALETTE, TopBarShell, formatTime, formatRelative, formatElapsed } from "./shared.jsx";
+import { PALETTE, TopBarShell, formatTime, formatRelative, formatElapsed, EscalationMatrixButton } from "./shared.jsx";
 import {
   SEVERITY, getIncident, saveIncident, listStaff, responsibilitiesFor, ROLE_DEFINITIONS,
   COMMS_CHANNELS, COMMS_AUDIENCES, COMMS_CATEGORIES, COMMS_STATUS,
@@ -39,6 +39,7 @@ import {
   impactedCBFCount, IMPACT_DIMENSIONS, IMPACT_LEVELS, IMPACT_LEVEL_COLORS,
   decisionFlowsFor, decisionFlowById, summarizeFlowPath,
   ROLE_GROUPS, roleGroupOf, applySoftLocks, getMyRole, setMyRole,
+  phaseForDue, ESCALATION_MATRIX, severityRationale, disambiguatedInitials, taskOwnerName,
 } from "./data.js";
 
 export default function Dashboard({ incidentId, onBack }) {
@@ -215,9 +216,9 @@ export default function Dashboard({ incidentId, onBack }) {
           <InstrumentsDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />
         </Drawer>
       )}
-      {drawer === "continuity" && (
+      {(drawer === "continuity" || (drawer && typeof drawer === "object" && drawer.kind === "continuity")) && (
         <Drawer onClose={() => setDrawer(null)} title="Business Continuity">
-          <ContinuityDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />
+          <ContinuityDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} initialTab={typeof drawer === "object" ? drawer.tab : undefined} />
         </Drawer>
       )}
       {drawer === "pir" && (
@@ -238,6 +239,7 @@ export default function Dashboard({ incidentId, onBack }) {
             update={update}
             addTimelineEntry={addTimelineEntry}
             isClosed={isClosed}
+            setDrawer={setDrawer}
           />
         </Drawer>
       )}
@@ -553,6 +555,18 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
                 })}
               </div>
             </div>
+            {/* Why this level + quick links to the plan's matrix and the impact
+                assessment (Annika: severity felt like a bare number; the impact
+                tool was hard to find). */}
+            <div style={{ maxWidth: 360, textAlign: "right", fontSize: 11.5, color: PALETTE.inkSoft, lineHeight: 1.5 }}>
+              <strong style={{ color: sev.color }}>{sev.label}</strong> — {sev.tone}.
+            </div>
+            <div style={{ display: "flex", gap: 16, justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap" }}>
+              <EscalationMatrixButton compact />
+              <button onClick={() => setDrawer({ kind: "continuity", tab: "impact" })} className="btn-ghost" style={{ background: "none", border: "none", padding: 0, color: PALETTE.teal, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 500 }}>
+                <Building2 size={13} /> Impact assessment
+              </button>
+            </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
               <button className="btn" onClick={onRedFolder} style={{ borderColor: PALETTE.crimson, color: PALETTE.crimson, fontWeight: 600 }}><AlertOctagon size={14} /> Red Folder</button>
               {!incident.activation && !isClosed ? (
@@ -646,7 +660,7 @@ function PhaseStepper({ incident, onOpen }) {
 }
 
 /* ---------- Phase drawer: the plan's master checklist per phase ---------- */
-function PhaseDrawer({ incident, initialPhase, update, addTimelineEntry, isClosed }) {
+function PhaseDrawer({ incident, initialPhase, update, addTimelineEntry, isClosed, setDrawer }) {
   const currentId = incidentPhase(incident);
   const [sel, setSel] = useState(initialPhase && CIMT_PHASES.some((p) => p.id === initialPhase) ? initialPhase : currentId);
   const items = PHASE_CHECKLIST[sel] || [];
@@ -736,6 +750,18 @@ function PhaseDrawer({ incident, initialPhase, update, addTimelineEntry, isClose
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
                   <span className="mono" style={{ fontSize: 9.5, letterSpacing: "0.06em", color: PALETTE.teal, background: "rgba(0, 48, 94, 0.07)", padding: "2px 6px" }}>{it.responsible}</span>
                   {it.reference && <span className="mono" style={{ fontSize: 9.5, color: PALETTE.inkSoft }}>↳ {it.reference}</span>}
+                  {it.flowchart && setDrawer && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); setDrawer("flowcharts"); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); setDrawer("flowcharts"); } }}
+                      className="mono"
+                      style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9.5, letterSpacing: "0.04em", color: PALETTE.rust, border: `1px solid rgba(168,85,53,0.4)`, background: PALETTE.parchment, padding: "2px 7px", cursor: "pointer", fontWeight: 600 }}
+                    >
+                      <GitBranch size={10} /> OPEN FLOWCHART
+                    </span>
+                  )}
                   {it.mandatory && <span className="mono" style={{ fontSize: 9, letterSpacing: "0.08em", color: PALETTE.crimson, fontWeight: 600 }}>MANDATORY</span>}
                 </div>
               </div>
@@ -961,7 +987,10 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
   const rolesPresent = [...new Set(all.map((t) => t.role).filter(Boolean))];
   const hasRoles = rolesPresent.length > 0;
 
-  const [view, setView] = useState("mine"); // "mine" | "phase" | "role"
+  // Default to the whole-current-phase view so advancing a phase visibly
+  // changes what's on the board — Annika's feedback that the task list didn't
+  // obviously reflect the phase she'd moved into.
+  const [view, setView] = useState("phase"); // "mine" | "phase" | "role"
   const [myRole, setMyRoleState] = useState(() => {
     const saved = getMyRole();
     return saved && rolesPresent.includes(saved) ? saved : rolesPresent[0] || null;
@@ -971,7 +1000,14 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
   const [showDone, setShowDone] = useState(false);
 
   function chooseMyRole(r) { setMyRoleState(r); setMyRole(r); }
-  const inScopePhase = (t) => t.phase == null || phaseIndex(t.phase) <= curIdx;
+  // A task's phase — explicit if tagged, otherwise derived from its due-time /
+  // text so even legacy (untagged) tasks scope to a phase and reveal/​hide as
+  // the incident advances.
+  const effectivePhase = (t) =>
+    t.phase || phaseForDue(t.dueAt != null ? Math.round((t.dueAt - incident.startedAt) / 60000) : null, t.text);
+  const inScopePhase = (t) => phaseIndex(effectivePhase(t)) <= curIdx;
+  // Full names of everyone assigned — lets us show unique owner codes + names.
+  const ownerNames = (incident.roles || []).map((r) => r.staff).filter((s) => s && s !== "—");
 
   function overrideLock(id) {
     update((prev) => ({ ...prev, tasks: prev.tasks.map((t) => (t.id === id ? { ...t, overrideLock: true } : t)) }));
@@ -987,7 +1023,8 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
     return (
       <div className="card">
         <div className="panel-h"><span className="panel-h-label">ACTIVE TASKS · {phaseMeta(curPhase).label.toUpperCase()} · {inScope.length} OPEN</span><span className="panel-h-meta">BY PHASE</span></div>
-        <div>{shown.map((t, i, arr) => <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleTask(t.id)} isLast={i === arr.length - 1} disabled={isClosed} />)}</div>
+        <ActivePhaseBanner curPhase={curPhase} curIdx={curIdx} openCount={inScope.length} />
+        <div>{shown.map((t, i, arr) => { const oname = taskOwnerName(incident, t); return <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleTask(t.id)} isLast={i === arr.length - 1} disabled={isClosed} ownerName={oname} ownerCode={oname ? disambiguatedInitials(oname, ownerNames) : t.owner} />; })}</div>
         {!isClosed && <TaskAdder onAdd={addTask} />}
       </div>
     );
@@ -1023,6 +1060,11 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
         <span className="panel-h-label">JOBS · {phaseMeta(curPhase).label.toUpperCase()}</span>
         <span className="panel-h-meta">BY ROLE &amp; PHASE</span>
       </div>
+
+      {/* Active-phase banner — makes the current phase unmistakable, and the
+          board defaults to this phase's jobs so advancing a phase visibly
+          changes the list. */}
+      <ActivePhaseBanner curPhase={curPhase} curIdx={curIdx} openCount={phaseOpenCount} />
 
       {/* View tabs */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "12px 24px 4px", alignItems: "center" }}>
@@ -1083,9 +1125,13 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
                   <span style={{ fontSize: 11.5, color: PALETTE.inkSoft }}>{s.person && s.person.staff && s.person.staff !== "—" ? s.person.staff : "unassigned"}</span>
                 </div>
               )}
-              {s.visible.map((t, i, arr) => (
-                <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleTask(t.id)} isLast={i === arr.length - 1} disabled={isClosed} onOverride={() => overrideLock(t.id)} />
-              ))}
+              {s.visible.map((t, i, arr) => {
+                const oname = taskOwnerName(incident, t);
+                return (
+                  <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleTask(t.id)} isLast={i === arr.length - 1} disabled={isClosed} onOverride={() => overrideLock(t.id)}
+                    ownerName={oname} ownerCode={oname ? disambiguatedInitials(oname, ownerNames) : t.owner} />
+                );
+              })}
             </div>
           )
         ))}
@@ -1214,7 +1260,7 @@ function RespFlags({ r }) {
   );
 }
 
-function TaskRow({ task, now, onToggle, isLast, disabled, onOverride }) {
+function TaskRow({ task, now, onToggle, isLast, disabled, onOverride, ownerName, ownerCode }) {
   const p = { high: { color: PALETTE.rust, label: "HIGH" }, med: { color: PALETTE.amber, label: "MED" }, low: { color: PALETTE.sage, label: "LOW" } }[task.priority];
   const overdue = !task.done && task.dueAt && task.dueAt < now;
   const locked = task.locked && !task.done;
@@ -1270,7 +1316,30 @@ function TaskRow({ task, now, onToggle, isLast, disabled, onOverride }) {
         </span>
       )}
       <span className="mono" style={{ fontSize: 9, letterSpacing: "0.12em", color: p.color, fontWeight: 500 }}>{p.label}</span>
-      <div style={{ width: 24, height: 24, background: "rgba(0, 48, 94, 0.1)", color: PALETTE.teal, fontSize: 9, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%" }}>{task.owner}</div>
+      <div title={ownerName || undefined} style={{ minWidth: 24, height: 24, padding: "0 5px", background: "rgba(0, 48, 94, 0.1)", color: PALETTE.teal, fontSize: 9, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 12 }}>{ownerCode || task.owner}</div>
+    </div>
+  );
+}
+
+// A loud, unmistakable banner for the phase the incident is currently in —
+// with a 6-step progress rail — so it's obvious which actions are live now.
+function ActivePhaseBanner({ curPhase, curIdx, openCount }) {
+  const meta = phaseMeta(curPhase);
+  return (
+    <div style={{ padding: "12px 24px 8px", background: PALETTE.parchment, borderBottom: `1px solid rgba(0,48,94,0.08)` }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <span className="mono" style={{ fontSize: 9.5, letterSpacing: "0.14em", color: PALETTE.paper, background: PALETTE.rust, padding: "3px 8px", fontWeight: 600 }}>
+          PHASE {curIdx + 1} OF {CIMT_PHASES.length}
+        </span>
+        <span className="display" style={{ fontSize: 18, fontWeight: 600, color: PALETTE.teal, letterSpacing: "-0.01em" }}>{meta.label}</span>
+        {openCount > 0 && <span style={{ fontSize: 12, color: PALETTE.inkSoft }}>· {openCount} open now</span>}
+      </div>
+      <div style={{ display: "flex", gap: 3, marginTop: 8 }}>
+        {CIMT_PHASES.map((p, i) => (
+          <div key={p.id} title={p.label} style={{ flex: 1, height: 4, background: i < curIdx ? PALETTE.sage : i === curIdx ? PALETTE.rust : "rgba(0,48,94,0.14)" }} />
+        ))}
+      </div>
+      <p style={{ fontSize: 11.5, color: PALETTE.inkSoft, lineHeight: 1.5, margin: "7px 0 0" }}>{meta.blurb}</p>
     </div>
   );
 }
@@ -3408,8 +3477,8 @@ function DecisionFlowRunner({ flow, saved, isClosed, onExit, onJump, persist, ad
   );
 }
 
-function ContinuityDrawer({ incident, update, addTimelineEntry, isClosed }) {
-  const [tab, setTab] = useState("strategies");
+function ContinuityDrawer({ incident, update, addTimelineEntry, isClosed, initialTab }) {
+  const [tab, setTab] = useState(initialTab || "strategies");
   const TABS = [
     { id: "strategies", label: "Recovery Strategies", badge: activeStrategyCount(incident) || null },
     { id: "cbf", label: "Critical Functions", badge: impactedCBFCount(incident) || null },
@@ -4093,15 +4162,28 @@ function ExportDrawer({ incident }) {
     }
     rule();
 
-    // Tasks
+    // Tasks — grouped by incident-management phase (Annika's feedback: a single
+    // flat list obscures progress; per-phase grouping shows where attention is
+    // needed). Owners print as full names so initials never collide (SF/SF).
     heading(`TASKS (${incident.tasks.filter((t) => t.done).length} of ${incident.tasks.length} complete)`);
     if (incident.tasks.length === 0) {
       line("No tasks recorded.", { color: [90, 102, 112] });
     } else {
-      for (const t of incident.tasks) {
-        const mark = t.done ? "[x]" : "[ ]";
-        const due = t.dueAt ? `  (due ${new Date(t.dueAt).toLocaleString("en-AU")})` : "";
-        line(`${mark}  ${t.text}  · ${(t.priority || "med").toUpperCase()}${due}  · owner ${t.owner || "—"}`, { size: 10 });
+      const phaseOf = (t) =>
+        t.phase || phaseForDue(t.dueAt != null ? Math.round((t.dueAt - incident.startedAt) / 60000) : null, t.text);
+      for (let pi = 0; pi < CIMT_PHASES.length; pi++) {
+        const ph = CIMT_PHASES[pi];
+        const inPhase = incident.tasks.filter((t) => phaseOf(t) === ph.id);
+        if (!inPhase.length) continue;
+        const doneN = inPhase.filter((t) => t.done).length;
+        line(`${pi + 1}. ${ph.label.toUpperCase()}  (${doneN}/${inPhase.length} complete)`, { size: 10, color: [0, 48, 94], bold: true, gap: 15 });
+        for (const t of inPhase) {
+          const mark = t.done ? "[x]" : "[ ]";
+          const due = t.dueAt ? `  (due ${new Date(t.dueAt).toLocaleString("en-AU")})` : "";
+          const oname = taskOwnerName(incident, t) || t.owner || "—";
+          line(`${mark}  ${t.text}  · ${(t.priority || "med").toUpperCase()}${due}  · owner ${oname}`, { size: 10, indent: 8 });
+        }
+        y += 4;
       }
     }
     rule();

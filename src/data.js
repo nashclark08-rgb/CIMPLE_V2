@@ -19,6 +19,73 @@ export const SEVERITY = {
   3: { label: "L3 Critical Incident", short: "L3", color: "#7A1820", bg: "#E4C8C9", tone: "Large-scale / strategic — CIMT with strategic decision-making; possibly multi-site or media", who: "CIMT (Strategic)", plan: "CIM & Business Continuity Plan", activatesCIMT: true },
 };
 
+// The plan's Level 0–3 Escalation Matrix (CIM & BCP V0.3), verbatim enough to
+// serve as the in-app quick-reference Annika asked for. Each row mirrors a
+// SEVERITY entry and adds the plan's criteria / impacts / worked examples so a
+// user can match a situation to a level without leaving CIMPLE.
+export const ESCALATION_MATRIX = [
+  {
+    level: 0, label: "Business as Usual", tactical: "",
+    criteria: [
+      "Minimal impact on building / campus.",
+      "Impact on a small number of persons or property.",
+      "Can be managed within Standard Operating Procedures by the local facilities team.",
+    ],
+    impacts: "People and Assets",
+    examples: ["Building break-in", "Burglary", "Minor medical emergency", "Power outage", "Utility failure", "Water leak", "WHS issue"],
+    who: "Facilities / WHS", plan: "Standard Operating Procedures",
+  },
+  {
+    level: 1, label: "Emergency", tactical: "Tactical",
+    criteria: [
+      "Impact limited to a small area of one building / campus.",
+      "Emergency can be managed by the Warden Team (ECO).",
+      "Emergency Services will be notified to respond.",
+      "Likely response will be less than 1 hour.",
+    ],
+    impacts: "People and Assets",
+    examples: ["Assault", "Fire (minor)", "Bomb threat", "Medical emergency", "Gas leak", "IT outage (short term)", "Personal threat"],
+    who: "Warden Team (ECO), HR", plan: "Emergency Response Plan (ERP) / Disaster Recovery Plan (DRP)",
+  },
+  {
+    level: 2, label: "Incident", tactical: "Operational",
+    criteria: [
+      "Emergency is affecting the whole campus.",
+      "Coordination required to manage recovery of campus.",
+      "Warden team needs support to manage people.",
+      "Requires coordination of a large volume of people.",
+      "Requires recovery of critical business functions.",
+      "Regional or national media exposure.",
+      "Likely response will be a few hours.",
+    ],
+    impacts: "People, Assets, Business Operations",
+    examples: ["Active shooter", "Comms outage", "Cyber-attack", "Death of a staff member", "Disease", "Extreme weather", "Fire (major)", "IT failure", "Natural disaster", "Negative media exposure", "Terrorist attack"],
+    who: "Critical Incident Management Team", plan: "Critical Incident Management Plan / Business Continuity Plan / Cyber Plan / Comms Plan",
+  },
+  {
+    level: 3, label: "Critical Incident", tactical: "Strategic",
+    criteria: [
+      "Large-scale impact on multiple sites.",
+      "Requires management at off-site locations.",
+      "Requires management of key stakeholders and media.",
+      "International media exposure.",
+      "Impact on Operations, Reputation, Financial etc.",
+      "Requires strategic management decision making.",
+    ],
+    impacts: "People, Assets, Financial, Reputation, Operational, Strategic",
+    examples: ["Allegations", "Conflict of interest", "Data breach", "Fraud", "Key staff resignation"],
+    who: "CIMT (Strategic)", plan: "CIM & Business Continuity Plan",
+  },
+];
+
+// One-line plain-English rationale for why a level applies — surfaced at
+// creation, in triage, and on the incident so severity is never a bare number.
+export function severityRationale(severity) {
+  const s = SEVERITY[severity];
+  if (!s) return "";
+  return `${s.tone}. Activated by: ${s.who} (${s.plan}).`;
+}
+
 // ---------- Incident types with metadata ----------
 export const INCIDENT_TYPES = [
   { id: "medical", label: "Medical / Injury", category: "student", icon: "Heart", emp: "EMP §3.1 — Medical Emergency Response", defaultSeverity: 1 },
@@ -774,7 +841,7 @@ export const ROLE_DEFINITIONS = {
 export const CIMT_ROLE_CHECKLISTS = {
   "Critical Incident Leader": [
     { text: "Assume control; use the Critical Incident Escalation Checklist to guide actions start to finish", due: 5 },
-    { text: "Conduct an incident assessment and determine the incident level", due: 10 },
+    { text: "Conduct an incident assessment and determine the incident level in accordance with the Critical Incident Flowchart", due: 10, flowchart: true },
     { text: "Determine which CIMT members and roles are required", due: 10 },
     { text: "Formally declare a Critical Incident", due: 10 },
     { text: "Notify the Chair of College Council and CEO of AngliSchools", due: 20, mandatory: true },
@@ -1030,7 +1097,7 @@ export const PHASE_CHECKLIST = {
     { id: "as4", text: "Determine whether the Emergency Control Organisation needs additional support and organise it", responsible: "College Services" },
     { id: "as5", text: "Determine whether someone needs to go to the incident/assembly area to manage media", responsible: "Communications Coordinator" },
     { id: "as6", text: "Determine whether immediate communications need to be issued to those impacted", responsible: "Communications Coordinator" },
-    { id: "as7", text: "Conduct an incident assessment to determine the incident level", responsible: "Critical Incident Leader", reference: "Incident Levels" },
+    { id: "as7", text: "Conduct an incident assessment and determine the incident level in accordance with the Critical Incident Flowchart", responsible: "Critical Incident Leader", reference: "Incident Levels", flowchart: true },
     { id: "as8", text: "Determine which CIMT members are required", responsible: "Critical Incident Leader" },
     { id: "as9", text: "Set up Teams for the incident (new channel named with incident + date; copy templates from General)", responsible: "Support Coordinator" },
     { id: "as10", text: "Initiate and maintain the incident log", responsible: "Support Coordinator", reference: "Incident Log" },
@@ -1048,7 +1115,7 @@ export const PHASE_CHECKLIST = {
   response: [
     { id: "re1", text: "Confirm the safety and wellbeing of all staff, students and visitors; track affected persons (names, condition, next of kin)", responsible: "Student Coordinator", reference: "People at Risk Log" },
     { id: "re2", text: "Confirm the Emergency Control Organisation / warden team has been activated, if needed", responsible: "College Services" },
-    { id: "re3", text: "Re-assess the expected incident level", responsible: "Critical Incident Leader", reference: "Incident Levels" },
+    { id: "re3", text: "Re-assess the expected incident level against the Critical Incident Flowchart", responsible: "Critical Incident Leader", reference: "Incident Levels", flowchart: true },
     { id: "re4", text: "Conduct the impact & issues assessment", responsible: "Planning Coordinator", reference: "Impact Assessment" },
     { id: "re5", text: "Review Critical Business Functions with short RTOs for likely impact", responsible: "Recovery Coordinator", reference: "Critical Business Functions" },
     { id: "re6", text: "Develop the initial communications strategy for the Leader to approve", responsible: "Communications Coordinator", reference: "Communications Strategy" },
@@ -1319,7 +1386,9 @@ export const DECISION_FLOWS = {
         help: "This shapes whether Business Continuity will be engaged later — you still assess the level next either way.",
         options: [{ label: "Yes", to: "assess" }, { label: "No", to: "assess" }] },
       assess: { kind: "decision", title: "Assess the incident level",
-        help: "Match the situation to the escalation matrix (Level 0–3).",
+        help: "Match the situation to the escalation matrix (Level 0–3). Use the impact assessment to weigh the effect across each dimension before you decide.",
+        reference: "Escalation Matrix · Impact Assessment",
+        action: { label: "Open the impact assessment", drawer: { kind: "continuity", tab: "impact" } },
         options: [
           { label: "Level 0 — Business as Usual", to: "l0" },
           { label: "Level 1 — Emergency", to: "l1" },
@@ -1694,6 +1763,47 @@ export const ALL_ROLES = Object.keys(ROLE_DEFINITIONS);
 
 function initialsFromName(name) {
   return String(name || "").split(/\s+/).map((s) => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "?";
+}
+
+// The plain first+last initial code (may collide, e.g. Sharon Finlay / Simon
+// Fairall both → "SF").
+function baseCode(name) {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "—";
+  const first = parts[0];
+  const last = parts.length > 1 ? parts[parts.length - 1] : "";
+  return ((first[0] || "") + (last[0] || "")).toUpperCase() || "?";
+}
+
+// A UNIQUE short owner code within a given set of names. If the 2-letter code
+// is unique it is used as-is (Adrian Johnson → "AJ"); on a clash it extends to
+// first-name initial + first three surname letters (Sharon Finlay → "SFIN",
+// Simon Fairall → "SFAI") — exactly the disambiguation Annika asked for.
+export function disambiguatedInitials(name, allNames = []) {
+  const target = String(name || "").trim();
+  if (!target || target === "—") return "—";
+  const base = baseCode(target);
+  const clash = allNames.some((n) => n && String(n).trim() !== target && baseCode(n) === base);
+  if (!clash) return base;
+  const parts = target.split(/\s+/).filter(Boolean);
+  const first = parts[0] || "";
+  const last = parts.length > 1 ? parts[parts.length - 1] : "";
+  return ((first[0] || "") + last.slice(0, 3)).toUpperCase();
+}
+
+// Resolve a task's owner to a full staff name for this incident: prefer the
+// role match (unambiguous), then fall back to an initials match against the
+// assigned roster. Returns "" when the owner can't be resolved (e.g. "—").
+export function taskOwnerName(incident, task) {
+  const roles = incident?.roles || [];
+  if (task?.role) {
+    const byRole = roles.find((r) => r.role === task.role && r.staff && r.staff !== "—");
+    if (byRole) return byRole.staff;
+  }
+  const code = task?.owner;
+  if (!code || code === "—") return "";
+  const byInit = roles.find((r) => r.initials === code && r.staff && r.staff !== "—");
+  return byInit ? byInit.staff : "";
 }
 
 // Case-insensitive canonical role match → known role name, or trimmed input if unknown.

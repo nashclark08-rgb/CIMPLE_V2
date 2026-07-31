@@ -8,11 +8,11 @@ import {
   ShieldCheck, ServerCrash, Activity, Tent, Zap,
   ArrowLeft, ArrowRight, ChevronRight,
 } from "lucide-react";
-import { PALETTE, TopBarShell } from "./shared.jsx";
+import { PALETTE, TopBarShell, EscalationMatrixButton } from "./shared.jsx";
 import AllocationReview from "./AllocationReview.jsx";
 import {
   INCIDENT_TYPES, TYPE_CATEGORIES, SEVERITY, createIncident, saveIncident,
-  autoAllocate, availableQualifiedStaff, PREF_LABEL,
+  autoAllocate, availableQualifiedStaff, PREF_LABEL, severityRationale,
 } from "./data.js";
 
 const ICON_MAP = {
@@ -209,6 +209,18 @@ export default function NewIncident({ onCancel, onCreated }) {
 
               <div>
                 <Label>Initial severity</Label>
+                {/* Why this default — answers "how is severity determined when a
+                    type is selected?" (Annika). The type carries a default level
+                    from the plan's matrix; it stays fully editable. */}
+                <div style={{ padding: "12px 14px", background: SEVERITY[pickedType.defaultSeverity].bg, borderLeft: `3px solid ${SEVERITY[pickedType.defaultSeverity].color}`, marginBottom: 14 }}>
+                  <div style={{ fontSize: 12.5, color: PALETTE.ink, lineHeight: 1.5 }}>
+                    <strong>{pickedType.label}</strong> defaults to <strong>{SEVERITY[pickedType.defaultSeverity].label}</strong>.
+                  </div>
+                  <div style={{ fontSize: 11.5, color: PALETTE.inkSoft, marginTop: 4, lineHeight: 1.5 }}>{severityRationale(pickedType.defaultSeverity)}</div>
+                  <div style={{ marginTop: 8 }}>
+                    <EscalationMatrixButton compact label="See the Level 0–3 escalation matrix" />
+                  </div>
+                </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {[0, 1, 2, 3].map((lvl) => {
                     const cfg = SEVERITY[lvl];

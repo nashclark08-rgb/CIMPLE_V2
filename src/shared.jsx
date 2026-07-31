@@ -5,8 +5,9 @@
 //   Crimson #A02029  (accent — used sparingly, heraldically)
 // Aesthetic: editorial / institutional. Quiet authority.
 // ============================================================
-import React from "react";
-import { AlertCircle } from "lucide-react";
+import React, { useState } from "react";
+import { AlertCircle, X, Layers } from "lucide-react";
+import { ESCALATION_MATRIX, SEVERITY } from "./data.js";
 
 export const PALETTE = {
   // Primary brand
@@ -450,6 +451,110 @@ export function InstitutionalFooter() {
         </div>
       </div>
     </footer>
+  );
+}
+
+/* ---------- Reusable centred modal ---------- */
+export function ReferenceModal({ title, subtitle, onClose, children, maxWidth = 960 }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(11,22,32,0.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "48px 20px", overflowY: "auto" }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="card fade-in"
+        style={{ maxWidth, width: "100%", background: PALETTE.paper }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, padding: "20px 24px 16px", borderBottom: `1px solid rgba(0,48,94,0.12)` }}>
+          <div>
+            <div className="display" style={{ fontSize: 22, fontWeight: 600, color: PALETTE.teal, letterSpacing: "-0.01em" }}>{title}</div>
+            {subtitle && <p style={{ fontSize: 12.5, color: PALETTE.inkSoft, margin: "4px 0 0", lineHeight: 1.5 }}>{subtitle}</p>}
+          </div>
+          <button onClick={onClose} className="btn-ghost" style={{ padding: 6, flexShrink: 0 }} aria-label="Close"><X size={18} /></button>
+        </div>
+        <div style={{ padding: 24 }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- The plan's Level 0–3 Escalation Matrix (quick reference) ---------- */
+export function EscalationMatrix() {
+  const cols = [
+    { k: "criteria", label: "Criteria / description", w: "30%" },
+    { k: "impacts", label: "Impacts", w: "14%" },
+    { k: "examples", label: "Examples", w: "24%" },
+    { k: "who", label: "Who activates", w: "14%" },
+    { k: "plan", label: "Plan to activate", w: "18%" },
+  ];
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 720, fontSize: 12 }}>
+        <thead>
+          <tr>
+            <th style={{ textAlign: "left", padding: "8px 10px", background: PALETTE.tealDeep, color: PALETTE.paper, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase" }}>Level</th>
+            {cols.map((c) => (
+              <th key={c.k} style={{ textAlign: "left", padding: "8px 10px", background: PALETTE.tealDeep, color: PALETTE.paper, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", width: c.w }}>{c.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {ESCALATION_MATRIX.map((row) => {
+            const sev = SEVERITY[row.level] || {};
+            return (
+              <tr key={row.level} style={{ borderBottom: `1px solid rgba(0,48,94,0.12)`, verticalAlign: "top" }}>
+                <td style={{ padding: "10px", background: sev.bg || PALETTE.parchment, minWidth: 96 }}>
+                  <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, borderRadius: "50%", background: sev.color, color: PALETTE.paper, fontWeight: 700, fontSize: 12 }}>L{row.level}</div>
+                  <div style={{ fontWeight: 600, color: PALETTE.ink, marginTop: 6, lineHeight: 1.2 }}>{row.label}</div>
+                  {row.tactical && <div className="mono" style={{ fontSize: 9.5, color: PALETTE.inkSoft, marginTop: 2 }}>{row.tactical}</div>}
+                </td>
+                <td style={{ padding: "10px" }}>
+                  <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.5 }}>
+                    {row.criteria.map((c, i) => <li key={i} style={{ marginBottom: 3, color: PALETTE.ink }}>{c}</li>)}
+                  </ul>
+                </td>
+                <td style={{ padding: "10px", color: PALETTE.inkSoft }}>{row.impacts}</td>
+                <td style={{ padding: "10px", color: PALETTE.inkSoft, lineHeight: 1.6 }}>{row.examples.join(" · ")}</td>
+                <td style={{ padding: "10px", color: PALETTE.ink, fontWeight: 500 }}>{row.who}</td>
+                <td style={{ padding: "10px", color: PALETTE.inkSoft }}>{row.plan}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p style={{ fontSize: 11, color: PALETTE.inkSoft, margin: "12px 2px 0", lineHeight: 1.5 }}>
+        Source: TAC Critical Incident &amp; Business Continuity Management Plan — Level 0–3 escalation matrix. The CIMT engages at Level 2 and above; Levels 0–1 are handled under Standard Operating Procedures and the Emergency Response Plan (Warden Team / ECO).
+      </p>
+    </div>
+  );
+}
+
+// A small button that opens the escalation matrix in a modal. Drop anywhere a
+// user might ask "which level is this?" — creation, triage, the incident.
+export function EscalationMatrixButton({ compact = false, label = "Escalation matrix" }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className={compact ? "btn-ghost" : "btn"}
+        style={compact
+          ? { background: "none", border: "none", padding: 0, color: PALETTE.teal, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 500 }
+          : undefined}
+      >
+        <Layers size={compact ? 13 : 14} /> {label}
+      </button>
+      {open && (
+        <ReferenceModal
+          title="Incident Escalation Matrix"
+          subtitle="Match the situation to a level (0–3). This is the plan's reference table, in full."
+          onClose={() => setOpen(false)}
+        >
+          <EscalationMatrix />
+        </ReferenceModal>
+      )}
+    </>
   );
 }
 

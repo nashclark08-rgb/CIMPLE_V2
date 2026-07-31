@@ -3,7 +3,7 @@
 // ============================================================
 import React, { useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, Lock, Sparkles } from "lucide-react";
-import { PALETTE, TopBarShell } from "./shared.jsx";
+import { PALETTE, TopBarShell, EscalationMatrixButton } from "./shared.jsx";
 import AllocationReview from "./AllocationReview.jsx";
 import {
   SEVERITY, INCIDENT_TYPES, createIncident, saveIncident,
@@ -81,6 +81,20 @@ function calculateSeverity(answers) {
   if (harm >= 2 || external >= 2 || scope >= 3) return 2;
   if (harm >= 1 || scope >= 1 || external >= 1 || media >= 2) return 1;
   return 0;
+}
+
+// Plain-English account of which answers drove the level — so the number is
+// never a black box (Annika: "how is the initial severity determined?").
+function triageDrivers(answers) {
+  const drivers = [];
+  const HARM = ["no current harm", "first-aid-level harm", "a serious injury or active crisis", "a life-threatening or fatal situation"];
+  const SCOPE = ["one person", "a small group", "a class or year group", "the whole school site"];
+  if (answers.harm != null) drivers.push(HARM[answers.harm]);
+  if (answers.scope >= 2) drivers.push(`it affects ${SCOPE[answers.scope]}`);
+  if (answers.external >= 2) drivers.push("emergency services are involved");
+  if (answers.media >= 2) drivers.push("there is real media / community exposure");
+  if (!drivers.length) return "Your answers indicate a contained, low-impact situation.";
+  return `You indicated ${drivers.join(", ")}.`;
 }
 
 export default function Triage({ onCancel, onCreated }) {
@@ -284,11 +298,16 @@ function Result({ severity, answers, title, setTitle, location, setLocation, det
 
       <div style={{ marginTop: 28, padding: 20, background: PALETTE.bone, borderLeft: `3px solid ${sev.color}` }}>
         <div className="mono" style={{ fontSize: 10, color: PALETTE.teal, letterSpacing: "0.14em", opacity: 0.6, marginBottom: 8 }}>
-          BASED ON YOUR ANSWERS
+          WHY THIS LEVEL
         </div>
         <p style={{ fontSize: 13, lineHeight: 1.6, color: PALETTE.ink, margin: 0 }}>
-          Recommended type: <strong>{typeMeta?.label || "Other"}</strong>. The combination of harm level, scope, external services, and media risk you indicated suggests {sev.label.toLowerCase()}. You can override severity once the incident is open.
+          Recommended type: <strong>{typeMeta?.label || "Other"}</strong>. {triageDrivers(answers)} On the plan's matrix that maps to <strong>{sev.label}</strong>.
         </p>
+        <p style={{ fontSize: 12.5, lineHeight: 1.55, color: PALETTE.inkSoft, margin: "8px 0 0" }}>{sev.tone}. Activated by: {sev.who}.</p>
+        <div style={{ marginTop: 10 }}>
+          <EscalationMatrixButton compact label="Check against the Level 0–3 escalation matrix" />
+        </div>
+        <p style={{ fontSize: 11.5, color: PALETTE.inkSoft, margin: "10px 0 0" }}>You can override severity once the incident is open.</p>
       </div>
 
       <div style={{ marginTop: 28, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
