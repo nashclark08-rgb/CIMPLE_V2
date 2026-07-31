@@ -454,28 +454,28 @@ export function buildSampleIncidents() {
       supportNotes: "Prefers female counsellor. Year advisor: Ms Nguyen.",
     },
     roles: [
-      { id: "r1", role: "Critical Incident Leader", staff: "Adrian Johnson", initials: "AJ", status: "confirmed", required: true, isPrincipal: true },
-      { id: "r2", role: "Support Coordinator", staff: "Jessica Sevil", initials: "JS", status: "confirmed", required: true },
-      { id: "r3", role: "Planning Coordinator", staff: "Annika Fairley", initials: "AF", status: "confirmed", required: true },
-      { id: "r4", role: "Student Coordinator", staff: "Simon Fairall", initials: "SF", status: "pending", required: true, backup: "David Smith" },
-      { id: "r5", role: "Student Wellbeing Services Coordinator", staff: "Stephanie Kiesel", initials: "SK", status: "confirmed", required: true },
+      { id: "r1", role: "Critical Incident Leader", staff: "Adrian Johnson", initials: "AJOH", status: "confirmed", required: true, isPrincipal: true },
+      { id: "r2", role: "Support Coordinator", staff: "Jessica Sevil", initials: "JSEV", status: "confirmed", required: true },
+      { id: "r3", role: "Planning Coordinator", staff: "Annika Fairley", initials: "AFAI", status: "confirmed", required: true },
+      { id: "r4", role: "Student Coordinator", staff: "Simon Fairall", initials: "SFAI", status: "pending", required: true, backup: "David Smith" },
+      { id: "r5", role: "Student Wellbeing Services Coordinator", staff: "Stephanie Kiesel", initials: "SKIE", status: "confirmed", required: true },
       { id: "r6", role: "Communications Coordinator", staff: "—", initials: "—", status: "unassigned", required: false, suggested: "Megan Whitsed" },
     ],
     timeline: [
-      { id: "t1", ts: now - minutes(23), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Incident opened. Initial severity: L2 Incident." },
-      { id: "t2", ts: now - minutes(22), actor: "Adrian Johnson", actorInitials: "AJ", type: "action", text: "Activated EMP §4.3 — Student Mental Health Crisis Response. CIMT stood up." },
-      { id: "t3", ts: now - minutes(21), actor: "Stephanie Kiesel", actorInitials: "SK", type: "note", text: "On site with student. Calm but distressed. No visible injury. Ventolin not required." },
-      { id: "t4", ts: now - minutes(18), actor: "Stephanie Kiesel", actorInitials: "SK", type: "note", text: "Wellbeing assessment underway. Counselling Services activated; external counsellor on standby." },
-      { id: "t5", ts: now - minutes(14), actor: "Annika Fairley", actorInitials: "AF", type: "note", text: "Impact assessment: serious student-welfare risk, contained to one student but CIMT-coordinated. Level confirmed L2." },
-      { id: "t6", ts: now - minutes(9), actor: "Simon Fairall", actorInitials: "SF", type: "note", text: "Drafting parent communication for Leader approval. Will not send without sign-off." },
-      { id: "t7", ts: now - minutes(4), actor: "Stephanie Kiesel", actorInitials: "SK", type: "note", text: "Student refusing to call parent directly. Has agreed to remain on site with counsellor." },
+      { id: "t1", ts: now - minutes(23), actor: "Adrian Johnson", actorInitials: "AJOH", type: "system", text: "Incident opened. Initial severity: L2 Incident." },
+      { id: "t2", ts: now - minutes(22), actor: "Adrian Johnson", actorInitials: "AJOH", type: "action", text: "Activated EMP §4.3 — Student Mental Health Crisis Response. CIMT stood up." },
+      { id: "t3", ts: now - minutes(21), actor: "Stephanie Kiesel", actorInitials: "SKIE", type: "note", text: "On site with student. Calm but distressed. No visible injury. Ventolin not required." },
+      { id: "t4", ts: now - minutes(18), actor: "Stephanie Kiesel", actorInitials: "SKIE", type: "note", text: "Wellbeing assessment underway. Counselling Services activated; external counsellor on standby." },
+      { id: "t5", ts: now - minutes(14), actor: "Annika Fairley", actorInitials: "AFAI", type: "note", text: "Impact assessment: serious student-welfare risk, contained to one student but CIMT-coordinated. Level confirmed L2." },
+      { id: "t6", ts: now - minutes(9), actor: "Simon Fairall", actorInitials: "SFAI", type: "note", text: "Drafting parent communication for Leader approval. Will not send without sign-off." },
+      { id: "t7", ts: now - minutes(4), actor: "Stephanie Kiesel", actorInitials: "SKIE", type: "note", text: "Student refusing to call parent directly. Has agreed to remain on site with counsellor." },
     ],
     tasks: [
-      { id: "tk1", text: "Contact parents/guardians once Leader approves", owner: "SF", done: false, priority: "high" },
-      { id: "tk2", text: "Document the disclosure factually in the incident log", owner: "SK", done: false, priority: "med" },
-      { id: "tk3", text: "Determine whether a mandatory report is required (ROSH)", owner: "SK", done: true, priority: "high" },
-      { id: "tk4", text: "Notify Chair of College Council / AngliSchools if escalates", owner: "AJ", done: false, priority: "high" },
-      { id: "tk5", text: "Schedule student check-in for tomorrow AM", owner: "SK", done: false, priority: "low" },
+      { id: "tk1", text: "Contact parents/guardians once Leader approves", owner: "SFAI", done: false, priority: "high" },
+      { id: "tk2", text: "Document the disclosure factually in the incident log", owner: "SKIE", done: false, priority: "med" },
+      { id: "tk3", text: "Determine whether a mandatory report is required (ROSH)", owner: "SKIE", done: true, priority: "high" },
+      { id: "tk4", text: "Notify Chair of College Council / AngliSchools if escalates", owner: "AJOH", done: false, priority: "high" },
+      { id: "tk5", text: "Schedule student check-in for tomorrow AM", owner: "SKIE", done: false, priority: "low" },
     ],
   });
 
@@ -498,15 +498,15 @@ export function buildSampleIncidents() {
     phaseChecks: { as1: { done: true }, as7: { done: true } },
     student: null,
     roles: [
-      { id: "r1", role: "Critical Incident Leader", staff: "Adrian Johnson", initials: "AJ", status: "confirmed", required: true, isPrincipal: true },
-      { id: "r2", role: "Support Coordinator", staff: "Jessica Sevil", initials: "JS", status: "confirmed", required: true },
-      { id: "r3", role: "Planning Coordinator", staff: "Annika Fairley", initials: "AF", status: "confirmed", required: true },
+      { id: "r1", role: "Critical Incident Leader", staff: "Adrian Johnson", initials: "AJOH", status: "confirmed", required: true, isPrincipal: true },
+      { id: "r2", role: "Support Coordinator", staff: "Jessica Sevil", initials: "JSEV", status: "confirmed", required: true },
+      { id: "r3", role: "Planning Coordinator", staff: "Annika Fairley", initials: "AFAI", status: "confirmed", required: true },
       { id: "r4", role: "Student Coordinator", staff: "—", initials: "—", status: "unassigned", required: true, suggested: "Simon Fairall" },
     ],
     timeline: [
-      { id: "t1", ts: now - minutes(8), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Incident opened. Initial severity: L1 Emergency." },
-      { id: "t2", ts: now - minutes(7), actor: "Annika Fairley", actorInitials: "AF", type: "note", text: "ECO first aider on scene (Oval). Student conscious, ankle swollen, painful on weight-bearing." },
-      { id: "t3", ts: now - minutes(3), actor: "Annika Fairley", actorInitials: "AF", type: "action", text: "Splint applied by first aider. Awaiting parent collection / ambulance decision." },
+      { id: "t1", ts: now - minutes(8), actor: "Adrian Johnson", actorInitials: "AJOH", type: "system", text: "Incident opened. Initial severity: L1 Emergency." },
+      { id: "t2", ts: now - minutes(7), actor: "Annika Fairley", actorInitials: "AFAI", type: "note", text: "ECO first aider on scene (Oval). Student conscious, ankle swollen, painful on weight-bearing." },
+      { id: "t3", ts: now - minutes(3), actor: "Annika Fairley", actorInitials: "AFAI", type: "action", text: "Splint applied by first aider. Awaiting parent collection / ambulance decision." },
     ],
     tasks: tasksForIncidentType("medical"),
   });
@@ -528,21 +528,21 @@ export function buildSampleIncidents() {
     policies: defaultPoliciesForType("behavioural"),
     student: null,
     roles: [
-      { id: "r1", role: "Critical Incident Leader", staff: "Adrian Johnson", initials: "AJ", status: "confirmed", required: true, isPrincipal: true },
-      { id: "r2", role: "Support Coordinator", staff: "Jessica Sevil", initials: "JS", status: "confirmed", required: true },
-      { id: "r3", role: "Student Coordinator", staff: "Simon Fairall", initials: "SF", status: "confirmed", required: true },
-      { id: "r4", role: "Student Wellbeing Services Coordinator", staff: "Stephanie Kiesel", initials: "SK", status: "confirmed", required: true },
+      { id: "r1", role: "Critical Incident Leader", staff: "Adrian Johnson", initials: "AJOH", status: "confirmed", required: true, isPrincipal: true },
+      { id: "r2", role: "Support Coordinator", staff: "Jessica Sevil", initials: "JSEV", status: "confirmed", required: true },
+      { id: "r3", role: "Student Coordinator", staff: "Simon Fairall", initials: "SFAI", status: "confirmed", required: true },
+      { id: "r4", role: "Student Wellbeing Services Coordinator", staff: "Stephanie Kiesel", initials: "SKIE", status: "confirmed", required: true },
     ],
     timeline: [
-      { id: "t1", ts: now - minutes(60 * 26), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Incident opened. Initial severity: L0 Business as Usual." },
-      { id: "t2", ts: now - minutes(60 * 26 - 5), actor: "Stephanie Kiesel", actorInitials: "SK", type: "note", text: "Two students separated and spoken with individually. No injuries." },
-      { id: "t3", ts: now - minutes(60 * 25), actor: "Simon Fairall", actorInitials: "SF", type: "action", text: "Both sets of parents notified by phone." },
-      { id: "t4", ts: now - minutes(60 * 24), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Incident closed. Resolution: minor disagreement, both students reconciled, restorative conversation completed." },
+      { id: "t1", ts: now - minutes(60 * 26), actor: "Adrian Johnson", actorInitials: "AJOH", type: "system", text: "Incident opened. Initial severity: L0 Business as Usual." },
+      { id: "t2", ts: now - minutes(60 * 26 - 5), actor: "Stephanie Kiesel", actorInitials: "SKIE", type: "note", text: "Two students separated and spoken with individually. No injuries." },
+      { id: "t3", ts: now - minutes(60 * 25), actor: "Simon Fairall", actorInitials: "SFAI", type: "action", text: "Both sets of parents notified by phone." },
+      { id: "t4", ts: now - minutes(60 * 24), actor: "Adrian Johnson", actorInitials: "AJOH", type: "system", text: "Incident closed. Resolution: minor disagreement, both students reconciled, restorative conversation completed." },
     ],
     tasks: [
-      { id: "tk1", text: "Restorative conversation with both students", owner: "SK", done: true, priority: "high" },
-      { id: "tk2", text: "Notify both sets of parents", owner: "SF", done: true, priority: "high" },
-      { id: "tk3", text: "Log in behaviour register", owner: "JS", done: true, priority: "med" },
+      { id: "tk1", text: "Restorative conversation with both students", owner: "SKIE", done: true, priority: "high" },
+      { id: "tk2", text: "Notify both sets of parents", owner: "SFAI", done: true, priority: "high" },
+      { id: "tk3", text: "Log in behaviour register", owner: "JSEV", done: true, priority: "med" },
     ],
   });
 
@@ -563,22 +563,22 @@ export function buildSampleIncidents() {
     policies: defaultPoliciesForType("evacuation"),
     student: null,
     roles: [
-      { id: "r1", role: "Critical Incident Leader", staff: "Adrian Johnson", initials: "AJ", status: "confirmed", required: true, isPrincipal: true },
-      { id: "r2", role: "Support Coordinator", staff: "Jessica Sevil", initials: "JS", status: "confirmed", required: true },
-      { id: "r3", role: "Planning Coordinator", staff: "Annika Fairley", initials: "AF", status: "confirmed", required: true },
-      { id: "r4", role: "College Services", staff: "Matt Everon", initials: "ME", status: "confirmed", required: true },
-      { id: "r5", role: "Facilities", staff: "Warwick Rolls", initials: "WR", status: "confirmed", required: true },
-      { id: "r6", role: "Communications Coordinator", staff: "Megan Whitsed", initials: "MW", status: "confirmed", required: true },
+      { id: "r1", role: "Critical Incident Leader", staff: "Adrian Johnson", initials: "AJOH", status: "confirmed", required: true, isPrincipal: true },
+      { id: "r2", role: "Support Coordinator", staff: "Jessica Sevil", initials: "JSEV", status: "confirmed", required: true },
+      { id: "r3", role: "Planning Coordinator", staff: "Annika Fairley", initials: "AFAI", status: "confirmed", required: true },
+      { id: "r4", role: "College Services", staff: "Matt Everon", initials: "MEVE", status: "confirmed", required: true },
+      { id: "r5", role: "Facilities", staff: "Warwick Rolls", initials: "WROL", status: "confirmed", required: true },
+      { id: "r6", role: "Communications Coordinator", staff: "Megan Whitsed", initials: "MWHI", status: "confirmed", required: true },
     ],
     timeline: [
-      { id: "t1", ts: now - minutes(60 * 30), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Drill commenced. Type: Fire / Evacuation. ECO (warden team) leading the evacuation per the ERP; CIMT coordinating." },
-      { id: "t2", ts: now - minutes(60 * 30 - 4), actor: "Annika Fairley", actorInitials: "AF", type: "note", text: "Chief Warden reports all 487 students accounted for at assembly point. Time: 4 min 12 sec." },
-      { id: "t3", ts: now - minutes(60 * 29), actor: "Adrian Johnson", actorInitials: "AJ", type: "system", text: "Drill closed. Performance: Within target. Minor delay in C-Block staircase noted for review." },
+      { id: "t1", ts: now - minutes(60 * 30), actor: "Adrian Johnson", actorInitials: "AJOH", type: "system", text: "Drill commenced. Type: Fire / Evacuation. ECO (warden team) leading the evacuation per the ERP; CIMT coordinating." },
+      { id: "t2", ts: now - minutes(60 * 30 - 4), actor: "Annika Fairley", actorInitials: "AFAI", type: "note", text: "Chief Warden reports all 487 students accounted for at assembly point. Time: 4 min 12 sec." },
+      { id: "t3", ts: now - minutes(60 * 29), actor: "Adrian Johnson", actorInitials: "AJOH", type: "system", text: "Drill closed. Performance: Within target. Minor delay in C-Block staircase noted for review." },
     ],
     tasks: [
-      { id: "tk1", text: "Confirm whole-site headcount from the Chief Warden", owner: "AF", done: true, priority: "high" },
-      { id: "tk2", text: "Confirm assembly-area management and re-entry point", owner: "ME", done: true, priority: "high" },
-      { id: "tk3", text: "Log drill in compliance register", owner: "JS", done: true, priority: "med" },
+      { id: "tk1", text: "Confirm whole-site headcount from the Chief Warden", owner: "AFAI", done: true, priority: "high" },
+      { id: "tk2", text: "Confirm assembly-area management and re-entry point", owner: "MEVE", done: true, priority: "high" },
+      { id: "tk3", text: "Log drill in compliance register", owner: "JSEV", done: true, priority: "med" },
     ],
   });
 
@@ -592,7 +592,7 @@ export function defaultState() {
     staff: buildCimtRoster(),
     settings: {
       principalName: "Adrian Johnson",
-      principalInitials: "AJ",
+      principalInitials: "AJOH",
       schoolName: "Trinity Anglican College",
     },
     version: STATE_VERSION,
@@ -1761,34 +1761,29 @@ export function generateIncidentTasks(typeId, roles) {
 
 export const ALL_ROLES = Object.keys(ROLE_DEFINITIONS);
 
-function initialsFromName(name) {
-  return String(name || "").split(/\s+/).map((s) => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "?";
-}
-
-// The plain first+last initial code (may collide, e.g. Sharon Finlay / Simon
-// Fairall both → "SF").
-function baseCode(name) {
+// Staff codes follow the school's teacher-code convention: first initial of the
+// first name + the first three letters of the surname, uppercased
+// (Nash Clark → NCLA, Simon Fairall → SFAI, Sharon Finlay → SFIN). Single-name
+// entries fall back to the first four letters.
+export function staffCode(name) {
   const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "—";
   const first = parts[0];
   const last = parts.length > 1 ? parts[parts.length - 1] : "";
-  return ((first[0] || "") + (last[0] || "")).toUpperCase() || "?";
+  if (!last) return first.slice(0, 4).toUpperCase();
+  return ((first[0] || "") + last.slice(0, 3)).toUpperCase();
+}
+function initialsFromName(name) {
+  return staffCode(name);
 }
 
-// A UNIQUE short owner code within a given set of names. If the 2-letter code
-// is unique it is used as-is (Adrian Johnson → "AJ"); on a clash it extends to
-// first-name initial + first three surname letters (Sharon Finlay → "SFIN",
-// Simon Fairall → "SFAI") — exactly the disambiguation Annika asked for.
-export function disambiguatedInitials(name, allNames = []) {
+// Owner code = the school staff-code convention (see staffCode). Always applied,
+// so codes are uniform and unambiguous by design (Sharon Finlay → SFIN, Simon
+// Fairall → SFAI). `allNames` is accepted for call-site compatibility.
+export function disambiguatedInitials(name, allNames = []) { // eslint-disable-line no-unused-vars
   const target = String(name || "").trim();
   if (!target || target === "—") return "—";
-  const base = baseCode(target);
-  const clash = allNames.some((n) => n && String(n).trim() !== target && baseCode(n) === base);
-  if (!clash) return base;
-  const parts = target.split(/\s+/).filter(Boolean);
-  const first = parts[0] || "";
-  const last = parts.length > 1 ? parts[parts.length - 1] : "";
-  return ((first[0] || "") + last.slice(0, 3)).toUpperCase();
+  return staffCode(target);
 }
 
 // Resolve a task's owner to a full staff name for this incident: prefer the
