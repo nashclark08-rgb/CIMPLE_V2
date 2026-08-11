@@ -13,7 +13,7 @@ import {
   AlertOctagon, Minimize2, ListChecks, ArrowRight, LayoutGrid, ClipboardList, Building2,
   GitBranch, CornerDownRight, Star, Zap,
 } from "lucide-react";
-import { PALETTE, TopBarShell, formatTime, formatRelative, formatElapsed, EscalationMatrixButton } from "./shared.jsx";
+import { PALETTE, TopBarShell, formatTime, formatRelative, formatElapsed, EscalationMatrixButton, ReferenceModal } from "./shared.jsx";
 import {
   SEVERITY, getIncident, saveIncident, listStaff, responsibilitiesFor, ROLE_DEFINITIONS,
   COMMS_CHANNELS, COMMS_AUDIENCES, COMMS_CATEGORIES, COMMS_STATUS,
@@ -29,17 +29,18 @@ import {
   ROLE_BOARD_STATE, roleBoardState, escalationPathwayFor, simulateNotification,
   promoteToRole, reassignRoleToAlternate, availableQualifiedStaff, PREF_LABEL,
   CIMT_PHASES, PHASE_CHECKLIST, incidentPhase, phaseMeta, phaseIndex,
-  phaseProgress, nextPhaseId, isPhaseItemDone,
+  phaseProgress, nextPhaseId, prevPhaseId, openMandatoryItems, isPhaseItemDone,
   BOARD_QUADRANTS, newBoardItem, boardCounts,
   PERSON_CATEGORIES, PERSON_STATUS, newPersonAtRisk, peopleAtRiskCounts,
   newSitrep, SITREP_FIELDS, IAP_FIELDS, emptyIAP,
-  CALL_TAKER_QUESTIONS, emptyCallTaker, callTakerProgress, CIMT_MEETING_AGENDA, newMeeting, PIR_ELEMENTS,
+  CALL_TAKER_QUESTIONS, emptyCallTaker, callTakerProgress, CIMT_MEETING_AGENDA, MEETING_TYPES, meetingTypeMeta, newMeeting, PIR_ELEMENTS,
   RECOVERY_STRATEGIES, suggestedStrategyIds, recoveryStrategyById, strategyActivated,
   strategyProgress, activeStrategyCount, CRITICAL_BUSINESS_FUNCTIONS, cbfTierColor,
   impactedCBFCount, IMPACT_DIMENSIONS, IMPACT_LEVELS, IMPACT_LEVEL_COLORS,
   decisionFlowsFor, decisionFlowById, summarizeFlowPath,
   ROLE_GROUPS, roleGroupOf, applySoftLocks, getMyRole, setMyRole,
   phaseForDue, ESCALATION_MATRIX, severityRationale, disambiguatedInitials, taskOwnerName,
+  REFERENCE_DOCS, referenceDoc,
 } from "./data.js";
 
 export default function Dashboard({ incidentId, onBack }) {
@@ -667,6 +668,7 @@ function PhaseDrawer({ incident, initialPhase, update, addTimelineEntry, isClose
   const meta = phaseMeta(sel);
   const prog = phaseProgress(incident, sel);
   const nid = nextPhaseId(currentId);
+  const [refDoc, setRefDoc] = useState(null);
 
   function toggleItem(itemId) {
     if (isClosed) return;
@@ -681,11 +683,29 @@ function PhaseDrawer({ incident, initialPhase, update, addTimelineEntry, isClose
     addTimelineEntry({ type: wasDone ? "system" : "action", text: `${meta.label} checklist — ${wasDone ? "un-ticked" : "completed"}: ${(it?.text || "").slice(0, 90)}` });
   }
 
+  const pid = prevPhaseId(currentId);
+  const openMand = openMandatoryItems(incident, currentId);
+
   function advance() {
     if (!nid || isClosed) return;
+    // Warn-and-allow (Annika's call): mandatory items don't hard-block, but the
+    // Leader must consciously acknowledge any still open before moving on.
+    if (openMand.length) {
+      const ok = window.confirm(
+        `${openMand.length} mandatory item${openMand.length > 1 ? "s" : ""} in ${phaseMeta(currentId).label} still incomplete:\n\n• ${openMand.map((i) => i.text).join("\n• ")}\n\nProceed to ${phaseMeta(nid).label} anyway?`
+      );
+      if (!ok) return;
+    }
     update({ phase: nid });
-    addTimelineEntry({ type: "system", text: `Phase advanced: ${phaseMeta(currentId).label} → ${phaseMeta(nid).label}.` });
+    addTimelineEntry({ type: "system", text: `Phase advanced: ${phaseMeta(currentId).label} → ${phaseMeta(nid).label}.${openMand.length ? ` ${openMand.length} mandatory item(s) still open at advance.` : ""}` });
     setSel(nid);
+  }
+
+  function goBack() {
+    if (!pid || isClosed) return;
+    update({ phase: pid });
+    addTimelineEntry({ type: "system", text: `Phase moved back: ${phaseMeta(currentId).label} → ${phaseMeta(pid).label}.` });
+    setSel(pid);
   }
 
   return (
@@ -749,7 +769,20 @@ function PhaseDrawer({ incident, initialPhase, update, addTimelineEntry, isClose
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
                   <span className="mono" style={{ fontSize: 9.5, letterSpacing: "0.06em", color: PALETTE.teal, background: "rgba(0, 48, 94, 0.07)", padding: "2px 6px" }}>{it.responsible}</span>
-                  {it.reference && <span className="mono" style={{ fontSize: 9.5, color: PALETTE.inkSoft }}>↳ {it.reference}</span>}
+                  {it.reference && (referenceDoc(it.reference) ? (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); setRefDoc(referenceDoc(it.reference)); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); setRefDoc(referenceDoc(it.reference)); } }}
+                      className="mono"
+                      style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9.5, letterSpacing: "0.04em", color: PALETTE.teal, border: `1px solid rgba(0,48,94,0.25)`, background: PALETTE.parchment, padding: "2px 7px", cursor: "pointer", fontWeight: 600 }}
+                    >
+                      <BookOpen size={10} /> {it.reference.toUpperCase()}
+                    </span>
+                  ) : (
+                    <span className="mono" style={{ fontSize: 9.5, color: PALETTE.inkSoft }}>↳ {it.reference}</span>
+                  ))}
                   {it.flowchart && setDrawer && (
                     <span
                       role="button"
@@ -770,16 +803,57 @@ function PhaseDrawer({ incident, initialPhase, update, addTimelineEntry, isClose
         })}
       </div>
 
-      {/* Advance */}
-      {!isClosed && sel === currentId && nid && (
-        <button onClick={advance} className="btn btn-primary" style={{ marginTop: 18, width: "100%", justifyContent: "center" }}>
-          Advance to {phaseMeta(nid).label} <ArrowRight size={14} />
-        </button>
+      {/* Advance / go back */}
+      {!isClosed && sel === currentId && (nid || pid) && (
+        <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+          {pid && (
+            <button onClick={goBack} className="btn" style={{ justifyContent: "center", flex: nid ? "0 0 auto" : 1 }} title={`Return to ${phaseMeta(pid).label}`}>
+              <ArrowLeft size={14} /> Back to {phaseMeta(pid).label}
+            </button>
+          )}
+          {nid && (
+            <button onClick={advance} className="btn btn-primary" style={{ flex: 1, justifyContent: "center" }}>
+              Advance to {phaseMeta(nid).label} <ArrowRight size={14} />
+            </button>
+          )}
+        </div>
+      )}
+      {!isClosed && sel === currentId && openMand.length > 0 && nid && (
+        <p style={{ fontSize: 11.5, color: PALETTE.rust, textAlign: "center", marginTop: 8, lineHeight: 1.5 }}>
+          {openMand.length} mandatory item{openMand.length > 1 ? "s" : ""} still open — you'll be asked to confirm before advancing.
+        </p>
       )}
       {sel === currentId && !nid && (
         <p style={{ fontSize: 12, color: PALETTE.inkSoft, textAlign: "center", marginTop: 16 }}>Final phase — stand the CIMT down and complete the Post-Incident Review.</p>
       )}
+      {refDoc && <ReferenceDocModal doc={refDoc} onClose={() => setRefDoc(null)} />}
     </div>
+  );
+}
+
+// Render one of the plan's activation reference procedures in a modal.
+function ReferenceDocModal({ doc, onClose }) {
+  return (
+    <ReferenceModal title={doc.title} subtitle={doc.intro} onClose={onClose} maxWidth={720}>
+      {doc.locations && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+          {doc.locations.map(([k, v]) => (
+            <div key={k} style={{ border: `1px solid rgba(0,48,94,0.14)`, padding: "6px 10px", background: PALETTE.parchment }}>
+              <div className="mono" style={{ fontSize: 9, letterSpacing: "0.06em", color: PALETTE.teal, opacity: 0.7, textTransform: "uppercase" }}>{k}</div>
+              <div style={{ fontSize: 12.5, color: PALETTE.ink }}>{v}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {doc.sections.map((s) => (
+        <div key={s.heading} style={{ marginBottom: 16 }}>
+          <div className="mono" style={{ fontSize: 10, letterSpacing: "0.08em", color: PALETTE.rust, fontWeight: 600, marginBottom: 6, textTransform: "uppercase" }}>{s.heading}</div>
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            {s.items.map((it, i) => <li key={i} style={{ fontSize: 13, color: PALETTE.ink, lineHeight: 1.55, marginBottom: 4 }}>{it}</li>)}
+          </ul>
+        </div>
+      ))}
+    </ReferenceModal>
   );
 }
 
@@ -959,22 +1033,38 @@ function CenterColumn({ incident, addTimelineEntry, update, now, isClosed }) {
     update((prev) => ({ ...prev, tasks: [...prev.tasks, { id: `tk${Date.now()}`, text, owner: "—", done: false, priority: "med", dueAt: dueAt || null }] }));
   }
 
+  // Edit / delete a timeline entry (Annika: notes, actions and comms should be
+  // correctable). Soft-delete keeps the audit trail — the entry stays, struck out.
+  function editEntry(id, text) {
+    if (!text.trim()) return;
+    update((prev) => ({ ...prev, timeline: prev.timeline.map((e) => (e.id === id ? { ...e, text, edited: true, editedAt: Date.now() } : e)) }));
+  }
+  function deleteEntry(id) {
+    if (!window.confirm("Remove this entry? It stays in the record struck through, for the audit trail.")) return;
+    update((prev) => ({ ...prev, timeline: prev.timeline.map((e) => (e.id === id ? { ...e, deleted: true, deletedAt: Date.now() } : e)) }));
+  }
+  const EDITABLE_TYPES = new Set(["note", "action", "comm"]);
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+    // Tasks up top (used most frequently), the timeline beneath (Annika's layout
+    // feedback: keep the checklist at the top, move the timeline to the bottom).
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <PhaseTaskBoard incident={incident} update={update} addTimelineEntry={addTimelineEntry} now={now} isClosed={isClosed} toggleTask={toggleTask} addTask={addTask} />
+
       <div className="card">
         <div className="panel-h">
-          <span className="panel-h-label">INCIDENT TIMELINE · {incident.timeline.length} ENTRIES</span>
+          <span className="panel-h-label">INCIDENT TIMELINE · {incident.timeline.filter((e) => !e.deleted).length} ENTRIES</span>
           <span className="panel-h-meta">AUTO-LOG ON</span>
         </div>
-        <div style={{ padding: "20px 24px 8px", maxHeight: 480, overflowY: "auto" }} className="scroll-y">
+        <div style={{ padding: "16px 24px 6px", maxHeight: 420, overflowY: "auto" }} className="scroll-y">
           {incident.timeline.map((e, i) => (
-            <TimelineEntry key={e.id} entry={e} now={now} isLast={i === incident.timeline.length - 1} />
+            <TimelineEntry key={e.id} entry={e} now={now} isLast={i === incident.timeline.length - 1}
+              editable={!isClosed && EDITABLE_TYPES.has(e.type)}
+              onEdit={(text) => editEntry(e.id, text)} onDelete={() => deleteEntry(e.id)} />
           ))}
         </div>
         {!isClosed && <Composer composerType={composerType} setComposerType={setComposerType} onSubmit={handleSubmit} />}
       </div>
-
-      <PhaseTaskBoard incident={incident} update={update} addTimelineEntry={addTimelineEntry} now={now} isClosed={isClosed} toggleTask={toggleTask} addTask={addTask} />
     </div>
   );
 }
@@ -1015,6 +1105,26 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
     addTimelineEntry({ type: "action", text: `Lock overridden — "${t?.text || id}" unlocked out of sequence by the Leader.` });
   }
 
+  // Task → risk: flag any job onto the Risk/Watch register, kept linked both ways.
+  function flagTaskAsRisk(task) {
+    if (task.riskId) return;
+    const r = newRisk({
+      title: task.text,
+      description: `Flagged from a task${task.role ? ` (${shortRole(task.role)})` : ""}.`,
+      category: "Operational",
+      severity: task.priority === "high" ? "high" : task.priority === "low" ? "low" : "medium",
+      status: "watch",
+      owner: task.owner && task.owner !== "—" ? task.owner : "",
+    });
+    r.fromTaskId = task.id;
+    update((prev) => ({
+      ...prev,
+      risks: [r, ...(prev.risks || [])],
+      tasks: (prev.tasks || []).map((t) => (t.id === task.id ? { ...t, riskId: r.id } : t)),
+    }));
+    addTimelineEntry({ type: "risk", text: `Task flagged as a risk: ${task.text}.` });
+  }
+
   // Legacy / demo incidents with no role-tagged tasks: flat phase-scoped list.
   if (!hasRoles) {
     const open = all.filter((t) => !t.done);
@@ -1024,7 +1134,7 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
       <div className="card">
         <div className="panel-h"><span className="panel-h-label">ACTIVE TASKS · {phaseMeta(curPhase).label.toUpperCase()} · {inScope.length} OPEN</span><span className="panel-h-meta">BY PHASE</span></div>
         <ActivePhaseBanner curPhase={curPhase} curIdx={curIdx} openCount={inScope.length} />
-        <div>{shown.map((t, i, arr) => { const oname = taskOwnerName(incident, t); return <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleTask(t.id)} isLast={i === arr.length - 1} disabled={isClosed} ownerName={oname} ownerCode={oname ? disambiguatedInitials(oname, ownerNames) : t.owner} />; })}</div>
+        <div>{shown.map((t, i, arr) => { const oname = taskOwnerName(incident, t); return <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleTask(t.id)} isLast={i === arr.length - 1} disabled={isClosed} onFlagRisk={() => flagTaskAsRisk(t)} ownerName={oname} ownerCode={oname ? disambiguatedInitials(oname, ownerNames) : t.owner} />; })}</div>
         {!isClosed && <TaskAdder onAdd={addTask} />}
       </div>
     );
@@ -1128,7 +1238,7 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
               {s.visible.map((t, i, arr) => {
                 const oname = taskOwnerName(incident, t);
                 return (
-                  <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleTask(t.id)} isLast={i === arr.length - 1} disabled={isClosed} onOverride={() => overrideLock(t.id)}
+                  <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleTask(t.id)} isLast={i === arr.length - 1} disabled={isClosed} onOverride={() => overrideLock(t.id)} onFlagRisk={() => flagTaskAsRisk(t)}
                     ownerName={oname} ownerCode={oname ? disambiguatedInitials(oname, ownerNames) : t.owner} />
                 );
               })}
@@ -1153,7 +1263,9 @@ function shortRole(role) {
   return role.replace("Coordinator", "Coord.").replace("Recovery – ", "Rec. ").replace("Student Wellbeing Services", "Wellbeing");
 }
 
-function TimelineEntry({ entry, now, isLast }) {
+function TimelineEntry({ entry, now, isLast, editable, onEdit, onDelete }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(entry.text);
   const cfg = {
     system: { color: PALETTE.teal, icon: Shield, label: "SYSTEM" },
     action: { color: PALETTE.sage, icon: CheckCircle2, label: "ACTION" },
@@ -1162,22 +1274,42 @@ function TimelineEntry({ entry, now, isLast }) {
     decision: { color: PALETTE.crimson, icon: Scale, label: "DECISION" },
     risk: { color: PALETTE.rust, icon: AlertTriangle, label: "RISK" },
   }[entry.type] || { color: PALETTE.ink, icon: Circle, label: "ENTRY" };
+  const deleted = !!entry.deleted;
 
   return (
     <div className="fade-in" style={{ display: "flex", gap: 14, paddingBottom: 18 }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <div style={{ width: 26, height: 26, background: PALETTE.paper, border: `1.5px solid ${cfg.color}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: "50%" }}>
-          <cfg.icon size={12} color={cfg.color} strokeWidth={2} />
+        <div style={{ width: 26, height: 26, background: PALETTE.paper, border: `1.5px solid ${deleted ? "rgba(0,48,94,0.25)" : cfg.color}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderRadius: "50%", opacity: deleted ? 0.5 : 1 }}>
+          <cfg.icon size={12} color={deleted ? PALETTE.inkSoft : cfg.color} strokeWidth={2} />
         </div>
         {!isLast && <div style={{ width: 1, flex: 1, background: "rgba(0, 48, 94, 0.15)", marginTop: 4, minHeight: 24 }} />}
       </div>
       <div style={{ flex: 1, paddingTop: 2 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
-          <span className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: cfg.color, fontWeight: 500 }}>{cfg.label}</span>
+          <span className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: deleted ? PALETTE.inkSoft : cfg.color, fontWeight: 500 }}>{cfg.label}</span>
           <span className="mono" style={{ fontSize: 10, color: PALETTE.inkSoft }}>{formatTime(entry.ts)} · {formatRelative(entry.ts, now)}</span>
           <span style={{ fontSize: 11, color: PALETTE.inkSoft }}>by {entry.actor}</span>
+          {entry.edited && !deleted && <span className="mono" style={{ fontSize: 9, color: PALETTE.inkSoft, fontStyle: "italic" }}>· edited</span>}
+          {!deleted && editable && !editing && (
+            <span style={{ display: "inline-flex", gap: 8, marginLeft: "auto" }}>
+              <button onClick={() => { setDraft(entry.text); setEditing(true); }} title="Edit" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: PALETTE.inkSoft, display: "flex" }}><Edit3 size={12} /></button>
+              <button onClick={onDelete} title="Remove" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: PALETTE.inkSoft, display: "flex" }}><Trash2 size={12} /></button>
+            </span>
+          )}
         </div>
-        <p style={{ fontSize: 14, lineHeight: 1.55, color: PALETTE.ink, margin: 0 }}>{entry.text}</p>
+        {deleted ? (
+          <p style={{ fontSize: 13, lineHeight: 1.55, color: PALETTE.inkSoft, fontStyle: "italic", textDecoration: "line-through", margin: 0 }}>{entry.text} <span style={{ fontStyle: "normal", textDecoration: "none" }}>— entry removed</span></p>
+        ) : editing ? (
+          <div>
+            <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={2} style={{ width: "100%", fontSize: 13, lineHeight: 1.5, resize: "vertical", boxSizing: "border-box" }} />
+            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+              <button onClick={() => { onEdit(draft); setEditing(false); }} className="btn btn-primary" style={{ padding: "5px 12px", fontSize: 12 }}>Save</button>
+              <button onClick={() => setEditing(false)} className="btn-ghost" style={{ padding: "5px 10px", fontSize: 12, background: "none", border: "none" }}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <p style={{ fontSize: 14, lineHeight: 1.55, color: PALETTE.ink, margin: 0 }}>{entry.text}</p>
+        )}
       </div>
     </div>
   );
@@ -1260,7 +1392,7 @@ function RespFlags({ r }) {
   );
 }
 
-function TaskRow({ task, now, onToggle, isLast, disabled, onOverride, ownerName, ownerCode }) {
+function TaskRow({ task, now, onToggle, isLast, disabled, onOverride, onFlagRisk, ownerName, ownerCode }) {
   const p = { high: { color: PALETTE.rust, label: "HIGH" }, med: { color: PALETTE.amber, label: "MED" }, low: { color: PALETTE.sage, label: "LOW" } }[task.priority];
   const overdue = !task.done && task.dueAt && task.dueAt < now;
   const locked = task.locked && !task.done;
@@ -1314,6 +1446,11 @@ function TaskRow({ task, now, onToggle, isLast, disabled, onOverride, ownerName,
         >
           <Clock size={9} /> {overdue ? "OVERDUE " : ""}{formatDue(task.dueAt, now)}
         </span>
+      )}
+      {!task.done && onFlagRisk && !disabled && (
+        task.riskId
+          ? <span title="On the risk register" className="mono" style={{ fontSize: 8.5, letterSpacing: "0.06em", color: PALETTE.rust, alignSelf: "center" }}>RISK</span>
+          : <button onClick={onFlagRisk} title="Flag as a risk" style={{ background: "none", border: "none", padding: 2, cursor: "pointer", color: PALETTE.inkSoft, alignSelf: "center", display: "flex" }}><AlertTriangle size={12} /></button>
       )}
       <span className="mono" style={{ fontSize: 9, letterSpacing: "0.12em", color: p.color, fontWeight: 500 }}>{p.label}</span>
       <div title={ownerName || undefined} style={{ minWidth: 24, height: 24, padding: "0 5px", background: "rgba(0, 48, 94, 0.1)", color: PALETTE.teal, fontSize: 9, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 12 }}>{ownerCode || task.owner}</div>
@@ -1509,9 +1646,16 @@ function Drawer({ children, onClose, title }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0, 30, 61, 0.4)", display: "flex", justifyContent: "flex-end" }}>
       <div onClick={(e) => e.stopPropagation()} className="slide-in" style={{ width: 520, maxWidth: "100vw", height: "100vh", background: PALETTE.paper, borderLeft: `1px solid rgba(0, 48, 94, 0.2)`, display: "flex", flexDirection: "column" }}>
-        <div style={{ padding: "18px 24px", borderBottom: `1px solid rgba(0, 48, 94, 0.14)`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div className="display" style={{ fontSize: 22, color: PALETTE.teal, fontWeight: 500, letterSpacing: "-0.015em" }}>{title}</div>
-          <button onClick={onClose} className="btn-ghost" style={{ background: "none", border: "none", color: PALETTE.ink, padding: 6 }}><X size={18} /></button>
+        <div style={{ padding: "18px 24px", borderBottom: `1px solid rgba(0, 48, 94, 0.14)` }}>
+          {/* Clear, labelled return to the incident (Annika: hard to get back from
+              a section like Communications). Kept on every drawer. */}
+          <button onClick={onClose} className="btn-ghost" style={{ background: "none", border: "none", padding: 0, color: PALETTE.teal, fontSize: 12, display: "flex", alignItems: "center", gap: 6, marginBottom: 10, opacity: 0.85 }}>
+            <ArrowLeft size={13} /> Back to incident
+          </button>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="display" style={{ fontSize: 22, color: PALETTE.teal, fontWeight: 500, letterSpacing: "-0.015em" }}>{title}</div>
+            <button onClick={onClose} className="btn-ghost" style={{ background: "none", border: "none", color: PALETTE.ink, padding: 6 }}><X size={18} /></button>
+          </div>
         </div>
         <div className="scroll-y" style={{ flex: 1, padding: 24 }}>{children}</div>
       </div>
@@ -2137,6 +2281,41 @@ function RiskRegisterDrawer({ incident, update, addTimelineEntry, isClosed, now 
     addTimelineEntry({ type: "risk", text: `Risk resolved: ${r.title}${notes ? ` — ${notes}` : ""}.` });
   }
 
+  // Risk → task: allocate a risk into a role's workflow. The person then
+  // acknowledges + sequences it on the board like any job. Kept linked both ways.
+  function convertToTask(risk, roleName) {
+    const roleObj = (incident.roles || []).find((r) => r.role === roleName);
+    const oname = roleObj?.staff && roleObj.staff !== "—" ? roleObj.staff : "";
+    const t = {
+      id: `tk${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      text: risk.title,
+      role: roleName || null,
+      owner: oname ? disambiguatedInitials(oname, (incident.roles || []).map((r) => r.staff)) : "—",
+      phase: incidentPhase(incident),
+      done: false,
+      priority: risk.severity === "high" ? "high" : risk.severity === "low" ? "low" : "med",
+      dueAt: risk.reviewBy || undefined,
+      fromRiskId: risk.id,
+    };
+    update((prev) => ({
+      ...prev,
+      tasks: [...(prev.tasks || []), t],
+      risks: (prev.risks || []).map((x) => (x.id === risk.id ? { ...x, taskId: t.id } : x)),
+    }));
+    addTimelineEntry({ type: "action", text: `Risk allocated as a task${roleName ? ` to ${shortRole(roleName)}` : ""}: ${risk.title}.` });
+  }
+
+  const rolesPresent = [...new Set((incident.roles || []).map((r) => r.role).filter(Boolean))];
+
+  function printRegister() {
+    const esc = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const rows = [...risks].map((r) => `<tr><td>${r.createdAt ? new Date(r.createdAt).toLocaleString("en-AU") : "—"}</td><td>${(RISK_SEVERITY[r.severity] || {}).label || "—"}</td><td>${esc(r.category)}</td><td>${(RISK_STATUS[r.status] || {}).label || "—"}</td><td>${esc(r.owner) || "—"}</td><td><strong>${esc(r.title)}</strong>${r.description ? `<br><span style="color:#4A5664">${esc(r.description)}</span>` : ""}</td></tr>`).join("");
+    const w = window.open("", "_blank");
+    if (!w) { window.alert("Please allow pop-ups to print the register."); return; }
+    w.document.write(`<!doctype html><html><head><title>Risk Register — ${esc(incident.id)}</title><style>body{font-family:Arial,sans-serif;color:#0B1620;margin:32px}h1{color:#00305E;font-size:18px}table{border-collapse:collapse;width:100%;font-size:12px;margin-top:12px}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top}th{background:#00305E;color:#fff}</style></head><body><h1>Risk / Watch Register — ${esc(incident.title)}</h1><div style="font-size:12px;color:#4A5664">${esc(incident.id)} · printed ${new Date().toLocaleString("en-AU")}</div><table><thead><tr><th>Logged</th><th>Severity</th><th>Category</th><th>Status</th><th>Owner</th><th>Risk</th></tr></thead><tbody>${rows || '<tr><td colspan="6">No risks logged.</td></tr>'}</tbody></table></body></html>`);
+    w.document.close(); w.focus(); w.print();
+  }
+
   const counts = riskCounts(incident);
   const ordered = [...openRisks(incident), ...risks.filter((r) => !riskIsOpen(r)).sort((a, b) => (b.resolvedAt || 0) - (a.resolvedAt || 0))];
   const presets = [{ v: "30", l: "30m" }, { v: "60", l: "1h" }, { v: "120", l: "2h" }, { v: "eod", l: "EOD" }];
@@ -2204,13 +2383,18 @@ function RiskRegisterDrawer({ incident, update, addTimelineEntry, isClosed, now 
         </div>
       )}
 
-      <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6, marginBottom: 10 }}>REGISTER · {risks.length}</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div className="mono" style={{ fontSize: 9, letterSpacing: "0.14em", color: PALETTE.teal, opacity: 0.6 }}>REGISTER · {risks.length}</div>
+        {risks.length > 0 && <button onClick={printRegister} className="btn" style={{ padding: "5px 10px", fontSize: 11.5 }}><FileText size={12} /> Print register</button>}
+      </div>
       {risks.length === 0 ? (
         <p style={{ fontSize: 13, color: PALETTE.inkSoft, fontStyle: "italic" }}>No risks or watch items yet.</p>
       ) : (
         <div style={{ display: "grid", gap: 10 }}>
           {ordered.map((r) => (
             <RiskCard key={r.id} risk={r} now={now} isClosed={isClosed}
+              roles={rolesPresent}
+              onConvert={(roleName) => convertToTask(r, roleName)}
               onActivate={() => setRiskStatus(r.id, "active", "raised to active")}
               onEscalate={() => setRiskStatus(r.id, "escalated", "escalated")}
               onResolve={() => resolve(r.id)} />
@@ -2221,11 +2405,13 @@ function RiskRegisterDrawer({ incident, update, addTimelineEntry, isClosed, now 
   );
 }
 
-function RiskCard({ risk, now, isClosed, onActivate, onEscalate, onResolve }) {
+function RiskCard({ risk, now, isClosed, roles = [], onConvert, onActivate, onEscalate, onResolve }) {
   const sv = RISK_SEVERITY[risk.severity] || {};
   const st = RISK_STATUS[risk.status] || RISK_STATUS.watch;
   const open = riskIsOpen(risk);
   const overdue = open && risk.reviewBy && risk.reviewBy < now;
+  const [picking, setPicking] = useState(false);
+  const [pickRole, setPickRole] = useState(roles[0] || "");
   return (
     <div style={{ border: `1px solid rgba(0,48,94,0.14)`, borderLeft: `3px solid ${sv.color}`, background: PALETTE.paper, padding: "12px 14px", opacity: open ? 1 : 0.72 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
@@ -2248,11 +2434,27 @@ function RiskCard({ risk, now, isClosed, onActivate, onEscalate, onResolve }) {
           <CheckCircle2 size={12} /> Resolved {risk.resolvedAt ? formatTime(risk.resolvedAt) : ""}{risk.resolutionNotes ? ` — ${risk.resolutionNotes}` : ""}
         </div>
       )}
+      {risk.taskId && (
+        <div style={{ fontSize: 11, marginTop: 8, color: PALETTE.teal, display: "flex", alignItems: "center", gap: 5 }}>
+          <CheckCircle2 size={12} /> Allocated to the task board
+        </div>
+      )}
       {!isClosed && open && (
-        <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
           {risk.status === "watch" && <button onClick={onActivate} className="btn" style={{ padding: "6px 10px", fontSize: 11.5 }}>Raise to active</button>}
           {risk.status !== "escalated" && <button onClick={onEscalate} className="btn" style={{ padding: "6px 10px", fontSize: 11.5, borderColor: PALETTE.crimson, color: PALETTE.crimson }}>Escalate</button>}
           <button onClick={onResolve} className="btn" style={{ padding: "6px 10px", fontSize: 11.5, borderColor: PALETTE.sage, color: PALETTE.sage }}><Check size={12} /> Resolve</button>
+          {onConvert && !risk.taskId && !picking && <button onClick={() => setPicking(true)} className="btn" style={{ padding: "6px 10px", fontSize: 11.5 }}><ListChecks size={12} /> Allocate as task</button>}
+          {onConvert && !risk.taskId && picking && (
+            <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+              <select value={pickRole} onChange={(e) => setPickRole(e.target.value)} style={{ fontSize: 11.5, padding: "5px 8px", width: "auto" }}>
+                {roles.length === 0 && <option value="">Unassigned</option>}
+                {roles.map((r) => <option key={r} value={r}>{shortRole(r)}</option>)}
+              </select>
+              <button onClick={() => { onConvert(pickRole); setPicking(false); }} className="btn btn-primary" style={{ padding: "6px 10px", fontSize: 11.5 }}>Add</button>
+              <button onClick={() => setPicking(false)} className="btn-ghost" style={{ padding: "6px 8px", fontSize: 11.5, background: "none", border: "none" }}>Cancel</button>
+            </span>
+          )}
         </div>
       )}
     </div>
@@ -3012,8 +3214,17 @@ function InstrumentsDrawer({ incident, update, addTimelineEntry, isClosed }) {
 
 function CallTakerTab({ incident, update, isClosed }) {
   const ct = incident.callTaker || emptyCallTaker();
+  const call = ct.call || { person: ct.receivedFrom || "", contact: ct.contact || "", date: "", time: "" };
+  const notify = ct.notify || { date: "", time: "", person: "", contact: "" };
   function setField(field, val) {
     update((prev) => ({ ...prev, callTaker: { ...(prev.callTaker || emptyCallTaker()), [field]: val, updatedAt: Date.now() } }));
+  }
+  function setBlock(block, key, val) {
+    update((prev) => {
+      const base = prev.callTaker || emptyCallTaker();
+      const cur = base[block] || {};
+      return { ...prev, callTaker: { ...base, [block]: { ...cur, [key]: val }, updatedAt: Date.now() } };
+    });
   }
   function setAnswer(qid, val) {
     update((prev) => { const base = prev.callTaker || emptyCallTaker(); return { ...prev, callTaker: { ...base, answers: { ...(base.answers || {}), [qid]: val }, updatedAt: Date.now() } }; });
@@ -3023,15 +3234,9 @@ function CallTakerTab({ incident, update, isClosed }) {
       <p style={{ fontSize: 12.5, color: PALETTE.inkSoft, lineHeight: 1.5, marginTop: 0, marginBottom: 14 }}>
         First-notification intake — collect the facts as the incident is reported. Feeds the incident level and the Incident Action Plan.
       </p>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-        <div>
-          <div className="mono" style={{ fontSize: 9, letterSpacing: "0.08em", color: PALETTE.teal, opacity: 0.7, marginBottom: 4 }}>RECEIVED FROM</div>
-          <input value={ct.receivedFrom} onChange={(e) => setField("receivedFrom", e.target.value)} placeholder="Who reported it" disabled={isClosed} style={{ width: "100%", fontSize: 12.5, boxSizing: "border-box" }} />
-        </div>
-        <div>
-          <div className="mono" style={{ fontSize: 9, letterSpacing: "0.08em", color: PALETTE.teal, opacity: 0.7, marginBottom: 4 }}>CONTACT</div>
-          <input value={ct.contact} onChange={(e) => setField("contact", e.target.value)} placeholder="Phone / email" disabled={isClosed} style={{ width: "100%", fontSize: 12.5, boxSizing: "border-box" }} />
-        </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
+        <CallDetailBlock label="Call details — who you received it from" block="call" data={call} onChange={setBlock} isClosed={isClosed} />
+        <CallDetailBlock label="Notification details — who you notified" block="notify" data={notify} onChange={setBlock} isClosed={isClosed} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {CALL_TAKER_QUESTIONS.map((x) => (
@@ -3049,14 +3254,32 @@ function CallTakerTab({ incident, update, isClosed }) {
   );
 }
 
+// One dated contact block (Date / Time / Person / Contact) for the Call Taker form.
+function CallDetailBlock({ label, block, data, onChange, isClosed }) {
+  const field = (key, ph, type = "text") => (
+    <input type={type} value={data[key] || ""} onChange={(e) => onChange(block, key, e.target.value)} placeholder={ph} disabled={isClosed} style={{ width: "100%", fontSize: 12.5, boxSizing: "border-box" }} />
+  );
+  return (
+    <div style={{ border: `1px solid rgba(0,48,94,0.14)`, padding: 12, background: PALETTE.parchment }}>
+      <div className="mono" style={{ fontSize: 9, letterSpacing: "0.08em", color: PALETTE.teal, opacity: 0.75, marginBottom: 8, textTransform: "uppercase" }}>{label}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+        <div><div style={{ fontSize: 10, color: PALETTE.inkSoft, marginBottom: 3 }}>Date</div>{field("date", "", "date")}</div>
+        <div><div style={{ fontSize: 10, color: PALETTE.inkSoft, marginBottom: 3 }}>Time</div>{field("time", "", "time")}</div>
+      </div>
+      <div style={{ marginBottom: 8 }}><div style={{ fontSize: 10, color: PALETTE.inkSoft, marginBottom: 3 }}>Person</div>{field("person", "Name")}</div>
+      <div><div style={{ fontSize: 10, color: PALETTE.inkSoft, marginBottom: 3 }}>Contact number</div>{field("contact", "Phone / email")}</div>
+    </div>
+  );
+}
+
 function MeetingsTab({ incident, update, addTimelineEntry, isClosed }) {
   const meetings = incident.meetings || [];
   const [openId, setOpenId] = useState(meetings[0]?.id || null);
-  function addMeeting() {
+  function addMeeting(type) {
     if (isClosed) return;
-    const m = newMeeting();
+    const m = newMeeting(type);
     update((prev) => ({ ...prev, meetings: [m, ...(prev.meetings || [])] }));
-    addTimelineEntry({ type: "note", text: "CIMT meeting started." });
+    addTimelineEntry({ type: "note", text: `${meetingTypeMeta(type).label} started.` });
     setOpenId(m.id);
   }
   function patch(id, changes) {
@@ -3075,26 +3298,40 @@ function MeetingsTab({ incident, update, addTimelineEntry, isClosed }) {
   }
   return (
     <div>
-      {!isClosed && <button onClick={addMeeting} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginBottom: 14 }}><Plus size={13} /> New CIMT meeting</button>}
+      {!isClosed && (
+        <div style={{ marginBottom: 14 }}>
+          <div className="mono" style={{ fontSize: 9, letterSpacing: "0.1em", color: PALETTE.teal, opacity: 0.7, marginBottom: 6 }}>START A MEETING</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {MEETING_TYPES.map((mt) => (
+              <button key={mt.id} onClick={() => addMeeting(mt.id)} className="btn" style={{ fontSize: 12, padding: "8px 12px" }} title={mt.blurb}>
+                <Plus size={12} /> {mt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {meetings.length === 0 ? (
-        <p style={{ fontSize: 13, color: PALETTE.inkSoft, fontStyle: "italic" }}>No meetings recorded. Each CIMT meeting runs the standard agenda.</p>
+        <p style={{ fontSize: 13, color: PALETTE.inkSoft, fontStyle: "italic" }}>No meetings recorded. Choose a meeting type above — each runs the plan's agenda for that meeting.</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {meetings.map((m) => {
-            const done = CIMT_MEETING_AGENDA.filter((a) => m.checks?.[a.id]).length;
+            const mt = meetingTypeMeta(m.type);
+            const agenda = mt.agenda;
+            const done = agenda.filter((a) => m.checks?.[a.id]).length;
             const open = openId === m.id;
             return (
               <div key={m.id} style={{ border: `1px solid rgba(0,48,94,0.14)`, background: PALETTE.paper }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px" }}>
                   <button onClick={() => setOpenId(open ? null : m.id)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", flex: 1 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, color: PALETTE.ink }}>CIMT meeting · {formatTime(m.at)}</div>
-                    <div className="mono" style={{ fontSize: 9.5, color: PALETTE.inkSoft, marginTop: 2 }}>{done}/{CIMT_MEETING_AGENDA.length} agenda · {open ? "hide" : "open"}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: PALETTE.ink }}>{mt.label} · {formatTime(m.at)}</div>
+                    <div className="mono" style={{ fontSize: 9.5, color: PALETTE.inkSoft, marginTop: 2 }}>{done}/{agenda.length} agenda · {open ? "hide" : "open"}</div>
                   </button>
                   {!isClosed && <button onClick={() => removeMeeting(m.id)} className="btn-ghost" style={{ background: "none", border: "none", padding: 2, color: PALETTE.inkSoft, cursor: "pointer" }}><Trash2 size={13} /></button>}
                 </div>
                 {open && (
                   <div style={{ borderTop: `1px solid rgba(0,48,94,0.1)`, padding: "8px 12px" }}>
-                    {CIMT_MEETING_AGENDA.map((a) => {
+                    <p style={{ fontSize: 11, color: PALETTE.inkSoft, lineHeight: 1.5, margin: "0 0 8px" }}>{mt.blurb}</p>
+                    {agenda.map((a) => {
                       const ok = !!m.checks?.[a.id];
                       return (
                         <button key={a.id} onClick={() => toggleAgenda(m.id, a.id)} disabled={isClosed} style={{ display: "flex", gap: 9, alignItems: "flex-start", textAlign: "left", width: "100%", padding: "6px 0", background: "none", border: "none", borderBottom: `1px solid rgba(0,48,94,0.06)`, cursor: isClosed ? "default" : "pointer" }}>
@@ -4162,21 +4399,18 @@ function ExportDrawer({ incident }) {
     }
     rule();
 
-    // Tasks — grouped by incident-management phase (Annika's feedback: a single
-    // flat list obscures progress; per-phase grouping shows where attention is
-    // needed). Owners print as full names so initials never collide (SF/SF).
-    heading(`TASKS (${incident.tasks.filter((t) => t.done).length} of ${incident.tasks.length} complete)`);
-    if (incident.tasks.length === 0) {
-      line("No tasks recorded.", { color: [90, 102, 112] });
-    } else {
-      const phaseOf = (t) =>
-        t.phase || phaseForDue(t.dueAt != null ? Math.round((t.dueAt - incident.startedAt) / 60000) : null, t.text);
+    // Tasks — Annika's feedback: split OUTSTANDING from COMPLETED so open items
+    // aren't lost in a busy list, each grouped by phase. Owners print as full
+    // names so initials never collide (SF/SF).
+    const phaseOf = (t) =>
+      t.phase || phaseForDue(t.dueAt != null ? Math.round((t.dueAt - incident.startedAt) / 60000) : null, t.text);
+    function taskGroupsByPhase(items) {
+      // Render `items` grouped under their phase headings; returns nothing (draws).
       for (let pi = 0; pi < CIMT_PHASES.length; pi++) {
         const ph = CIMT_PHASES[pi];
-        const inPhase = incident.tasks.filter((t) => phaseOf(t) === ph.id);
+        const inPhase = items.filter((t) => phaseOf(t) === ph.id);
         if (!inPhase.length) continue;
-        const doneN = inPhase.filter((t) => t.done).length;
-        line(`${pi + 1}. ${ph.label.toUpperCase()}  (${doneN}/${inPhase.length} complete)`, { size: 10, color: [0, 48, 94], bold: true, gap: 15 });
+        line(`${pi + 1}. ${ph.label.toUpperCase()}  (${inPhase.length})`, { size: 10, color: [0, 48, 94], bold: true, gap: 15 });
         for (const t of inPhase) {
           const mark = t.done ? "[x]" : "[ ]";
           const due = t.dueAt ? `  (due ${new Date(t.dueAt).toLocaleString("en-AU")})` : "";
@@ -4186,6 +4420,17 @@ function ExportDrawer({ incident }) {
         y += 4;
       }
     }
+    const outstanding = incident.tasks.filter((t) => !t.done);
+    const completed = incident.tasks.filter((t) => t.done);
+
+    heading(`OUTSTANDING ACTIONS (${outstanding.length} open of ${incident.tasks.length})`);
+    if (!outstanding.length) line(incident.tasks.length ? "All actions complete." : "No tasks recorded.", { color: [90, 102, 112] });
+    else taskGroupsByPhase(outstanding);
+    rule();
+
+    heading(`COMPLETED ACTIONS (${completed.length})`);
+    if (!completed.length) line("None yet.", { color: [90, 102, 112] });
+    else taskGroupsByPhase(completed);
     rule();
 
     // Timeline

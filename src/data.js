@@ -839,16 +839,21 @@ export const ROLE_DEFINITIONS = {
 // { text, due (min), approval, mandatory }.
 // ------------------------------------------------------------------
 export const CIMT_ROLE_CHECKLISTS = {
+  // `governance: true` = this step is a phase-checklist gate (its single source
+  // of truth is the pop-up phase checklist). It still appears on the role card as
+  // a responsibility, but is NOT duplicated as a tickable job on the board —
+  // resolves the overlap Annika flagged (Q1: phase checklist = governance,
+  // jobs board = role-owned operational actions).
   "Critical Incident Leader": [
     { text: "Assume control; use the Critical Incident Escalation Checklist to guide actions start to finish", due: 5 },
-    { text: "Conduct an incident assessment and determine the incident level in accordance with the Critical Incident Flowchart", due: 10, flowchart: true },
-    { text: "Determine which CIMT members and roles are required", due: 10 },
-    { text: "Formally declare a Critical Incident", due: 10 },
-    { text: "Notify the Chair of College Council and CEO of AngliSchools", due: 20, mandatory: true },
+    { text: "Conduct an incident assessment and determine the incident level in accordance with the Critical Incident Flowchart", due: 10, flowchart: true, governance: true },
+    { text: "Determine which CIMT members and roles are required", due: 10, governance: true },
+    { text: "Formally declare a Critical Incident", due: 10, governance: true },
+    { text: "Notify the Chair of College Council and CEO of AngliSchools", due: 20, mandatory: true, governance: true },
     { text: "Assume responsibility as media spokesperson for the College", due: 20 },
     { text: "Approve the communications strategy and all external communications", due: 20, approval: true },
     { text: "Provide regular briefings to CIMT, Council, AngliSchools, media, parents, students", due: 30 },
-    { text: "Arrange a Post-Incident Review within 7 days of the incident", due: 300 },
+    { text: "Arrange a Post-Incident Review within 7 days of the incident", due: 300, governance: true },
   ],
   "Support Coordinator": [
     { text: "When directed, notify CIMT members via WhatsApp and call out support personnel", due: 5 },
@@ -1095,7 +1100,7 @@ export const PHASE_CHECKLIST = {
     { id: "as2", text: "Direct Support to WhatsApp the CIMT to stand by while the situation is assessed; then continue via Teams", responsible: "Critical Incident Leader" },
     { id: "as3", text: "Confirm the Emergency Response Procedures (ECO / warden team) have been activated, if required", responsible: "Planning Coordinator", reference: "Emergency Response Plan" },
     { id: "as4", text: "Determine whether the Emergency Control Organisation needs additional support and organise it", responsible: "College Services" },
-    { id: "as5", text: "Determine whether someone needs to go to the incident/assembly area to manage media", responsible: "Communications Coordinator" },
+    { id: "as5", text: "Determine whether someone needs to go to the incident/assembly area to manage media", responsible: "Communications Coordinator", reference: "Media Staging Area" },
     { id: "as6", text: "Determine whether immediate communications need to be issued to those impacted", responsible: "Communications Coordinator" },
     { id: "as7", text: "Conduct an incident assessment and determine the incident level in accordance with the Critical Incident Flowchart", responsible: "Critical Incident Leader", reference: "Incident Levels", flowchart: true },
     { id: "as8", text: "Determine which CIMT members are required", responsible: "Critical Incident Leader" },
@@ -1126,7 +1131,7 @@ export const PHASE_CHECKLIST = {
     { id: "re11", text: "Establish a regular communications schedule with staff, students and community", responsible: "Communications Coordinator" },
     { id: "re12", text: "Provide regular briefings to CIMT, Council, AngliSchools, media, parents and students", responsible: "Critical Incident Leader" },
     { id: "re13", text: "If required, notify next of kin through the appropriate authorities", responsible: "Student Coordinator" },
-    { id: "re14", text: "Establish daily debriefing: self-care, counselling services, and EAP for impacted staff", responsible: "Critical Incident Leader" },
+    { id: "re14", text: "Establish daily debriefing: self-care, counselling services, and EAP for impacted staff", responsible: "Critical Incident Leader", reference: "Counselling Centre Activation" },
   ],
   recovery: [
     { id: "br1", text: "Commence a physical damage assessment (IT & applications, voice/data, buildings, grounds) to estimate downtime", responsible: "Recovery Coordinator" },
@@ -1161,6 +1166,94 @@ export const PHASE_CHECKLIST = {
   ],
 };
 
+// ---- Activation reference procedures (from the CIM & BCP appendix) ----
+// Native, in-app versions of the plan's activation checklists so a coordinator
+// never has to leave CIMPLE to find them. Keyed by the reference-chip label.
+export const REFERENCE_DOCS = {
+  "Control Room Activation": {
+    title: "Activation of the Critical Incident Control Room",
+    intro: "The locations from which the CIMT coordinates response and recovery operations.",
+    locations: [["Primary", "Boardroom, Admin building"], ["On campus", "Library"], ["Off campus", "CSU"]],
+    sections: [
+      { heading: "Activation procedure", items: [
+        "Confirm availability of the dedicated Control Room.",
+        "Confirm the equipment required by the CIMT is available.",
+        "Liaise with administration and IT for any further resources.",
+        "Provide staff relocation details.",
+        "For offsite locations, confirm room and resources with the site manager; organise transport for CIMT members.",
+      ] },
+      { heading: "Set up the room", items: [
+        "Set up tables with role folders in role locations.",
+        "Set up a Teams channel (incident type + date).",
+        "Establish the visual boards.",
+        "Set up video conference (Teams), projector/screen and incident-management software.",
+        "Note the known facts and assumptions on the visual boards.",
+      ] },
+      { heading: "Resource kit (Boardroom)", items: [
+        "Copies of the ERP and the CIM & BCP; CIMT role folders.",
+        "Whiteboards + markers; butcher's paper; Blu-Tack; stationery.",
+        "Extension leads, power boards, chargers, power bank; battery radio; torch/headlamp/lantern; batteries.",
+        "Internal contact details; large evacuation diagrams; local-area maps; hazardous-chemicals list.",
+        "Telstra 5G dongle + blank SIMs; encrypted password database.",
+      ] },
+    ],
+  },
+  "Counselling Centre Activation": {
+    title: "Counselling Centre Activation",
+    intro: "Location, establishment and management of the Counselling Centre (Wellbeing Hub).",
+    locations: [["Primary", "Wellbeing Centre"], ["Alternate", "Performing Arts Centre"]],
+    sections: [
+      { heading: "Establishment", items: [
+        "Phone to ensure the room is available; confirm parking arrangements.",
+        "Ensure communications are established (mobile / two-way radio).",
+        "Place signage: quiet room, amenities, counselling room.",
+        "Set up tables and chairs; set up the kitchen (tea, coffee, biscuits, hot water).",
+        "Set up a whiteboard for announcements; organise catering if necessary.",
+        "Issue comms to key stakeholders advising the location and parking.",
+      ] },
+      { heading: "Management", items: [
+        "Organise counsellors present or on standby.",
+        "Register family/friends as they arrive; confirm the whereabouts of the person they are waiting for.",
+        "Monitor persons for trauma/shock; identify vulnerable students and staff.",
+        "Provide details of trauma counselling to those who want it; debrief and counsel students.",
+        "Allocate a team member to liaise with Parents & Friends groups (e.g. meals roster).",
+        "Provide regular updates (verbally and on the whiteboard); liaise with the Chief Warden and CIMT (incl. catering).",
+        "Establish a roster for staffing the centre.",
+      ] },
+      { heading: "Resources", items: [
+        "Large room + two smaller rooms, bathroom, kitchenette.",
+        "High-vis vest; megaphone (if large); first-aid kit; torch + batteries.",
+        "Pen and paper; food, tea, coffee; water + jugs; plastic cups; signage; language translation cards.",
+      ] },
+    ],
+  },
+  "Media Staging Area": {
+    title: "Media Staging Area Activation",
+    intro: "Establishment and management of the area where media are received and briefed.",
+    locations: [["Options", "Front gates · COLA · Performing Arts Centre · Back soccer field"]],
+    sections: [
+      { heading: "Establishment", items: [
+        "Ensure the room is available; set up tables and chairs.",
+        "Sanitise the room of incident information unless required.",
+        "Establish speaking technology (lectern, microphone); set up the kitchenette.",
+      ] },
+      { heading: "Management", items: [
+        "Ensure communications are established (mobile / two-way radio).",
+        "Register media as they arrive; confirm how the conference/interviews will be conducted.",
+        "Conduct the media conference, interviews or related activity.",
+      ] },
+      { heading: "Resources", items: [
+        "USB + hard copy: media release, enquiry form, call log, stakeholder statements.",
+        "Lectern, microphone (stand), audio splitter, power, lighting, backdrop.",
+        "Water, cups, food, tea/coffee; pen and paper; suitable entry/egress for the spokesperson.",
+      ] },
+    ],
+  },
+};
+export function referenceDoc(name) {
+  return REFERENCE_DOCS[name] || null;
+}
+
 // The incident's current phase (defaults sensibly for legacy incidents).
 export function incidentPhase(incident) {
   if (incident?.phase && CIMT_PHASES.some((p) => p.id === incident.phase)) return incident.phase;
@@ -1175,6 +1268,14 @@ export function phaseIndex(id) {
 export function nextPhaseId(id) {
   const i = phaseIndex(id);
   return i < CIMT_PHASES.length - 1 ? CIMT_PHASES[i + 1].id : null;
+}
+export function prevPhaseId(id) {
+  const i = phaseIndex(id);
+  return i > 0 ? CIMT_PHASES[i - 1].id : null;
+}
+// Incomplete mandatory checklist items in a phase — used to warn before advancing.
+export function openMandatoryItems(incident, phaseId) {
+  return (PHASE_CHECKLIST[phaseId] || []).filter((it) => it.mandatory && !isPhaseItemDone(incident, it.id));
 }
 export function isPhaseItemDone(incident, itemId) {
   return !!incident?.phaseChecks?.[itemId]?.done;
@@ -1290,7 +1391,13 @@ export const CALL_TAKER_QUESTIONS = [
   { id: "ct12", q: "What assistance is required?" },
 ];
 export function emptyCallTaker() {
-  return { receivedFrom: "", contact: "", answers: {}, notes: "", updatedAt: null };
+  return {
+    // Two dated blocks per the CIMP Call Taker Form.
+    call: { date: "", time: "", person: "", contact: "" },     // who you received info from
+    notify: { date: "", time: "", person: "", contact: "" },   // who you are notifying
+    receivedFrom: "", contact: "",                              // legacy fields (back-compat)
+    answers: {}, notes: "", updatedAt: null,
+  };
 }
 export function callTakerProgress(incident) {
   const a = incident?.callTaker?.answers || {};
@@ -1310,8 +1417,39 @@ export const CIMT_MEETING_AGENDA = [
   { id: "ag8", text: "Confirm team members are aware of their roles" },
   { id: "ag9", text: "Agree the time for the next meeting" },
 ];
-export function newMeeting() {
-  return { id: `mtg${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, at: Date.now(), checks: {}, notes: "", nextMeeting: "" };
+export function newMeeting(type = "initial") {
+  return { id: `mtg${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type, at: Date.now(), checks: {}, notes: "", nextMeeting: "" };
+}
+
+// The three CIMT meeting agendas from the CIM & BCP (§16.5). The Initial agenda
+// reuses CIMT_MEETING_AGENDA; Ongoing and Shift Changeover are their own.
+export const MEETING_TYPES = [
+  { id: "initial", label: "Initial CIMT Meeting", blurb: "Run when first standing up the CIMT. Keep to ~15 minutes, primary members only, phones outside the room.", agenda: CIMT_MEETING_AGENDA },
+  { id: "ongoing", label: "Ongoing CIMT Meeting", blurb: "Recurring team meeting as the incident develops.", agenda: [
+    { id: "og1", text: "Convene meeting" },
+    { id: "og2", text: "Confirm welfare of all CIMT members" },
+    { id: "og3", text: "Principal provides an update on any new information" },
+    { id: "og4", text: "Coordinators update on any further information or actions since the last meeting" },
+    { id: "og5", text: "Revisit the impact & issues assessment; adapt any change in incident level or response/recovery strategy" },
+    { id: "og6", text: "Agree on incident objectives" },
+    { id: "og7", text: "Agree on key actions" },
+    { id: "og8", text: "Agree time of follow-up meeting to update on actions and outcomes" },
+  ] },
+  { id: "shift", label: "Shift Changeover", blurb: "Handover briefing in a protracted incident — outgoing coordinators brief the incoming team before they arrive.", agenda: [
+    { id: "sc1", text: "Current situation" },
+    { id: "sc2", text: "Progress and projected developments" },
+    { id: "sc3", text: "Current response plan, objectives, strategies and rationale" },
+    { id: "sc4", text: "Current operational activities" },
+    { id: "sc5", text: "Specific hazards and/or safety issues" },
+    { id: "sc6", text: "Staffing deployed" },
+    { id: "sc7", text: "Current and potential key risk exposures" },
+    { id: "sc8", text: "Key contacts and communications arrangements" },
+    { id: "sc9", text: "Shift and welfare arrangements" },
+    { id: "sc10", text: "Other items relevant to the coordinators' functional areas" },
+  ] },
+];
+export function meetingTypeMeta(id) {
+  return MEETING_TYPES.find((t) => t.id === id) || MEETING_TYPES[0];
 }
 
 // --- PIR structured elements (§16.4 Debriefing / PIR template) ---
@@ -1727,7 +1865,9 @@ export function generateIncidentTasks(typeId, roles) {
   for (const role of (roles || [])) {
     const entries = [
       ...((RESPONSE_PROCEDURES[typeId] || []).filter((e) => e.responsible === role.role)),
-      ...(CIMT_ROLE_CHECKLISTS[role.role] || []),
+      // Skip governance gates — they live (and get ticked) in the phase checklist,
+      // not as duplicate jobs on the board.
+      ...((CIMT_ROLE_CHECKLISTS[role.role] || []).filter((e) => !e.governance)),
     ].map(normResp);
     const owner = roleIsAssigned(role) ? role.initials : "—";
     for (const e of entries) {
