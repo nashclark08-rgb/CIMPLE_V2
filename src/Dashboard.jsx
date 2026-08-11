@@ -22,7 +22,7 @@ import {
   MEDIA_QA_CATEGORIES, MEDIA_QA_QUESTIONS, mediaQAProgress, buildFAQText,
   ACTIVATION_CHANNELS, NOTIFY_STATUS, roleIsAssigned,
   PIR_STATUS, newPIR, newCorrectiveAction, pirFacts,
-  DECISION_STATUS, newDecision,
+  DECISION_STATUS, newDecision, unacknowledgedDecisionCount, rolesAwaitingDecisionAck,
   RISK_CATEGORIES, RISK_SEVERITY, RISK_STATUS, newRisk, openRisks, riskCounts, riskIsOpen,
   COPILOT_SEVERITY, COPILOT_RULES, runCopilot,
   recommendAlternate,
@@ -36,7 +36,7 @@ import {
   CALL_TAKER_QUESTIONS, emptyCallTaker, callTakerProgress, CIMT_MEETING_AGENDA, MEETING_TYPES, meetingTypeMeta, newMeeting, PIR_ELEMENTS,
   RECOVERY_STRATEGIES, suggestedStrategyIds, recoveryStrategyById, strategyActivated,
   strategyProgress, activeStrategyCount, CRITICAL_BUSINESS_FUNCTIONS, cbfTierColor,
-  impactedCBFCount, IMPACT_DIMENSIONS, IMPACT_LEVELS, IMPACT_LEVEL_COLORS,
+  impactedCBFCount, IMPACT_DIMENSIONS, IMPACT_LEVELS, IMPACT_LEVEL_COLORS, IMPACT_CRITERIA, newImpactIssue,
   decisionFlowsFor, decisionFlowById, summarizeFlowPath,
   ROLE_GROUPS, roleGroupOf, applySoftLocks, getMyRole, setMyRole,
   phaseForDue, ESCALATION_MATRIX, severityRationale, disambiguatedInitials, taskOwnerName,
@@ -166,6 +166,7 @@ export default function Dashboard({ incidentId, onBack }) {
       {incident.isDrill && <DrillBanner />}
       <CommandStrip incident={incident} changeSeverity={changeSeverity} setDrawer={setDrawer} closeIncident={closeIncident} reopenIncident={reopenIncident} onBack={onBack} onRedFolder={() => setRedFolder(true)} />
       <PhaseStepper incident={incident} onOpen={(phaseId) => setDrawer({ kind: "phases", phaseId })} />
+      <GlanceStrip incident={incident} setDrawer={setDrawer} now={now} />
 
       <div style={{ maxWidth: 1480, margin: "0 auto", padding: "24px 32px", display: "grid", gridTemplateColumns: "260px 1fr 320px", gap: 24, alignItems: "start" }}>
         <LeftRail incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} setDrawer={setDrawer} />
@@ -494,6 +495,69 @@ function RFEmpty({ C, text }) {
   return <div style={{ fontSize: 14, color: C.soft, padding: "6px 0" }}>{text}</div>;
 }
 
+// Homepage glance strip — Visual Boards + open Risks at a glance (Annika: make
+// the boards accessible from the homepage; risks reachable). Read-only; click
+// through to the full instruments / risk register.
+function GlanceStrip({ incident, setDrawer, now }) {
+  const counts = boardCounts(incident);
+  const boards = incident.boards || {};
+  const open = openRisks(incident);
+  const latest = (q) => { const arr = boards[q] || []; return arr.length ? arr[arr.length - 1].text : null; };
+  const quad = [
+    { id: "facts", label: "Facts" },
+    { id: "assumptions", label: "Assumptions" },
+    { id: "issues", label: "Issues" },
+    { id: "actions", label: "Actions" },
+  ];
+  return (
+    <div style={{ maxWidth: 1480, margin: "0 auto", padding: "0 32px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24, alignItems: "stretch" }}>
+        {/* Visual boards */}
+        <button onClick={() => setDrawer("instruments")} className="card" style={{ textAlign: "left", cursor: "pointer", padding: "12px 16px", border: `1px solid rgba(0,48,94,0.12)`, background: PALETTE.paper }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span className="panel-h-label" style={{ fontSize: 10 }}>VISUAL BOARDS</span>
+            <span className="mono" style={{ fontSize: 9.5, color: PALETTE.teal }}>OPEN INSTRUMENTS →</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
+            {quad.map((q) => (
+              <div key={q.id}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                  <span className="display" style={{ fontSize: 20, fontWeight: 600, color: PALETTE.teal }}>{counts[q.id] || 0}</span>
+                  <span className="mono" style={{ fontSize: 8.5, letterSpacing: "0.06em", color: PALETTE.inkSoft, textTransform: "uppercase" }}>{q.label}</span>
+                </div>
+                <div style={{ fontSize: 10.5, color: PALETTE.inkSoft, lineHeight: 1.35, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{latest(q.id) || "—"}</div>
+              </div>
+            ))}
+          </div>
+        </button>
+        {/* Open risks */}
+        <button onClick={() => setDrawer("risks")} className="card" style={{ textAlign: "left", cursor: "pointer", padding: "12px 16px", border: `1px solid ${open.length ? "rgba(168,85,53,0.4)" : "rgba(0,48,94,0.12)"}`, background: PALETTE.paper }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span className="panel-h-label" style={{ fontSize: 10, color: open.length ? PALETTE.rust : PALETTE.teal }}>OPEN RISKS · {open.length}</span>
+            <span className="mono" style={{ fontSize: 9.5, color: PALETTE.teal }}>REGISTER →</span>
+          </div>
+          {open.length === 0 ? (
+            <div style={{ fontSize: 11.5, color: PALETTE.inkSoft }}>No open risks.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              {open.slice(0, 3).map((r) => {
+                const sv = RISK_SEVERITY[r.severity] || {};
+                return (
+                  <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: PALETTE.ink }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: sv.color, flexShrink: 0 }} />
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.title}</span>
+                  </div>
+                );
+              })}
+              {open.length > 3 && <div style={{ fontSize: 10.5, color: PALETTE.inkSoft }}>+{open.length - 3} more</div>}
+            </div>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reopenIncident, onBack, onRedFolder }) {
   const sev = SEVERITY[incident.severity];
   const isClosed = incident.status === "closed";
@@ -595,7 +659,11 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
                 </button>
               ); })()}
               <button className="btn" onClick={() => setDrawer("policy")}><BookOpen size={14} /> Policy</button>
-              <button className="btn" onClick={() => setDrawer("decisions")}><Scale size={14} /> Decisions{(incident.decisions || []).length ? ` · ${(incident.decisions || []).length}` : ""}</button>
+              {(() => { const pend = unacknowledgedDecisionCount(incident); return (
+                <button className="btn" onClick={() => setDrawer("decisions")} style={pend ? { borderColor: PALETTE.rust, color: PALETTE.rust } : undefined}>
+                  <Scale size={14} /> Decisions{(incident.decisions || []).length ? ` · ${(incident.decisions || []).length}` : ""}{pend ? ` · ${pend} to ack` : ""}
+                </button>
+              ); })()}
               {(() => { const open = riskCounts(incident).open; return (
                 <button className="btn" onClick={() => setDrawer("risks")} style={open ? { borderColor: PALETTE.rust, color: PALETTE.rust } : undefined}>
                   <AlertTriangle size={14} /> Risks{open ? ` · ${open}` : ""}
@@ -1098,6 +1166,7 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
   const inScopePhase = (t) => phaseIndex(effectivePhase(t)) <= curIdx;
   // Full names of everyone assigned — lets us show unique owner codes + names.
   const ownerNames = (incident.roles || []).map((r) => r.staff).filter((s) => s && s !== "—");
+  const awaitingAck = rolesAwaitingDecisionAck(incident); // roles with an unacknowledged decision
 
   function overrideLock(id) {
     update((prev) => ({ ...prev, tasks: prev.tasks.map((t) => (t.id === id ? { ...t, overrideLock: true } : t)) }));
@@ -1233,6 +1302,7 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
                 <div style={{ padding: "10px 24px 4px", display: "flex", alignItems: "center", gap: 8, background: PALETTE.bone }}>
                   <span style={{ fontSize: 12.5, fontWeight: 600, color: PALETTE.teal }}>{s.role}</span>
                   <span style={{ fontSize: 11.5, color: PALETTE.inkSoft }}>{s.person && s.person.staff && s.person.staff !== "—" ? s.person.staff : "unassigned"}</span>
+                  {awaitingAck.has(s.role) && <span className="mono" style={{ fontSize: 9, letterSpacing: "0.06em", color: PALETTE.paper, background: PALETTE.rust, padding: "2px 6px", display: "inline-flex", alignItems: "center", gap: 4 }}><Scale size={10} /> DECISION TO ACK</span>}
                 </div>
               )}
               {s.visible.map((t, i, arr) => {
@@ -2480,12 +2550,30 @@ function DecisionLogDrawer({ incident, update, addTimelineEntry, isClosed, now }
     return Date.now() + parseInt(reviewPreset, 10) * 60000;
   }
 
+  const rolesPresent = [...new Set((incident.roles || []).map((r) => r.role).filter(Boolean))];
+  const [affected, setAffected] = useState([]);
+  function toggleAffected(role) {
+    setAffected((a) => (a.includes(role) ? a.filter((x) => x !== role) : [...a, role]));
+  }
+
   function record() {
     if (!decision.trim()) return;
-    const d = newDecision({ decision: decision.trim(), rationale: rationale.trim(), options: options.trim(), evidence: evidence.trim(), reviewBy: computeReviewBy() });
+    const d = newDecision({ decision: decision.trim(), rationale: rationale.trim(), options: options.trim(), evidence: evidence.trim(), reviewBy: computeReviewBy(), affectedRoles: affected });
     update((prev) => ({ ...prev, decisions: [d, ...(prev.decisions || [])] }));
-    addTimelineEntry({ type: "decision", text: `Decision: ${d.decision}` });
-    setDecision(""); setRationale(""); setOptions(""); setEvidence(""); setReviewPreset("");
+    addTimelineEntry({ type: "decision", text: `Decision: ${d.decision}${affected.length ? ` — flagged to ${affected.map(shortRole).join(", ")}` : ""}` });
+    setDecision(""); setRationale(""); setOptions(""); setEvidence(""); setReviewPreset(""); setAffected([]);
+  }
+
+  // Tagged role acknowledges — notifies the author via the timeline + ack record.
+  function acknowledge(decisionId, role) {
+    const roleObj = (incident.roles || []).find((r) => r.role === role);
+    const by = roleObj?.staff && roleObj.staff !== "—" ? roleObj.staff : role;
+    update((prev) => ({
+      ...prev,
+      decisions: (prev.decisions || []).map((x) => (x.id === decisionId ? { ...x, acks: { ...(x.acks || {}), [role]: { at: Date.now(), by } } } : x)),
+    }));
+    const d = decisions.find((x) => x.id === decisionId);
+    addTimelineEntry({ type: "decision", text: `${by} (${shortRole(role)}) acknowledged decision: ${d?.decision || ""}.` });
   }
 
   function markReviewed(id) {
@@ -2532,6 +2620,16 @@ function DecisionLogDrawer({ incident, update, addTimelineEntry, isClosed, now }
               ))}
             </div>
           </Section>
+          {rolesPresent.length > 0 && (
+            <Section title="Flag affected role(s) — they'll be asked to acknowledge">
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {rolesPresent.map((r) => {
+                  const on = affected.includes(r);
+                  return <button key={r} onClick={() => toggleAffected(r)} style={{ padding: "5px 9px", fontSize: 11.5, cursor: "pointer", background: on ? PALETTE.teal : PALETTE.paper, color: on ? PALETTE.paper : PALETTE.ink, border: `1px solid ${on ? PALETTE.teal : "rgba(0,48,94,0.18)"}`, fontWeight: on ? 600 : 500 }}>{shortRole(r)}</button>;
+                })}
+              </div>
+            </Section>
+          )}
           <button onClick={record} disabled={!decision.trim()} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: 8, opacity: decision.trim() ? 1 : 0.5 }}>
             <Scale size={14} /> Record decision
           </button>
@@ -2546,7 +2644,7 @@ function DecisionLogDrawer({ incident, update, addTimelineEntry, isClosed, now }
       ) : (
         <div style={{ display: "grid", gap: 10 }}>
           {decisions.map((d) => (
-            <DecisionCard key={d.id} d={d} now={now} isClosed={isClosed} onReview={() => markReviewed(d.id)} />
+            <DecisionCard key={d.id} d={d} now={now} isClosed={isClosed} onReview={() => markReviewed(d.id)} onAck={(role) => acknowledge(d.id, role)} />
           ))}
         </div>
       )}
@@ -2563,9 +2661,10 @@ function presetStyle(active) {
   };
 }
 
-function DecisionCard({ d, now, isClosed, onReview }) {
+function DecisionCard({ d, now, isClosed, onReview, onAck }) {
   const st = DECISION_STATUS[d.status] || DECISION_STATUS.open;
   const overdue = d.status === "open" && d.reviewBy && d.reviewBy < now;
+  const affectedRoles = d.affectedRoles || [];
   return (
     <div style={{ border: `1px solid rgba(0,48,94,0.14)`, borderLeft: `3px solid ${PALETTE.crimson}`, background: PALETTE.paper, padding: "12px 14px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
@@ -2586,6 +2685,29 @@ function DecisionCard({ d, now, isClosed, onReview }) {
       {d.status === "reviewed" && (
         <div style={{ fontSize: 11.5, marginTop: 8, color: PALETTE.sage, display: "flex", alignItems: "center", gap: 5 }}>
           <CheckCircle2 size={12} /> Reviewed {d.reviewedAt ? formatTime(d.reviewedAt) : ""}{d.outcome ? ` — ${d.outcome}` : ""}
+        </div>
+      )}
+      {affectedRoles.length > 0 && (
+        <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid rgba(0,48,94,0.08)` }}>
+          <div className="mono" style={{ fontSize: 8.5, letterSpacing: "0.1em", color: PALETTE.teal, opacity: 0.6, textTransform: "uppercase", marginBottom: 6 }}>Flagged to</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            {affectedRoles.map((r) => {
+              const ack = (d.acks || {})[r];
+              return (
+                <div key={r} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5 }}>
+                  <span style={{ fontWeight: 600, color: PALETTE.ink }}>{shortRole(r)}</span>
+                  {ack ? (
+                    <span style={{ color: PALETTE.sage, display: "inline-flex", alignItems: "center", gap: 4 }}><CheckCircle2 size={12} /> acknowledged by {ack.by} · {formatTime(ack.at)}</span>
+                  ) : (
+                    <>
+                      <span style={{ color: PALETTE.rust }}>awaiting acknowledgement</span>
+                      {!isClosed && onAck && <button onClick={() => onAck(r)} className="btn" style={{ padding: "3px 9px", fontSize: 10.5 }}>Acknowledge</button>}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
       {!isClosed && d.status === "open" && (
@@ -3745,7 +3867,7 @@ function ContinuityDrawer({ incident, update, addTimelineEntry, isClosed, initia
       </div>
       {tab === "strategies" && <StrategiesTab incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />}
       {tab === "cbf" && <CBFTab incident={incident} update={update} isClosed={isClosed} />}
-      {tab === "impact" && <ImpactTab incident={incident} update={update} isClosed={isClosed} />}
+      {tab === "impact" && <ImpactTab incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />}
     </div>
   );
 }
@@ -3877,25 +3999,98 @@ function CBFTab({ incident, update, isClosed }) {
   );
 }
 
-function ImpactTab({ incident, update, isClosed }) {
+function ImpactTab({ incident, update, addTimelineEntry, isClosed }) {
   const impact = incident.recovery?.impact || {};
+  const issues = incident.recovery?.issues || {};
+  const [openDim, setOpenDim] = useState(null);
+
   function setDim(dim, level) {
     update((prev) => ({ ...prev, recovery: { ...(prev.recovery || {}), impact: { ...((prev.recovery || {}).impact || {}), [dim]: level } } }));
   }
+  function setIssues(dim, rows) {
+    update((prev) => ({ ...prev, recovery: { ...(prev.recovery || {}), issues: { ...((prev.recovery || {}).issues || {}), [dim]: rows } } }));
+  }
+  function addIssue(dim) {
+    setIssues(dim, [...(issues[dim] || []), newImpactIssue()]);
+    setOpenDim(dim);
+  }
+  function patchIssue(dim, id, key, val) {
+    setIssues(dim, (issues[dim] || []).map((r) => (r.id === id ? { ...r, [key]: val } : r)));
+  }
+  function removeIssue(dim, id) {
+    setIssues(dim, (issues[dim] || []).filter((r) => r.id !== id));
+  }
+  // Feed the plan: an issue's Action becomes a task (owner = Who) on the board.
+  function issueToTask(dim, row) {
+    if (!row.action.trim() || row.taskId) return;
+    const t = {
+      id: `tk${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      text: row.action.trim(),
+      role: null,
+      owner: row.who ? disambiguatedInitials(row.who, (incident.roles || []).map((r) => r.staff)) : "—",
+      phase: incidentPhase(incident),
+      done: false,
+      priority: "med",
+      dueAt: undefined,
+      fromIssue: `${dim}: ${row.issue || row.action}`.slice(0, 80),
+    };
+    update((prev) => ({
+      ...prev,
+      tasks: [...(prev.tasks || []), t],
+      recovery: { ...(prev.recovery || {}), issues: { ...((prev.recovery || {}).issues || {}), [dim]: (((prev.recovery || {}).issues || {})[dim] || []).map((r) => (r.id === row.id ? { ...r, taskId: t.id } : r)) } },
+    }));
+    addTimelineEntry && addTimelineEntry({ type: "action", text: `Issue action added to the task board (${dim}): ${row.action.trim()}.` });
+  }
+
   return (
     <div>
       <p style={{ fontSize: 12.5, color: PALETTE.inkSoft, lineHeight: 1.5, marginTop: 0, marginBottom: 14 }}>
-        Planning Coordinator: rate the incident's impact across each dimension to prioritise recovery. Repeat at intervals as the incident evolves.
+        Planning Coordinator: rate the impact across each dimension, then log the issues each raises and how they'll be actioned. Repeat at intervals as the incident evolves. Issue actions can be sent to the task board.
       </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {IMPACT_DIMENSIONS.map((dim) => {
           const lvl = impact[dim] || 0;
+          const rows = issues[dim] || [];
+          const crit = (IMPACT_CRITERIA[dim] || [])[lvl];
+          const isOpen = openDim === dim;
           return (
-            <div key={dim} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ flex: 1, fontSize: 12.5, fontWeight: 500, color: PALETTE.ink }}>{dim}</div>
-              <select value={lvl} onChange={(e) => setDim(dim, Number(e.target.value))} disabled={isClosed} style={{ fontSize: 12, width: 150, color: IMPACT_LEVEL_COLORS[lvl], fontWeight: lvl ? 600 : 400 }}>
-                {IMPACT_LEVELS.map((l, i) => <option key={i} value={i}>{l}</option>)}
-              </select>
+            <div key={dim} style={{ border: `1px solid rgba(0,48,94,0.12)`, borderLeft: `3px solid ${IMPACT_LEVEL_COLORS[lvl]}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px" }}>
+                <button onClick={() => setOpenDim(isOpen ? null : dim)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flex: 1, textAlign: "left", fontSize: 12.5, fontWeight: 600, color: PALETTE.ink, display: "flex", alignItems: "center", gap: 6 }}>
+                  {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}{dim}
+                  {rows.length > 0 && <span className="mono" style={{ fontSize: 9, color: PALETTE.inkSoft }}>· {rows.length} issue{rows.length > 1 ? "s" : ""}</span>}
+                </button>
+                <select value={lvl} onChange={(e) => setDim(dim, Number(e.target.value))} disabled={isClosed} style={{ fontSize: 12, width: 140, color: IMPACT_LEVEL_COLORS[lvl], fontWeight: lvl ? 600 : 400 }}>
+                  {IMPACT_LEVELS.map((l, i) => <option key={i} value={i}>{l}</option>)}
+                </select>
+              </div>
+              {isOpen && (
+                <div style={{ padding: "4px 12px 12px", borderTop: `1px solid rgba(0,48,94,0.08)` }}>
+                  {lvl > 0 && crit && crit !== "—" && (
+                    <div style={{ fontSize: 11, color: PALETTE.inkSoft, fontStyle: "italic", margin: "8px 0" }}>{IMPACT_LEVELS[lvl]}: {crit}</div>
+                  )}
+                  {rows.length === 0 && <p style={{ fontSize: 11.5, color: PALETTE.inkSoft, margin: "8px 0" }}>No issues logged for this dimension yet.</p>}
+                  {rows.map((r) => (
+                    <div key={r.id} style={{ border: `1px solid rgba(0,48,94,0.1)`, padding: 8, marginBottom: 8, background: PALETTE.parchment }}>
+                      <input value={r.issue} onChange={(e) => patchIssue(dim, r.id, "issue", e.target.value)} placeholder="Issue — what problem does this raise?" disabled={isClosed} style={{ width: "100%", fontSize: 12, marginBottom: 6, boxSizing: "border-box" }} />
+                      <input value={r.action} onChange={(e) => patchIssue(dim, r.id, "action", e.target.value)} placeholder="Action — what will be done?" disabled={isClosed} style={{ width: "100%", fontSize: 12, marginBottom: 6, boxSizing: "border-box" }} />
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 6, alignItems: "center" }}>
+                        <input value={r.who} onChange={(e) => patchIssue(dim, r.id, "who", e.target.value)} placeholder="Who" disabled={isClosed} style={{ fontSize: 12, boxSizing: "border-box" }} />
+                        <input value={r.when} onChange={(e) => patchIssue(dim, r.id, "when", e.target.value)} placeholder="When" disabled={isClosed} style={{ fontSize: 12, boxSizing: "border-box" }} />
+                        {!isClosed && <button onClick={() => removeIssue(dim, r.id)} className="btn-ghost" style={{ background: "none", border: "none", padding: 4, color: PALETTE.inkSoft, cursor: "pointer" }}><Trash2 size={13} /></button>}
+                      </div>
+                      {!isClosed && (
+                        <div style={{ marginTop: 6 }}>
+                          {r.taskId
+                            ? <span className="mono" style={{ fontSize: 9.5, color: PALETTE.sage }}>✓ ON TASK BOARD</span>
+                            : <button onClick={() => issueToTask(dim, r)} disabled={!r.action.trim()} className="btn" style={{ padding: "4px 9px", fontSize: 11, opacity: r.action.trim() ? 1 : 0.5 }}><ListChecks size={11} /> Send action to board</button>}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {!isClosed && <button onClick={() => addIssue(dim)} className="btn-ghost" style={{ background: "none", border: "none", padding: 0, fontSize: 11.5, color: PALETTE.teal, cursor: "pointer", fontWeight: 500 }}>+ Add an issue</button>}
+                </div>
+              )}
             </div>
           );
         })}

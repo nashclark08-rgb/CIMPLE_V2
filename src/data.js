@@ -1789,6 +1789,21 @@ export const IMPACT_DIMENSIONS = [
 export const IMPACT_LEVELS = ["Not assessed", "Insignificant", "Minor", "Moderate", "Major", "Catastrophic"];
 export const IMPACT_LEVEL_COLORS = ["#4A5664", "#5B8C7C", "#7FA07A", "#B89460", "#A85535", "#7A1820"];
 
+// Per-dimension level descriptors from the CIM & BCP Impact Assessment matrix.
+// Indexes align to IMPACT_LEVELS (0 = Not assessed). Health/Operations/Financial
+// are the plan's wording; the rest are consistent generic descriptors.
+export const IMPACT_CRITERIA = {
+  "Health & Safety": ["—", "Minimal or no injuries", "Minor injuries to a few students/teachers/staff", "Some students/teachers/staff hospitalised", "Single fatality; significant injury to some; child-abuse report involving staff", "Multiple fatalities; significant injury to many; multiple child-abuse reports involving staff"],
+  "Operations": ["—", "Minimal — no long-term effects", "Minor — 1 week or less, no real long-term effect", "More than a week; moderate long-term impact on operations", "Up to 3 months; significant long-term impact on operations", "Extended disruption; full recovery unlikely"],
+  "Financial": ["—", "Up to $20,000 impact on gross/net margin", "$20,001–$49,999 impact", "$50,000–$249,999 impact", "$250,000–$499,999 impact", "$500,000 or more impact"],
+  "Compliance": ["—", "No breach / internal note", "Minor breach — internally managed", "Reportable breach — regulator notified", "Serious breach — investigation/enforcement likely", "Major breach — prosecution/loss of registration risk"],
+  "Reputational": ["—", "No external awareness", "Local community awareness", "Regional/parent-community concern; some media", "Significant negative media; trust affected", "Sustained national/international media; lasting damage"],
+  "Strategic / Market": ["—", "No strategic effect", "Minor, short-term effect", "Moderate effect on plans/enrolments", "Major effect on strategy/enrolments", "Threatens the College's viability/direction"],
+};
+export function newImpactIssue() {
+  return { id: `is${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, issue: "", action: "", who: "", when: "", taskId: null };
+}
+
 function normResp(e) {
   return typeof e === "string" ? { text: e } : e;
 }
@@ -2862,7 +2877,7 @@ export const DECISION_STATUS = {
   reviewed: { label: "Reviewed", color: "#5B8C7C" },
 };
 
-export function newDecision({ decision, rationale, options, evidence, reviewBy }) {
+export function newDecision({ decision, rationale, options, evidence, reviewBy, affectedRoles }) {
   return {
     id: `dec${Date.now()}`,
     ts: Date.now(),
@@ -2875,7 +2890,25 @@ export function newDecision({ decision, rationale, options, evidence, reviewBy }
     reviewedAt: null,
     outcome: "",
     status: "open", // open → reviewed
+    affectedRoles: affectedRoles || [],  // roles this decision flags
+    acks: {},                            // { roleName: { at, by } }
   };
+}
+
+// Count of role-tagged decisions still awaiting acknowledgement (dashboard flag).
+export function unacknowledgedDecisionCount(incident) {
+  return (incident?.decisions || []).reduce((n, d) => {
+    const pending = (d.affectedRoles || []).filter((r) => !(d.acks || {})[r]).length;
+    return n + (pending > 0 ? 1 : 0);
+  }, 0);
+}
+// Roles with an unacknowledged decision — used to flag those role lanes.
+export function rolesAwaitingDecisionAck(incident) {
+  const set = new Set();
+  for (const d of incident?.decisions || []) {
+    for (const r of d.affectedRoles || []) if (!(d.acks || {})[r]) set.add(r);
+  }
+  return set;
 }
 
 // ============================================================
