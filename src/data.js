@@ -646,6 +646,99 @@ export function buildSampleIncidents() {
     ],
   });
 
+  // 5. FEATURE-TEST incident — a live L2 bushfire threat, wired to exercise the
+  // round-2 additions (phase board + banner, Impact & Issues, decision acks,
+  // risk↔task, glance strip, meetings, SITREPs, Call Taker, editable timeline).
+  {
+    const ftRoles = [
+      { id: "r1", role: "Critical Incident Leader", staff: "Adrian Johnson", initials: "AJOH", status: "confirmed", required: true, isPrincipal: true, backup: "Kathy Fletcher" },
+      { id: "r2", role: "Support Coordinator", staff: "Jessica Sevil", initials: "JSEV", status: "confirmed", required: true },
+      { id: "r3", role: "Planning Coordinator", staff: "Annika Fairley", initials: "AFAI", status: "confirmed", required: true },
+      { id: "r4", role: "College Services", staff: "Sharon Finlay", initials: "SFIN", status: "confirmed", required: true },
+      { id: "r5", role: "Facilities", staff: "Matt Everon", initials: "MEVE", status: "confirmed", required: true },
+      { id: "r6", role: "Communications Coordinator", staff: "Megan Whitsed", initials: "MWHI", status: "confirmed", required: true },
+      { id: "r7", role: "Recovery Coordinator", staff: "Nash Clark", initials: "NCLA", status: "confirmed", required: false },
+    ];
+    // Realistic phase-tagged jobs from the playbook; assessment work already done.
+    const ftTasks = generateIncidentTasks("bushfire", ftRoles).map((t) =>
+      t.phase === "assessment" ? { ...t, done: true } : t
+    );
+    samples.push({
+      id: "INC-2026-0803-005",
+      title: "Bushfire threat — ember attack approaching from the west",
+      type: "bushfire",
+      typeLabel: "Bushfire",
+      typeCategory: "environmental",
+      severity: 2,
+      status: "active",
+      isDrill: false,
+      startedAt: now - minutes(48),
+      closedAt: null,
+      location: "Whole campus — fire front ~4km west, wind NW 35km/h",
+      empSection: "EMP §1.6 — Bushfire Response",
+      policies: defaultPoliciesForType("bushfire"),
+      // Sitting in ACTIVATION so both new phase controls are testable: "Back to
+      // Assessment", and the warn-before-advance on the two open mandatory items.
+      phase: "activation",
+      phaseChecks: { as1: { done: true }, as3: { done: true }, as5: { done: true }, as7: { done: true }, as8: { done: true }, as9: { done: true }, as10: { done: true }, ac3: { done: true }, ac4: { done: true }, ac5: { done: true } },
+      roles: ftRoles,
+      boards: {
+        facts: [
+          { id: "bf1", text: "RFS advice: Watch and Act for the district; fire front ~4km west", ts: now - minutes(40) },
+          { id: "bf2", text: "487 students + 74 staff on site; no injuries", ts: now - minutes(38) },
+        ],
+        assumptions: [
+          { id: "ba1", text: "Wind expected to strengthen NW through the afternoon (unconfirmed)", ts: now - minutes(30) },
+        ],
+        issues: [
+          { id: "bi1", text: "Bus contractor availability for early dismissal not yet confirmed", ts: now - minutes(18) },
+          { id: "bi2", text: "Smoke affecting two students with asthma", ts: now - minutes(9) },
+        ],
+        actions: [
+          { id: "bac1", text: "Move all students indoors; seal external doors/windows", ts: now - minutes(22) },
+        ],
+      },
+      risks: [
+        { id: "rk1", title: "Early dismissal may strand students without transport", description: "Bus contractor not confirmed; some families uncontactable.", category: "Operational", severity: "high", status: "active", owner: "Sharon Finlay", createdAt: now - minutes(17), updatedAt: now - minutes(17), reviewBy: now + minutes(20) },
+        { id: "rk2", title: "Smoke exposure for asthmatic students", description: "Two known asthmatics; monitor and keep Ventolin accessible.", category: "Health & Safety", severity: "medium", status: "watch", owner: "", createdAt: now - minutes(8), updatedAt: now - minutes(8), reviewBy: null },
+      ],
+      decisions: [
+        { id: "dc1", ts: now - minutes(15), decidedBy: "Adrian Johnson", decision: "Hold external comms until the RFS advice level is confirmed", rationale: "Avoid conflicting messaging with emergency services.", options: "Issue holding statement now vs wait", evidence: "RFS still at Watch and Act", reviewBy: now + minutes(15), reviewedAt: null, outcome: "", status: "open", affectedRoles: ["Communications Coordinator"], acks: {} },
+        { id: "dc2", ts: now - minutes(6), decidedBy: "Adrian Johnson", decision: "Prepare for possible early dismissal at 2:00pm pending conditions", rationale: "Gives College Services time to confirm transport and staffing.", options: "Shelter-in-place vs early dismissal", evidence: "Wind forecast worsening", reviewBy: null, reviewedAt: null, outcome: "", status: "open", affectedRoles: ["College Services", "Communications Coordinator"], acks: {} },
+      ],
+      recovery: {
+        impact: { "Health & Safety": 3, "Operations": 4, "Reputational": 2 },
+        issues: {
+          "Operations": [
+            { id: "is1", issue: "Early dismissal needs confirmed transport", action: "Confirm bus contractor + backup taxis for 2:00pm", who: "Sharon Finlay", when: "By 1:15pm", taskId: null },
+          ],
+        },
+      },
+      meetings: [
+        { id: "mtg-ft1", type: "initial", at: now - minutes(34), checks: { ag1: true, ag2: true, ag3: true, ag4: true, ag5: true }, notes: "Objectives: protect life, shelter-in-place, prepare contingency dismissal.", nextMeeting: "Every 20 min" },
+      ],
+      sitreps: [
+        { id: "sr-ft1", ts: now - minutes(12), area: "College Services", sitrepTo: "Planning Coordinator", version: 1, situation: "Students sheltering indoors; doors sealed.", future: "Possible early dismissal if wind strengthens.", impacts: "Outdoor activities cancelled; bus timing uncertain.", actions: "Confirmed indoor supervision; chasing bus contractor.", objectives: "Confirm transport for a 2:00pm dismissal.", needs: "Decision on dismissal time by 1:15pm." },
+      ],
+      callTaker: {
+        call: { date: new Date(now - minutes(48)).toISOString().slice(0, 10), time: "12:05", person: "Grounds staff (radio)", contact: "Two-way" },
+        notify: { date: new Date(now - minutes(47)).toISOString().slice(0, 10), time: "12:07", person: "Adrian Johnson", contact: "Mobile" },
+        answers: { ct1: "Bushfire — ember attack risk from the west", ct2: "Whole campus; fire front ~4km west", ct5: "RFS aware; Watch and Act", ct7: "Students being moved indoors" },
+        notes: "Wind NW ~35km/h and forecast to strengthen.",
+        updatedAt: now - minutes(40),
+      },
+      timeline: [
+        { id: "ft-t1", ts: now - minutes(48), actor: "Adrian Johnson", actorInitials: "AJOH", type: "system", text: "Incident opened. Initial severity: L2 Incident." },
+        { id: "ft-t2", ts: now - minutes(46), actor: "Annika Fairley", actorInitials: "AFAI", type: "note", text: "RFS district advice: Watch and Act. Fire front ~4km west; wind NW." },
+        { id: "ft-t3", ts: now - minutes(34), actor: "Jessica Sevil", actorInitials: "JSEV", type: "system", text: "Initial CIMT meeting held. Objectives set; next meeting in 20 min." },
+        { id: "ft-t4", ts: now - minutes(22), actor: "Matt Everon", actorInitials: "MEVE", type: "action", text: "All students moved indoors; external doors and windows sealed." },
+        { id: "ft-t5", ts: now - minutes(15), actor: "Adrian Johnson", actorInitials: "AJOH", type: "decision", text: "Decision: Hold external comms until the RFS advice level is confirmed — flagged to Communications Coordinator." },
+        { id: "ft-t6", ts: now - minutes(9), actor: "Sharon Finlay", actorInitials: "SFIN", type: "note", text: "Two asthmatic students showing mild smoke sensitivity; Ventolin on hand." },
+      ],
+      tasks: ftTasks,
+    });
+  }
+
   return samples;
 }
 
