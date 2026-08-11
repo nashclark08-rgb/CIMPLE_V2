@@ -3594,9 +3594,11 @@ function SitrepTab({ incident, update, addTimelineEntry, isClosed }) {
     if (isClosed) return;
     const hasContent = form.area.trim() || SITREP_FIELDS.some((f) => (form[f.key] || "").trim());
     if (!hasContent) return;
-    const rec = { ...form, id: `sr${Date.now()}`, ts: Date.now() };
+    // Version = the next number in this functional area's SITREP sequence.
+    const version = sitreps.filter((s) => (s.area || "").trim().toLowerCase() === form.area.trim().toLowerCase()).length + 1;
+    const rec = { ...form, id: `sr${Date.now()}`, ts: Date.now(), version };
     update((prev) => ({ ...prev, sitreps: [rec, ...(prev.sitreps || [])] }));
-    addTimelineEntry({ type: "note", text: `SITREP filed${form.area ? ` — ${form.area}` : ""} (to Planning Coordinator).` });
+    addTimelineEntry({ type: "note", text: `SITREP v${version} filed${form.area ? ` — ${form.area}` : ""} (to ${form.sitrepTo || "Planning Coordinator"}).` });
     setForm(newSitrep());
   }
   return (
@@ -3622,8 +3624,8 @@ function SitrepTab({ incident, update, addTimelineEntry, isClosed }) {
           {sitreps.map((s) => (
             <div key={s.id} style={{ border: `1px solid rgba(0,48,94,0.14)`, background: PALETTE.paper }}>
               <button onClick={() => setOpenId(openId === s.id ? null : s.id)} style={{ width: "100%", textAlign: "left", background: "none", border: "none", padding: "10px 12px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: PALETTE.ink }}>{s.area || "SITREP"}</span>
-                <span className="mono" style={{ fontSize: 10, color: PALETTE.inkSoft }}>{formatTime(s.ts)}</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: PALETTE.ink }}>{s.area || "SITREP"}{s.version ? ` · v${s.version}` : ""}</span>
+                <span className="mono" style={{ fontSize: 10, color: PALETTE.inkSoft }}>{formatTime(s.ts)}{s.sitrepTo ? ` · → ${shortRole(s.sitrepTo)}` : ""}</span>
               </button>
               {openId === s.id && (
                 <div style={{ padding: "0 12px 12px" }}>

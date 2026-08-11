@@ -87,34 +87,49 @@ export function severityRationale(severity) {
 }
 
 // ---------- Incident types with metadata ----------
+// Organised into Annika's 5-group taxonomy with the plan's escalation levels
+// (Death = L2, Data Breach = L3 under Facilities & Technology — confirmed by Nash).
 export const INCIDENT_TYPES = [
-  { id: "medical", label: "Medical / Injury", category: "student", icon: "Heart", emp: "EMP §3.1 — Medical Emergency Response", defaultSeverity: 1 },
-  { id: "mental_health", label: "Student Mental Health / Self-Harm", category: "student", icon: "Brain", emp: "EMP §4.3 — Student Mental Health Crisis Response", defaultSeverity: 2 },
-  { id: "behavioural", label: "Behavioural / Violent Incident", category: "student", icon: "AlertTriangle", emp: "EMP §5.2 — Behavioural Crisis Response", defaultSeverity: 1 },
-  { id: "missing", label: "Missing Student", category: "student", icon: "UserX", emp: "EMP §6.1 — Missing Student Procedure", defaultSeverity: 2 },
-  { id: "bullying", label: "Bullying / Harassment", category: "student", icon: "Users", emp: "EMP §5.4 — Bullying Response", defaultSeverity: 1 },
-  { id: "child_protection", label: "Child Protection / Serious Allegation", category: "student", icon: "ShieldCheck", emp: "EMP §2.2 — Child Protection Response", defaultSeverity: 2 },
-  { id: "lockdown", label: "Lockdown", category: "school", icon: "Lock", emp: "EMP §1.1 — Lockdown Procedure", defaultSeverity: 3 },
-  { id: "evacuation", label: "Fire / Evacuation", category: "school", icon: "Flame", emp: "EMP §1.2 — Evacuation Procedure", defaultSeverity: 2 },
-  { id: "hazmat", label: "Hazardous Material", category: "school", icon: "AlertOctagon", emp: "EMP §1.4 — Hazmat Response", defaultSeverity: 2 },
-  { id: "natural_disaster", label: "Natural Disaster", category: "school", icon: "CloudLightning", emp: "EMP §1.5 — Natural Disaster Response", defaultSeverity: 2 },
-  { id: "disease_outbreak", label: "Disease Outbreak / Public Health", category: "school", icon: "Activity", emp: "EMP §12.1 — Public Health / Outbreak Response", defaultSeverity: 1 },
-  { id: "cyber", label: "Cyber / Data Incident", category: "tech", icon: "ServerCrash", emp: "EMP §11.1 — Cyber & Data Incident Response", defaultSeverity: 2 },
-  { id: "infrastructure", label: "Utilities / Infrastructure Failure", category: "tech", icon: "Zap", emp: "EMP §13.1 — Utilities & Infrastructure Failure", defaultSeverity: 1 },
-  { id: "parent_aggression", label: "Parent / Visitor Aggression", category: "external", icon: "UserCheck", emp: "EMP §7.3 — Parent & Visitor Conflict Response", defaultSeverity: 1 },
-  { id: "external_threat", label: "External Threat / Police", category: "external", icon: "Shield", emp: "EMP §1.3 — External Threat Response", defaultSeverity: 3 },
-  { id: "transport", label: "Transport Accident", category: "external", icon: "Bus", emp: "EMP §8.2 — Transport Incident Response", defaultSeverity: 2 },
+  // Child Safety & Student Welfare
+  { id: "child_protection", label: "Child Safety Incident", category: "welfare", icon: "ShieldCheck", emp: "EMP §2.2 — Child Protection Response", defaultSeverity: 2 },
+  { id: "missing", label: "Missing Student", category: "welfare", icon: "UserX", emp: "EMP §6.1 — Missing Student Procedure", defaultSeverity: 2 },
+  { id: "wellbeing_concern", label: "Student Wellbeing Concern", category: "welfare", icon: "Heart", emp: "EMP §4.1 — Student Wellbeing Concern", defaultSeverity: 1 },
+  { id: "mental_health", label: "Student Mental Health / Self-Harm", category: "welfare", icon: "Brain", emp: "EMP §4.3 — Student Mental Health Crisis Response", defaultSeverity: 2 },
+  { id: "bullying", label: "Bullying / Harassment", category: "welfare", icon: "Users", emp: "EMP §5.4 — Bullying Response", defaultSeverity: 1 },
+  { id: "behavioural", label: "Behavioural / Violent Incident", category: "welfare", icon: "AlertTriangle", emp: "EMP §5.2 — Behavioural Crisis Response", defaultSeverity: 1 },
+  // Health & Medical
+  { id: "medical", label: "Medical Illness / Injury", category: "health", icon: "Heart", emp: "EMP §3.1 — Medical Emergency Response", defaultSeverity: 1 },
+  { id: "disease_outbreak", label: "Disease Outbreak / Public Health", category: "health", icon: "Activity", emp: "EMP §12.1 — Public Health / Outbreak Response", defaultSeverity: 2 },
+  { id: "death_oncampus", label: "Death — On Campus", category: "health", icon: "AlertCircle", emp: "EMP §9.1 — Critical Incident: Death", defaultSeverity: 2 },
+  { id: "death_offcampus", label: "Death — Off-Campus / Community", category: "health", icon: "AlertCircle", emp: "EMP §9.2 — Off-Campus Death & Community Tragedy Response", defaultSeverity: 2 },
+  // Facilities & Technology
+  { id: "infrastructure", label: "Utilities / Infrastructure Failure", category: "facilities", icon: "Zap", emp: "EMP §13.1 — Utilities & Infrastructure Failure", defaultSeverity: 0 },
+  { id: "property_damage", label: "Property Damage / Building Fire", category: "facilities", icon: "Flame", emp: "EMP §1.2 — Fire / Property Damage", defaultSeverity: 1 },
+  { id: "structural_failure", label: "Structural Failure", category: "facilities", icon: "AlertOctagon", emp: "EMP §13.3 — Structural Failure", defaultSeverity: 2 },
+  { id: "cyber", label: "Technology Incident", category: "facilities", icon: "ServerCrash", emp: "EMP §11.1 — Technology / IT Incident Response", defaultSeverity: 2 },
+  { id: "data_breach", label: "Data Breach", category: "facilities", icon: "ServerCrash", emp: "EMP §11.3 — Data Breach Response", defaultSeverity: 3 },
+  { id: "evacuation", label: "Fire / Evacuation", category: "facilities", icon: "Flame", emp: "EMP §1.2 — Evacuation Procedure", defaultSeverity: 2 },
+  // Community & External
+  { id: "parent_aggression", label: "Aggression / Security Threat", category: "external", icon: "UserCheck", emp: "EMP §7.3 — Aggression & Security Threat Response", defaultSeverity: 1 },
+  { id: "intruder", label: "Intruder / Armed Offender", category: "external", icon: "Shield", emp: "EMP §1.3 — Intruder / Armed Offender", defaultSeverity: 2 },
+  { id: "lockdown", label: "Lockdown", category: "external", icon: "Lock", emp: "EMP §1.1 — Lockdown Procedure", defaultSeverity: 3 },
+  { id: "burglary", label: "Burglary", category: "external", icon: "AlertOctagon", emp: "EMP §14.1 — Burglary / Break-in", defaultSeverity: 0 },
+  { id: "external_threat", label: "Police / External Incident", category: "external", icon: "Shield", emp: "EMP §1.3 — Police / External Incident", defaultSeverity: 2 },
+  { id: "transport", label: "Off-Site / Transport Incident", category: "external", icon: "Bus", emp: "EMP §8.2 — Transport Incident Response", defaultSeverity: 2 },
   { id: "excursion", label: "Excursion / Off-Site Incident", category: "external", icon: "Tent", emp: "EMP §8.4 — Off-Site / Excursion Incident", defaultSeverity: 2 },
-  { id: "death_oncampus", label: "Death — On Campus", category: "death", icon: "AlertCircle", emp: "EMP §9.1 — Critical Incident: Death", defaultSeverity: 3 },
-  { id: "death_offcampus", label: "Death — Off-Campus / Community Tragedy", category: "death", icon: "AlertCircle", emp: "EMP §9.2 — Off-Campus Death & Community Tragedy Response", defaultSeverity: 3 },
+  // Environmental
+  { id: "bushfire", label: "Bushfire", category: "environmental", icon: "Flame", emp: "EMP §1.6 — Bushfire Response", defaultSeverity: 2 },
+  { id: "natural_disaster", label: "Severe Weather / Natural Disaster", category: "environmental", icon: "CloudLightning", emp: "EMP §1.5 — Severe Weather / Natural Disaster", defaultSeverity: 2 },
+  { id: "hazmat", label: "Hazardous Materials", category: "environmental", icon: "AlertOctagon", emp: "EMP §1.4 — Hazmat Response", defaultSeverity: 2 },
+  { id: "whs", label: "WHS Incident", category: "environmental", icon: "AlertTriangle", emp: "EMP §15.1 — WHS Incident Response", defaultSeverity: 1 },
 ];
 
 export const TYPE_CATEGORIES = {
-  student: { label: "Student-Related", color: "#00305E" },
-  school: { label: "School-Wide", color: "#B85C3C" },
-  tech: { label: "Facilities & Technology", color: "#4F6D8F" },
-  external: { label: "Community / External", color: "#C9A961" },
-  death: { label: "Death", color: "#8B2E1A" },
+  welfare: { label: "Child Safety & Student Welfare", color: "#00305E" },
+  health: { label: "Health & Medical", color: "#8B2E1A" },
+  facilities: { label: "Facilities & Technology", color: "#4F6D8F" },
+  external: { label: "Community & External", color: "#C9A961" },
+  environmental: { label: "Environmental", color: "#5B8C7C" },
 };
 
 // ---------- CIMT role templates per incident type ----------
@@ -241,6 +256,55 @@ const ROLE_TEMPLATES = {
     ...COMMON_ROLES,
     { role: "Student Coordinator", required: true },
     { role: "Communications Coordinator", required: false },
+  ],
+  // New taxonomy types (reuse the closest existing coordinator mix).
+  wellbeing_concern: [
+    ...COMMON_ROLES,
+    { role: "Student Coordinator", required: true },
+    { role: "Student Wellbeing Services Coordinator", required: true },
+  ],
+  property_damage: [
+    ...COMMON_ROLES,
+    { role: "College Services", required: true },
+    { role: "Facilities", required: true },
+    { role: "Recovery Coordinator", required: false },
+    { role: "Communications Coordinator", required: false },
+  ],
+  structural_failure: [
+    ...COMMON_ROLES,
+    { role: "College Services", required: true },
+    { role: "Facilities", required: true },
+    { role: "Recovery Coordinator", required: true },
+    { role: "Communications Coordinator", required: false },
+  ],
+  data_breach: [
+    ...COMMON_ROLES,
+    { role: "Recovery – IT Coordinator", required: true },
+    { role: "College Services", required: false },
+    { role: "Communications Coordinator", required: true },
+  ],
+  intruder: [
+    ...COMMON_ROLES,
+    { role: "College Services", required: true },
+    { role: "Communications Coordinator", required: true },
+  ],
+  burglary: [
+    ...COMMON_ROLES,
+    { role: "College Services", required: true },
+    { role: "Facilities", required: false },
+  ],
+  bushfire: [
+    ...COMMON_ROLES,
+    { role: "College Services", required: true },
+    { role: "Facilities", required: true },
+    { role: "Communications Coordinator", required: true },
+    { role: "Recovery Coordinator", required: false },
+  ],
+  whs: [
+    ...COMMON_ROLES,
+    { role: "College Services", required: true },
+    { role: "Facilities", required: false },
+    { role: "Staff Coordinator", required: false },
   ],
 };
 
@@ -1344,7 +1408,9 @@ export function newSitrep(data = {}) {
   return {
     id: `sr${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     ts: Date.now(),
-    area: data.area || "",        // functional area / CIMT role
+    area: data.area || "",              // functional area / CIMT role
+    sitrepTo: data.sitrepTo || "Planning Coordinator", // recipient (per the plan)
+    version: data.version || 1,         // running version for this SITREP
     situation: data.situation || "",   // what has happened
     future: data.future || "",          // what could happen
     impacts: data.impacts || "",        // services/buildings impacted
@@ -1370,9 +1436,10 @@ export const IAP_FIELDS = [
   { key: "admin", label: "Administration", hint: "Meeting intervals, shift changeovers, welfare, logistics, information plan." },
   { key: "command", label: "Command & Communications", hint: "CIMT structure; internal/external communications plan." },
   { key: "safety", label: "Safety", hint: "Key safety issues." },
+  { key: "questions", label: "Questions", hint: "Open questions to resolve." },
 ];
 export function emptyIAP() {
-  return { situation: "", mission: "", execution: "", admin: "", command: "", safety: "", updatedAt: null };
+  return { situation: "", mission: "", execution: "", admin: "", command: "", safety: "", questions: "", updatedAt: null };
 }
 
 // --- Call Taker Form (§16.1): the first-notification intake checklist ---
