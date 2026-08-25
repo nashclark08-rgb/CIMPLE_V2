@@ -30,6 +30,7 @@ import {
   promoteToRole, reassignRoleToAlternate, availableQualifiedStaff, PREF_LABEL,
   CIMT_PHASES, PHASE_CHECKLIST, incidentPhase, phaseMeta, phaseIndex,
   phaseProgress, nextPhaseId, prevPhaseId, openMandatoryItems, isPhaseItemDone,
+  CIMT_DUTIES, dutiesForPhase, dutiesForRole, dutyDone, phaseColor, PHASE_COLORS,
   BOARD_QUADRANTS, newBoardItem, boardCounts,
   PERSON_CATEGORIES, PERSON_STATUS, newPersonAtRisk, peopleAtRiskCounts,
   newSitrep, SITREP_FIELDS, IAP_FIELDS, emptyIAP,
@@ -732,23 +733,24 @@ function PhaseStepper({ incident, onOpen }) {
 function PhaseDrawer({ incident, initialPhase, update, addTimelineEntry, isClosed, setDrawer }) {
   const currentId = incidentPhase(incident);
   const [sel, setSel] = useState(initialPhase && CIMT_PHASES.some((p) => p.id === initialPhase) ? initialPhase : currentId);
-  const items = PHASE_CHECKLIST[sel] || [];
+  const items = dutiesForPhase(sel);
   const meta = phaseMeta(sel);
   const prog = phaseProgress(incident, sel);
   const nid = nextPhaseId(currentId);
   const [refDoc, setRefDoc] = useState(null);
+  const pc = phaseColor(sel);
 
   function toggleItem(itemId) {
     if (isClosed) return;
-    const wasDone = isPhaseItemDone(incident, itemId);
+    const wasDone = dutyDone(incident, itemId);
     update((prev) => {
-      const checks = { ...(prev.phaseChecks || {}) };
+      const checks = { ...(prev.dutyChecks || {}) };
       if (wasDone) delete checks[itemId];
       else checks[itemId] = { done: true, at: Date.now() };
-      return { ...prev, phaseChecks: checks };
+      return { ...prev, dutyChecks: checks };
     });
     const it = items.find((x) => x.id === itemId);
-    addTimelineEntry({ type: wasDone ? "system" : "action", text: `${meta.label} checklist — ${wasDone ? "un-ticked" : "completed"}: ${(it?.text || "").slice(0, 90)}` });
+    addTimelineEntry({ type: wasDone ? "system" : "action", text: `${meta.label} duty — ${wasDone ? "un-ticked" : "completed"}: ${(it?.text || "").slice(0, 90)}` });
   }
 
   const pid = prevPhaseId(currentId);
@@ -826,8 +828,9 @@ function PhaseDrawer({ incident, initialPhase, update, addTimelineEntry, isClose
           return (
             <button key={it.id} onClick={() => toggleItem(it.id)} disabled={isClosed} style={{
               display: "flex", gap: 10, alignItems: "flex-start", textAlign: "left",
-              padding: "10px 8px", background: "none", border: "none",
-              borderBottom: `1px solid rgba(0, 48, 94, 0.07)`, cursor: isClosed ? "default" : "pointer", width: "100%",
+              padding: "10px 8px 10px 12px", background: "none", border: "none",
+              borderBottom: `1px solid rgba(0, 48, 94, 0.07)`, borderLeft: `3px solid ${pc}`,
+              cursor: isClosed ? "default" : "pointer", width: "100%",
             }}>
               {done ? <CheckCircle2 size={17} color={PALETTE.sage} style={{ flexShrink: 0, marginTop: 1 }} />
                     : <Circle size={17} color={PALETTE.inkSoft} style={{ flexShrink: 0, marginTop: 1, opacity: 0.5 }} />}
@@ -836,7 +839,7 @@ function PhaseDrawer({ incident, initialPhase, update, addTimelineEntry, isClose
                   {it.text}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
-                  <span className="mono" style={{ fontSize: 9.5, letterSpacing: "0.06em", color: PALETTE.teal, background: "rgba(0, 48, 94, 0.07)", padding: "2px 6px" }}>{it.responsible}</span>
+                  <span className="mono" style={{ fontSize: 9.5, letterSpacing: "0.06em", color: PALETTE.teal, background: "rgba(0, 48, 94, 0.07)", padding: "2px 6px" }}>{it.role}</span>
                   {it.reference && (referenceDoc(it.reference) ? (
                     <span
                       role="button"
@@ -1141,7 +1144,38 @@ function CenterColumn({ incident, addTimelineEntry, update, now, isClosed }) {
 function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, toggleTask, addTask }) {
   const curPhase = incidentPhase(incident);
   const curIdx = phaseIndex(curPhase);
-  const all = incident.tasks || [];
+  const ownerNames = (incident.roles || []).map((r) => r.staff).filter((s) => s && s !== "—");
+  const codeFor = (roleName) => {
+    const ro = (incident.roles || []).find((r) => r.role === roleName);
+    const nm = ro && ro.staff && ro.staff !== "—" ? ro.staff : "";
+    return { code: nm ? disambiguatedInitials(nm, ownerNames) : "—", name: nm };
+  };
+  const assignedRoles = (incident.roles || []).map((r) => r.role).filter(Boolean);
+  const derivePhase = (t) => t.phase || phaseForDue(t.dueAt != null ? Math.round((t.dueAt - incident.startedAt) / 60000) : null, t.text);
+  // UNIFIED board: standing duties (single source, ticked in dutyChecks) for the
+  // roles on this incident, plus the incident's ad-hoc tasks (type-specific,
+  // risk/issue-converted, manually added). Ticking a duty here syncs with the
+  // phase checklist; ticking a task updates the task.
+  const dutyItems = CIMT_DUTIES.filter((d) => assignedRoles.includes(d.role)).map((d, i) => {
+    const { code, name } = codeFor(d.role);
+    return {
+      kind: "duty", id: d.id, text: d.text, role: d.role, phase: d.phase,
+      done: dutyDone(incident, d.id), mandatory: !!d.mandatory, approval: !!d.approval,
+      reference: d.reference, flowchart: d.flowchart, owner: code, ownerName: name,
+      sortKey: phaseIndex(d.phase) * 1000 + i, overrideLock: !!incident.lockOverrides?.[d.id],
+    };
+  });
+  const taskItems = (incident.tasks || []).map((t, idx) => {
+    const nm = taskOwnerName(incident, t);
+    const ph = derivePhase(t);
+    return {
+      ...t, kind: "task", phase: ph, ownerName: nm,
+      owner: nm ? disambiguatedInitials(nm, ownerNames) : t.owner,
+      sortKey: phaseIndex(ph) * 1000 + 500 + idx,
+      overrideLock: t.overrideLock || !!incident.lockOverrides?.[t.id],
+    };
+  });
+  const all = [...dutyItems, ...taskItems];
   const rolesPresent = [...new Set(all.map((t) => t.role).filter(Boolean))];
   const hasRoles = rolesPresent.length > 0;
 
@@ -1158,18 +1192,28 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
   const [showDone, setShowDone] = useState(false);
 
   function chooseMyRole(r) { setMyRoleState(r); setMyRole(r); }
-  // A task's phase — explicit if tagged, otherwise derived from its due-time /
-  // text so even legacy (untagged) tasks scope to a phase and reveal/​hide as
-  // the incident advances.
-  const effectivePhase = (t) =>
-    t.phase || phaseForDue(t.dueAt != null ? Math.round((t.dueAt - incident.startedAt) / 60000) : null, t.text);
-  const inScopePhase = (t) => phaseIndex(effectivePhase(t)) <= curIdx;
-  // Full names of everyone assigned — lets us show unique owner codes + names.
-  const ownerNames = (incident.roles || []).map((r) => r.staff).filter((s) => s && s !== "—");
+  // Items already carry their phase (duties explicit, tasks derived above).
+  const inScopePhase = (t) => phaseIndex(t.phase) <= curIdx;
   const awaitingAck = rolesAwaitingDecisionAck(incident); // roles with an unacknowledged decision
 
+  // Tick a board item — routes to the shared dutyChecks (synced with the phase
+  // checklist) for duties, or to the task's done flag for ad-hoc tasks.
+  function toggleItem(item) {
+    if (isClosed) return;
+    if (item.kind === "duty") {
+      const wasDone = dutyDone(incident, item.id);
+      update((prev) => {
+        const c = { ...(prev.dutyChecks || {}) };
+        if (wasDone) delete c[item.id]; else c[item.id] = { done: true, at: Date.now() };
+        return { ...prev, dutyChecks: c };
+      });
+    } else {
+      toggleTask(item.id);
+    }
+  }
+
   function overrideLock(id) {
-    update((prev) => ({ ...prev, tasks: prev.tasks.map((t) => (t.id === id ? { ...t, overrideLock: true } : t)) }));
+    update((prev) => ({ ...prev, lockOverrides: { ...(prev.lockOverrides || {}), [id]: true } }));
     const t = all.find((x) => x.id === id);
     addTimelineEntry({ type: "action", text: `Lock overridden — "${t?.text || id}" unlocked out of sequence by the Leader.` });
   }
@@ -1203,7 +1247,7 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
       <div className="card">
         <div className="panel-h"><span className="panel-h-label">ACTIVE TASKS · {phaseMeta(curPhase).label.toUpperCase()} · {inScope.length} OPEN</span><span className="panel-h-meta">BY PHASE</span></div>
         <ActivePhaseBanner curPhase={curPhase} curIdx={curIdx} openCount={inScope.length} />
-        <div>{shown.map((t, i, arr) => { const oname = taskOwnerName(incident, t); return <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleTask(t.id)} isLast={i === arr.length - 1} disabled={isClosed} onFlagRisk={() => flagTaskAsRisk(t)} ownerName={oname} ownerCode={oname ? disambiguatedInitials(oname, ownerNames) : t.owner} />; })}</div>
+        <div>{shown.map((t, i, arr) => <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleItem(t)} isLast={i === arr.length - 1} disabled={isClosed} onFlagRisk={t.kind === "task" ? () => flagTaskAsRisk(t) : undefined} ownerName={t.ownerName} ownerCode={t.owner} />)}</div>
         {!isClosed && <TaskAdder onAdd={addTask} />}
       </div>
     );
@@ -1213,16 +1257,20 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
   const scopeRoles = view === "phase" ? rolesPresent : [activeRole].filter(Boolean);
   const phaseOpenCount = all.filter((t) => !t.done && inScopePhase(t)).length;
 
-  // Build a display section per role in scope.
-  const sections = scopeRoles.map((role) => {
-    const locked = applySoftLocks(all.filter((t) => t.role === role)); // due-ordered + lock flags
+  // Build a display section per role in scope. In the whole-phase view we also
+  // append an "Other actions" bucket for any ad-hoc task with no role.
+  const buckets = [...scopeRoles];
+  const orphans = all.filter((t) => !t.role);
+  if (view === "phase" && orphans.length) buckets.push(null); // null = Other actions
+  const sections = buckets.map((role) => {
+    const locked = applySoftLocks(all.filter((t) => (role ? t.role === role : !t.role))); // due-ordered + lock flags
     const open = locked.filter((t) => !t.done);
     const inPhase = open.filter(inScopePhase);
     const future = open.filter((t) => !inScopePhase(t));
     const done = locked.filter((t) => t.done);
     const visible = [...(showFuture ? open : inPhase), ...(showDone ? done : [])];
-    const person = (incident.roles || []).find((r) => r.role === role);
-    return { role, visible, futureCount: future.length, doneCount: done.length, openInPhase: inPhase.length, person };
+    const person = role ? (incident.roles || []).find((r) => r.role === role) : null;
+    return { role: role || "Other actions", visible, futureCount: future.length, doneCount: done.length, openInPhase: inPhase.length, person };
   });
   const totalFuture = sections.reduce((n, s) => n + s.futureCount, 0);
   const totalDone = sections.reduce((n, s) => n + s.doneCount, 0);
@@ -1305,13 +1353,10 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
                   {awaitingAck.has(s.role) && <span className="mono" style={{ fontSize: 9, letterSpacing: "0.06em", color: PALETTE.paper, background: PALETTE.rust, padding: "2px 6px", display: "inline-flex", alignItems: "center", gap: 4 }}><Scale size={10} /> DECISION TO ACK</span>}
                 </div>
               )}
-              {s.visible.map((t, i, arr) => {
-                const oname = taskOwnerName(incident, t);
-                return (
-                  <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleTask(t.id)} isLast={i === arr.length - 1} disabled={isClosed} onOverride={() => overrideLock(t.id)} onFlagRisk={() => flagTaskAsRisk(t)}
-                    ownerName={oname} ownerCode={oname ? disambiguatedInitials(oname, ownerNames) : t.owner} />
-                );
-              })}
+              {s.visible.map((t, i, arr) => (
+                <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleItem(t)} isLast={i === arr.length - 1} disabled={isClosed} onOverride={() => overrideLock(t.id)} onFlagRisk={t.kind === "task" ? () => flagTaskAsRisk(t) : undefined}
+                  ownerName={t.ownerName} ownerCode={t.owner} showChip />
+              ))}
             </div>
           )
         ))}
@@ -1331,6 +1376,18 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
 // Short role label for compact chips.
 function shortRole(role) {
   return role.replace("Coordinator", "Coord.").replace("Recovery – ", "Rec. ").replace("Student Wellbeing Services", "Wellbeing");
+}
+
+// Phase identity chip — the same token in both lenses (phase checklist + role
+// board). Colour from the sequential navy ramp; label keeps it accessible.
+function PhaseChip({ phase }) {
+  const c = phaseColor(phase);
+  return (
+    <span className="mono" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px 2px 6px", borderRadius: 10, fontSize: 10, fontWeight: 600, color: c, background: `${c}22`, border: `1px solid ${c}44`, whiteSpace: "nowrap" }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: c }} />
+      <span style={{ opacity: 0.8 }}>{phaseIndex(phase) + 1}</span>{phaseMeta(phase).label}
+    </span>
+  );
 }
 
 function TimelineEntry({ entry, now, isLast, editable, onEdit, onDelete }) {
@@ -1462,8 +1519,8 @@ function RespFlags({ r }) {
   );
 }
 
-function TaskRow({ task, now, onToggle, isLast, disabled, onOverride, onFlagRisk, ownerName, ownerCode }) {
-  const p = { high: { color: PALETTE.rust, label: "HIGH" }, med: { color: PALETTE.amber, label: "MED" }, low: { color: PALETTE.sage, label: "LOW" } }[task.priority];
+function TaskRow({ task, now, onToggle, isLast, disabled, onOverride, onFlagRisk, ownerName, ownerCode, showChip }) {
+  const p = { high: { color: PALETTE.rust, label: "HIGH" }, med: { color: PALETTE.amber, label: "MED" }, low: { color: PALETTE.sage, label: "LOW" } }[task.priority] || { color: PALETTE.inkSoft, label: "" };
   const overdue = !task.done && task.dueAt && task.dueAt < now;
   const locked = task.locked && !task.done;
   return (
@@ -1517,6 +1574,7 @@ function TaskRow({ task, now, onToggle, isLast, disabled, onOverride, onFlagRisk
           <Clock size={9} /> {overdue ? "OVERDUE " : ""}{formatDue(task.dueAt, now)}
         </span>
       )}
+      {showChip && task.phase && <span style={{ alignSelf: "center" }}><PhaseChip phase={task.phase} /></span>}
       {!task.done && onFlagRisk && !disabled && (
         task.riskId
           ? <span title="On the risk register" className="mono" style={{ fontSize: 8.5, letterSpacing: "0.06em", color: PALETTE.rust, alignSelf: "center" }}>RISK</span>
@@ -4599,29 +4657,39 @@ function ExportDrawer({ incident }) {
     // Tasks — Annika's feedback: split OUTSTANDING from COMPLETED so open items
     // aren't lost in a busy list, each grouped by phase. Owners print as full
     // names so initials never collide (SF/SF).
-    const phaseOf = (t) =>
-      t.phase || phaseForDue(t.dueAt != null ? Math.round((t.dueAt - incident.startedAt) / 60000) : null, t.text);
+    // Combine the standing duties (single source, from dutyChecks) with the
+    // incident's ad-hoc tasks — the same unified list the board shows.
+    const assignedRoleSet = new Set((incident.roles || []).filter((r) => r.staff && r.staff !== "—").map((r) => r.role));
+    const staffForRole = (role) => { const r = (incident.roles || []).find((x) => x.role === role); return r && r.staff && r.staff !== "—" ? r.staff : "—"; };
+    const dutyRows = CIMT_DUTIES.filter((d) => assignedRoleSet.has(d.role)).map((d) => ({
+      text: d.text, phase: d.phase, done: !!incident.dutyChecks?.[d.id]?.done, owner: staffForRole(d.role), mandatory: d.mandatory,
+    }));
+    const taskRows = (incident.tasks || []).map((t) => ({
+      text: t.text, phase: t.phase || phaseForDue(t.dueAt != null ? Math.round((t.dueAt - incident.startedAt) / 60000) : null, t.text),
+      done: t.done, owner: taskOwnerName(incident, t) || t.owner || "—", dueAt: t.dueAt, priority: t.priority,
+    }));
+    const allActions = [...dutyRows, ...taskRows];
+
     function taskGroupsByPhase(items) {
-      // Render `items` grouped under their phase headings; returns nothing (draws).
       for (let pi = 0; pi < CIMT_PHASES.length; pi++) {
         const ph = CIMT_PHASES[pi];
-        const inPhase = items.filter((t) => phaseOf(t) === ph.id);
+        const inPhase = items.filter((t) => t.phase === ph.id);
         if (!inPhase.length) continue;
         line(`${pi + 1}. ${ph.label.toUpperCase()}  (${inPhase.length})`, { size: 10, color: [0, 48, 94], bold: true, gap: 15 });
         for (const t of inPhase) {
           const mark = t.done ? "[x]" : "[ ]";
           const due = t.dueAt ? `  (due ${new Date(t.dueAt).toLocaleString("en-AU")})` : "";
-          const oname = taskOwnerName(incident, t) || t.owner || "—";
-          line(`${mark}  ${t.text}  · ${(t.priority || "med").toUpperCase()}${due}  · owner ${oname}`, { size: 10, indent: 8 });
+          const flag = t.mandatory ? "  · MANDATORY" : t.priority ? `  · ${t.priority.toUpperCase()}` : "";
+          line(`${mark}  ${t.text}${flag}${due}  · owner ${t.owner}`, { size: 10, indent: 8 });
         }
         y += 4;
       }
     }
-    const outstanding = incident.tasks.filter((t) => !t.done);
-    const completed = incident.tasks.filter((t) => t.done);
+    const outstanding = allActions.filter((t) => !t.done);
+    const completed = allActions.filter((t) => t.done);
 
-    heading(`OUTSTANDING ACTIONS (${outstanding.length} open of ${incident.tasks.length})`);
-    if (!outstanding.length) line(incident.tasks.length ? "All actions complete." : "No tasks recorded.", { color: [90, 102, 112] });
+    heading(`OUTSTANDING ACTIONS (${outstanding.length} open of ${allActions.length})`);
+    if (!outstanding.length) line(allActions.length ? "All actions complete." : "No actions recorded.", { color: [90, 102, 112] });
     else taskGroupsByPhase(outstanding);
     rule();
 

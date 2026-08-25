@@ -4,7 +4,7 @@
 // ============================================================
 
 const STORAGE_KEY = "cimple-v2-state";
-const STATE_VERSION = 5;
+const STATE_VERSION = 6;
 
 // ---------- Severity / incident level ----------
 // Aligned to the CIM & BCP escalation matrix (plan §, "Level 0–3" flowchart):
@@ -403,7 +403,7 @@ export function createIncident({ type, severity, title, location, isDrill = fals
     policies: defaultPoliciesForType(type),
     student: null,
     phase: "assessment",
-    phaseChecks: {},
+    dutyChecks: {},
     roles: effectiveRoles,
     timeline: [
       {
@@ -495,7 +495,7 @@ export function buildSampleIncidents() {
     empSection: "EMP §4.3 — Student Mental Health Crisis Response",
     policies: defaultPoliciesForType("mental_health"),
     phase: "response",
-    phaseChecks: { as1: { done: true }, as7: { done: true }, as8: { done: true }, ac1: { done: true }, ac6: { done: true }, re1: { done: true } },
+    dutyChecks: { as1: { done: true }, as7: { done: true }, as8: { done: true }, ac1: { done: true }, ac6: { done: true }, re1: { done: true } },
     boards: {
       facts: [{ id: "bd-s1", text: "Year 9 student located in D-Block bathroom — distressed but safe", ts: now - minutes(21) }],
       assumptions: [{ id: "bd-s2", text: "No physical injury; Ventolin not required", ts: now - minutes(20) }],
@@ -559,7 +559,7 @@ export function buildSampleIncidents() {
     empSection: "EMP §3.1 — Medical Emergency Response",
     policies: defaultPoliciesForType("medical"),
     phase: "response",
-    phaseChecks: { as1: { done: true }, as7: { done: true } },
+    dutyChecks: { as1: { done: true }, as7: { done: true } },
     student: null,
     roles: [
       { id: "r1", role: "Critical Incident Leader", staff: "Adrian Johnson", initials: "AJOH", status: "confirmed", required: true, isPrincipal: true },
@@ -680,7 +680,7 @@ export function buildSampleIncidents() {
       // Sitting in ACTIVATION so both new phase controls are testable: "Back to
       // Assessment", and the warn-before-advance on the two open mandatory items.
       phase: "activation",
-      phaseChecks: { as1: { done: true }, as3: { done: true }, as5: { done: true }, as7: { done: true }, as8: { done: true }, as9: { done: true }, as10: { done: true }, ac3: { done: true }, ac4: { done: true }, ac5: { done: true } },
+      dutyChecks: { as1: { done: true }, as3: { done: true }, as5: { done: true }, as7: { done: true }, as8: { done: true }, as9: { done: true }, as10: { done: true }, ac3: { done: true }, ac4: { done: true }, ac5: { done: true } },
       roles: ftRoles,
       boards: {
         facts: [
@@ -777,6 +777,24 @@ function migrateState(state) {
   // and 3 new people (2 counsellors + a 3rd IT). Refresh the seeded directory.
   if (s.version < 5) {
     s = { ...s, staff: buildCimtRoster(), version: 5 };
+  }
+  // v5 → v6: single source of truth for duties. Phase ticks (phaseChecks) become
+  // dutyChecks (same ids carry across), and the old standing-duty tasks that were
+  // generated from the role checklists are dropped — they're now CIMT_DUTIES.
+  // Ad-hoc tasks (type-specific, risk/issue-converted, manually added) are kept.
+  if (s.version < 6) {
+    const dutyText = new Set(CIMT_DUTIES.map((d) => d.text));
+    s = {
+      ...s,
+      incidents: (s.incidents || []).map((i) => ({
+        ...i,
+        dutyChecks: { ...(i.phaseChecks || {}), ...(i.dutyChecks || {}) },
+        tasks: (i.tasks || []).filter(
+          (t) => t.fromRiskId || t.fromIssue || t.riskId || !dutyText.has(t.text)
+        ),
+      })),
+      version: 6,
+    };
   }
   return s;
 }
@@ -1423,6 +1441,151 @@ export function referenceDoc(name) {
   return REFERENCE_DOCS[name] || null;
 }
 
+// Sequential phase palette (one navy hue, light→dark = lifecycle order).
+export const PHASE_COLORS = {
+  assessment: "#7C9CC0", activation: "#5E82AB", response: "#436C97",
+  recovery: "#305882", resumption: "#23486B", standdown: "#163654",
+};
+export function phaseColor(id) { return PHASE_COLORS[id] || "#436C97"; }
+
+// ==================================================================
+// CIMT_DUTIES — the SINGLE SOURCE OF TRUTH for standing duties.
+// Merged from the plan's phase steps + role checklists (approved by TAC
+// 2026-08-25): each duty carries a role AND a phase, appears in both the
+// phase checklist and the role's task board, and is ticked once
+// (incident.dutyChecks[id]) so completion syncs across both lenses.
+// Type-specific steps (RESPONSE_PROCEDURES) layer on top per incident.
+// Phase-sourced duties keep their original id (as1…sd9) so existing
+// phaseChecks migrate straight across; role-only duties use d-prefixed ids.
+// { id, role, phase, text, reference?, mandatory?, approval?, flowchart? }
+// ==================================================================
+export const CIMT_DUTIES = [
+  // ---- Critical Incident Leader ----
+  { id: "dcil1", role: "Critical Incident Leader", phase: "assessment", text: "Assume control; use the Critical Incident Escalation Checklist to guide actions start to finish" },
+  { id: "as1", role: "Critical Incident Leader", phase: "assessment", text: "Collect information: what happened, where/when, who is affected, emergency services called/ETA, injuries, first aid, evacuated or locked down, media on site, reliability of the information", reference: "Call Taker Form" },
+  { id: "as2", role: "Critical Incident Leader", phase: "assessment", text: "Direct Support to WhatsApp the CIMT to stand by while the situation is assessed; then continue via Teams" },
+  { id: "as7", role: "Critical Incident Leader", phase: "assessment", text: "Conduct an incident assessment and determine the incident level in accordance with the Critical Incident Flowchart", reference: "Incident Levels", flowchart: true },
+  { id: "as8", role: "Critical Incident Leader", phase: "assessment", text: "Determine which CIMT members and roles are required" },
+  { id: "ac1", role: "Critical Incident Leader", phase: "activation", text: "Formally declare a Critical Incident", mandatory: true },
+  { id: "ac5", role: "Critical Incident Leader", phase: "activation", text: "Confirm available CIMT members and their roles" },
+  { id: "ac6", role: "Critical Incident Leader", phase: "activation", text: "Run the initial CIMT meeting: welfare, update, area reports, impact & issues assessment, objectives, comms protocols, next meeting time", reference: "Meeting Agenda" },
+  { id: "ac7", role: "Critical Incident Leader", phase: "activation", text: "Notify the Chair of College Council and the CEO of AngliSchools", mandatory: true },
+  { id: "ac8", role: "Critical Incident Leader", phase: "activation", text: "Allocate a CIMT member to liaise with emergency services on what can be told to parents and where they should go" },
+  { id: "re3", role: "Critical Incident Leader", phase: "response", text: "Re-assess the expected incident level against the Critical Incident Flowchart", reference: "Incident Levels", flowchart: true },
+  { id: "re8", role: "Critical Incident Leader", phase: "response", text: "Assume the media spokesperson role for the College" },
+  { id: "dcil2", role: "Critical Incident Leader", phase: "response", text: "Approve the communications strategy and all external communications", approval: true },
+  { id: "re12", role: "Critical Incident Leader", phase: "response", text: "Provide regular briefings to CIMT, Council, AngliSchools, media, parents and students" },
+  { id: "re14", role: "Critical Incident Leader", phase: "response", text: "Establish daily debriefing: self-care, counselling services, and EAP for impacted staff", reference: "Counselling Centre Activation" },
+  { id: "sd1", role: "Critical Incident Leader", phase: "standdown", text: "Declare an end to the response phase of the Critical Incident" },
+  { id: "sd2", role: "Critical Incident Leader", phase: "standdown", text: "Notify internal and external stakeholders that the CIMT is being deactivated" },
+  { id: "sd7", role: "Critical Incident Leader", phase: "standdown", text: "Determine the need for a formal investigation and report" },
+  { id: "sd8", role: "Critical Incident Leader", phase: "standdown", text: "Arrange a Post-Incident Review within 7 days of the incident", reference: "PIR", mandatory: true },
+  // ---- Support Coordinator ----
+  { id: "dsup1", role: "Support Coordinator", phase: "assessment", text: "When directed, notify CIMT members via WhatsApp and call out support personnel" },
+  { id: "as9", role: "Support Coordinator", phase: "assessment", text: "Set up the incident Teams channel (incident name + date); copy templates from the General channel" },
+  { id: "as10", role: "Support Coordinator", phase: "assessment", text: "Initiate and maintain the incident log", reference: "Incident Log" },
+  { id: "ac2", role: "Support Coordinator", phase: "activation", text: "Notify CIMT members of the location and time for the initial briefing" },
+  { id: "ac3", role: "Support Coordinator", phase: "activation", text: "Activate the Critical Incident Control Room (Boardroom) and confirm equipment is operational", reference: "Control Room Activation" },
+  { id: "ac4", role: "Support Coordinator", phase: "activation", text: "Establish the visual boards — Facts, Assumptions, Issues, Actions, CIMT structure, Impact", reference: "Visual Boards" },
+  { id: "dsup2", role: "Support Coordinator", phase: "activation", text: "Establish the CIMT meeting schedule and shift rosters" },
+  { id: "dsup3", role: "Support Coordinator", phase: "response", text: "For an extended disruption, organise food, water and accommodation" },
+  { id: "sd4", role: "Support Coordinator", phase: "standdown", text: "Collect, collate and file all incident logs and documents related to the incident" },
+  { id: "sd6", role: "Support Coordinator", phase: "standdown", text: "Arrange cleaning and return of the Control Room to normal use" },
+  // ---- Planning Coordinator ----
+  { id: "as3", role: "Planning Coordinator", phase: "assessment", text: "Confirm the Emergency Response Procedures (ECO / warden team) have been activated, if required", reference: "Emergency Response Plan" },
+  { id: "dpln1", role: "Planning Coordinator", phase: "assessment", text: "Confirm the safe, orderly evacuation of staff, students and visitors from the affected site" },
+  { id: "dpln2", role: "Planning Coordinator", phase: "assessment", text: "Maintain liaison with the Chief Warden, emergency services and the Critical Incident Leader" },
+  { id: "dpln3", role: "Planning Coordinator", phase: "assessment", text: "Gather information: what/when/where, injuries, escalation, media, and source reliability" },
+  { id: "re4", role: "Planning Coordinator", phase: "response", text: "Conduct the impact & issues assessment to determine severity and the response procedure", reference: "Impact Assessment" },
+  { id: "dpln4", role: "Planning Coordinator", phase: "response", text: "Monitor sources of information (BOM, emergency-services websites)" },
+  { id: "dpln5", role: "Planning Coordinator", phase: "response", text: "Develop the Incident Action Plan / briefing" },
+  { id: "rs3", role: "Planning Coordinator", phase: "resumption", text: "Work with HR on staff injuries/near misses; liaise with SafeWork NSW, doctors and insurers on care and return-to-work" },
+  // ---- Staff Coordinator ----
+  { id: "dstf1", role: "Staff Coordinator", phase: "assessment", text: "Assess current and potential people risks; identify vulnerable staff and visitors" },
+  { id: "dstf2", role: "Staff Coordinator", phase: "response", text: "Contact families of injured staff; maintain contact with hospitalised staff" },
+  { id: "dstf3", role: "Staff Coordinator", phase: "response", text: "Manage fatigue, trauma awareness and any industrial-relations issues" },
+  { id: "dstf4", role: "Staff Coordinator", phase: "response", text: "Arrange debriefing/EAP for at-risk staff and counselling as needed" },
+  { id: "dstf5", role: "Staff Coordinator", phase: "recovery", text: "Monitor the ongoing wellbeing of staff" },
+  // ---- Student Coordinator ----
+  { id: "dstu1", role: "Student Coordinator", phase: "assessment", text: "Identify the location of students (on campus / off campus)" },
+  { id: "dstu2", role: "Student Coordinator", phase: "assessment", text: "Assess current and potential student risks; identify vulnerable students" },
+  { id: "re1", role: "Student Coordinator", phase: "response", text: "Confirm the safety and wellbeing of all staff, students and visitors; track affected persons (names, condition, next of kin)", reference: "People at Risk Log" },
+  { id: "re10", role: "Student Coordinator", phase: "response", text: "Contact parents/guardians of injured or directly-involved students", approval: true },
+  { id: "dstu3", role: "Student Coordinator", phase: "response", text: "Maintain contact with hospitalised students and their families" },
+  { id: "dstu4", role: "Student Coordinator", phase: "response", text: "Maintain the parent liaison at the parent staging area" },
+  { id: "dstu5", role: "Student Coordinator", phase: "response", text: "Arrange counselling and debriefing for at-risk students" },
+  { id: "re13", role: "Student Coordinator", phase: "response", text: "If required, notify next of kin through the appropriate authorities" },
+  { id: "rs4", role: "Student Coordinator", phase: "resumption", text: "If there were deaths, organise memorial services and ongoing trauma management support" },
+  // ---- Student Wellbeing Services Coordinator ----
+  { id: "dwel1", role: "Student Wellbeing Services Coordinator", phase: "response", text: "Activate College Counselling Services", reference: "Counselling Centre Activation" },
+  { id: "dwel2", role: "Student Wellbeing Services Coordinator", phase: "response", text: "Identify students and staff at risk of trauma and develop support plans" },
+  { id: "dwel3", role: "Student Wellbeing Services Coordinator", phase: "response", text: "Coordinate internal and external counsellors (WWCC, code of conduct)" },
+  { id: "dwel4", role: "Student Wellbeing Services Coordinator", phase: "recovery", text: "Monitor at-risk individuals and any memorial sites over time" },
+  // ---- College Services ----
+  { id: "as4", role: "College Services", phase: "assessment", text: "Determine whether the Emergency Control Organisation needs additional support and organise it" },
+  { id: "dcol1", role: "College Services", phase: "activation", text: "Develop operational objectives in line with the Leader's incident objectives" },
+  { id: "re2", role: "College Services", phase: "response", text: "Confirm the Emergency Control Organisation / warden team has been activated, if needed" },
+  { id: "dcol2", role: "College Services", phase: "response", text: "Coordinate operations at the incident scene and any responding staff" },
+  { id: "dcol3", role: "College Services", phase: "response", text: "Oversee staging areas: Control Room, Assembly Area, Triage, Media, Counselling (Wellbeing Hub)" },
+  { id: "dcol4", role: "College Services", phase: "response", text: "Contain the incident area (barriers, signage) and organise security" },
+  { id: "dcol5", role: "College Services", phase: "response", text: "Activate alternate site(s); organise transport if required" },
+  { id: "dcol6", role: "College Services", phase: "response", text: "Procure and maintain physical resources and materials" },
+  // ---- Facilities ----
+  { id: "dfac1", role: "Facilities", phase: "response", text: "Make affected areas safe; monitor life-essential services (e.g. smoke detectors)" },
+  { id: "dfac2", role: "Facilities", phase: "response", text: "Assist with barriers, signage and containment" },
+  { id: "dfac3", role: "Facilities", phase: "response", text: "Consider shutting down utilities (water/gas/power) if required" },
+  { id: "dfac4", role: "Facilities", phase: "recovery", text: "Support site clean-up and asset-register updates" },
+  // ---- Communications Coordinator ----
+  { id: "as5", role: "Communications Coordinator", phase: "assessment", text: "Determine whether someone needs to go to the incident/assembly area to manage media", reference: "Media Staging Area" },
+  { id: "as6", role: "Communications Coordinator", phase: "assessment", text: "Determine whether immediate communications need to be issued to those impacted" },
+  { id: "re6", role: "Communications Coordinator", phase: "response", text: "Develop the initial communications strategy for the Leader to approve", reference: "Communications Strategy" },
+  { id: "dcom1", role: "Communications Coordinator", phase: "response", text: "Assess the comms exposure level (1–4) and confirm the communications strategy" },
+  { id: "re7", role: "Communications Coordinator", phase: "response", text: "Draft a holding statement for the Critical Incident Leader to approve", approval: true },
+  { id: "dcom2", role: "Communications Coordinator", phase: "response", text: "Email all staff the holding statement + remind them to refer media on and not post to social media", approval: true },
+  { id: "re9", role: "Communications Coordinator", phase: "response", text: "Brief reception / establish a call-centre script for parent and family calls" },
+  { id: "dcom3", role: "Communications Coordinator", phase: "response", text: "Allocate a team member to monitor social media" },
+  { id: "dcom4", role: "Communications Coordinator", phase: "response", text: "Prepare key messages and the FAQ single-source-of-truth for Leader approval", approval: true },
+  { id: "re11", role: "Communications Coordinator", phase: "response", text: "Establish a regular communications schedule with staff, students and community" },
+  { id: "rs2", role: "Communications Coordinator", phase: "resumption", text: "Develop a resumption communication strategy for Council, parents, staff and community" },
+  { id: "sd5", role: "Communications Coordinator", phase: "standdown", text: "Confirm reporting and ongoing liaison with regulators, agencies and insurers is established" },
+  // ---- Recovery Coordinator ----
+  { id: "re5", role: "Recovery Coordinator", phase: "response", text: "Review / conduct an impact assessment on Critical Business Functions with short RTOs for likely impact", reference: "Critical Business Functions" },
+  { id: "br1", role: "Recovery Coordinator", phase: "recovery", text: "Commence a physical damage assessment (IT & applications, voice/data, buildings, grounds) to estimate downtime" },
+  { id: "br2", role: "Recovery Coordinator", phase: "recovery", text: "If voice communications are affected, organise diversion of phones" },
+  { id: "br3", role: "Recovery Coordinator", phase: "recovery", text: "Review the Critical Business Functions list to assess all work-in-progress affected", reference: "Critical Business Functions" },
+  { id: "drec1", role: "Recovery Coordinator", phase: "recovery", text: "Identify functions that cannot meet their RTO and establish workarounds" },
+  { id: "br4", role: "Recovery Coordinator", phase: "recovery", text: "If downtime is estimated > 24 hours, initiate the Relocation Plan (confirm rooms/resources at offsite locations)", reference: "Relocation Plan" },
+  { id: "br5", role: "Recovery Coordinator", phase: "recovery", text: "If key staff are affected, cover via existing staff or activate workarounds for critical functions" },
+  { id: "br6", role: "Recovery Coordinator", phase: "recovery", text: "Facilitate relocation of key staff/students to recovery sites; advise other staff to return home until further notice" },
+  { id: "drec2", role: "Recovery Coordinator", phase: "recovery", text: "Manage insurance requirements during the incident" },
+  { id: "br8", role: "Recovery Coordinator", phase: "recovery", text: "Provide regular status reports to the Critical Incident Leader on critical business capabilities", reference: "SITREP" },
+  { id: "rs1", role: "Recovery Coordinator", phase: "resumption", text: "Continue referring to the Critical Business Functions list to ensure restoration alongside longer-term resumption", reference: "Critical Business Functions" },
+  { id: "rs5", role: "Recovery Coordinator", phase: "resumption", text: "Notify insurers of the disruption", reference: "Insurance Register" },
+  { id: "rs6", role: "Recovery Coordinator", phase: "resumption", text: "Maintain a log of all post-incident steps (time, location, action, delegations, work orders, invoices)", reference: "Incident Log" },
+  { id: "rs7", role: "Recovery Coordinator", phase: "resumption", text: "Make plans for repairing damage or relocating buildings/campuses as required" },
+  { id: "rs8", role: "Recovery Coordinator", phase: "resumption", text: "Resume normal operations and advise key stakeholders that operations have resumed" },
+  { id: "sd9", role: "Recovery Coordinator", phase: "standdown", text: "Update the CIMP and applicable policies and procedures as required" },
+  // ---- Recovery – IT Coordinator ----
+  { id: "dit1", role: "Recovery – IT Coordinator", phase: "response", text: "Conduct an IT impact assessment to determine the extent of disruption" },
+  { id: "dit2", role: "Recovery – IT Coordinator", phase: "recovery", text: "Lead IT recovery and implement the IT Disaster Recovery Plan" },
+  { id: "br7", role: "Recovery – IT Coordinator", phase: "recovery", text: "Procure replacement IT and equipment as determined by the damage assessment" },
+  { id: "dit3", role: "Recovery – IT Coordinator", phase: "recovery", text: "Approve back-up IT accesses and privileges" },
+  { id: "dit4", role: "Recovery – IT Coordinator", phase: "recovery", text: "Provide the Recovery Coordinator with regular status updates" },
+  // ---- Recovery – Curriculum ----
+  { id: "dcur1", role: "Recovery – Curriculum", phase: "recovery", text: "Review the impact on curriculum delivery and establish a continuity plan" },
+  { id: "dcur2", role: "Recovery – Curriculum", phase: "recovery", text: "Decide timetable/scheduling changes; coordinate assemblies and staff meetings" },
+  { id: "dcur3", role: "Recovery – Curriculum", phase: "recovery", text: "Communicate changes to staff and students; make event/excursion decisions" },
+  // ---- Recovery – Co-Curriculum ----
+  { id: "dcoc1", role: "Recovery – Co-Curriculum", phase: "recovery", text: "Review the impact on co-curricular activities (sport, music, tours)" },
+  { id: "dcoc2", role: "Recovery – Co-Curriculum", phase: "recovery", text: "Contact departments with out-of-hours responsibilities and advise of changes" },
+  { id: "dcoc3", role: "Recovery – Co-Curriculum", phase: "recovery", text: "Communicate co-curricular changes to families and staff" },
+];
+
+export function dutyById(id) { return CIMT_DUTIES.find((d) => d.id === id) || null; }
+export function dutiesForPhase(phaseId) { return CIMT_DUTIES.filter((d) => d.phase === phaseId); }
+export function dutiesForRole(role) { return CIMT_DUTIES.filter((d) => d.role === role); }
+export function dutyDone(incident, id) { return !!incident?.dutyChecks?.[id]?.done; }
+
 // The incident's current phase (defaults sensibly for legacy incidents).
 export function incidentPhase(incident) {
   if (incident?.phase && CIMT_PHASES.some((p) => p.id === incident.phase)) return incident.phase;
@@ -1442,17 +1605,19 @@ export function prevPhaseId(id) {
   const i = phaseIndex(id);
   return i > 0 ? CIMT_PHASES[i - 1].id : null;
 }
-// Incomplete mandatory checklist items in a phase — used to warn before advancing.
+// Incomplete mandatory duties in a phase — used to warn before advancing.
 export function openMandatoryItems(incident, phaseId) {
-  return (PHASE_CHECKLIST[phaseId] || []).filter((it) => it.mandatory && !isPhaseItemDone(incident, it.id));
+  return dutiesForPhase(phaseId).filter((d) => d.mandatory && !dutyDone(incident, d.id));
 }
+// A duty is done if it's ticked in the shared dutyChecks store (single source
+// of truth). Kept named isPhaseItemDone for existing callers.
 export function isPhaseItemDone(incident, itemId) {
-  return !!incident?.phaseChecks?.[itemId]?.done;
+  return dutyDone(incident, itemId);
 }
-// Progress of a single phase = ticked / total checklist items.
+// Progress of a single phase = ticked / total duties in that phase.
 export function phaseProgress(incident, phaseId) {
-  const items = PHASE_CHECKLIST[phaseId] || [];
-  const done = items.filter((it) => isPhaseItemDone(incident, it.id)).length;
+  const items = dutiesForPhase(phaseId);
+  const done = items.filter((d) => dutyDone(incident, d.id)).length;
   return { done, total: items.length, pct: items.length ? Math.round((done / items.length) * 100) : 0 };
 }
 
@@ -1997,9 +2162,9 @@ export function phaseForDue(mins, text = "") {
 export function responsibilitiesFor(roleName, incidentType) {
   // What this CIMT role does in THIS incident = the type-specific response
   // procedure steps owned by the role (plan §5.x + statutory hooks), then the
-  // role's standing checklist from the plan (§4.2–4.9, applies to any incident).
+  // role's standing duties (the merged single-source list, applies to any incident).
   const typeSpecific = (RESPONSE_PROCEDURES[incidentType] || []).filter((e) => e.responsible === roleName);
-  const baseline = CIMT_ROLE_CHECKLISTS[roleName] || [];
+  const baseline = dutiesForRole(roleName);
   const list = [...typeSpecific, ...baseline];
   return list.length ? list.map(normResp) : null;
 }
@@ -2022,7 +2187,8 @@ export function roleGroupOf(role) {
 // locked ("do this first"), until that job is done or explicitly overridden.
 // Soft, not hard — the UI greys locked jobs but the Leader can override (logged).
 export function applySoftLocks(jobs) {
-  const ordered = [...(jobs || [])].sort((a, b) => (a.dueAt || Infinity) - (b.dueAt || Infinity));
+  const key = (x) => (x.sortKey != null ? x.sortKey : (x.dueAt || Infinity));
+  const ordered = [...(jobs || [])].sort((a, b) => key(a) - key(b));
   let gate = null; // first open, non-overridden mandatory job = the gate
   return ordered.map((t) => {
     const locked = !!gate && !t.done && !t.overrideLock;
@@ -2042,20 +2208,16 @@ export function setMyRole(role) {
   try { role ? localStorage.setItem(MY_ROLE_KEY, role) : localStorage.removeItem(MY_ROLE_KEY); } catch { /* ignore */ }
 }
 
-// Generate a role-owned operational task board from the playbook, after
-// triage + allocation. Each assigned role receives its immediate actions;
-// tasks carry owner, due time, status, priority, and approval/mandatory flags.
+// Generate the incident's AD-HOC tasks — the type-specific response-procedure
+// steps only. The standing role duties now live in CIMT_DUTIES (ticked once,
+// shown in both lenses) and are NOT generated here, so they aren't duplicated.
+// These tasks carry owner, due time, status, priority, and approval/mandatory flags.
 export function generateIncidentTasks(typeId, roles) {
   const now = Date.now();
   const out = [];
   let i = 0;
   for (const role of (roles || [])) {
-    const entries = [
-      ...((RESPONSE_PROCEDURES[typeId] || []).filter((e) => e.responsible === role.role)),
-      // Skip governance gates — they live (and get ticked) in the phase checklist,
-      // not as duplicate jobs on the board.
-      ...((CIMT_ROLE_CHECKLISTS[role.role] || []).filter((e) => !e.governance)),
-    ].map(normResp);
+    const entries = ((RESPONSE_PROCEDURES[typeId] || []).filter((e) => e.responsible === role.role)).map(normResp);
     const owner = roleIsAssigned(role) ? role.initials : "—";
     for (const e of entries) {
       const due = e.due ?? 60;
@@ -2074,7 +2236,9 @@ export function generateIncidentTasks(typeId, roles) {
     }
   }
   out.sort((a, b) => (a.dueAt || Infinity) - (b.dueAt || Infinity));
-  return out.length ? out : tasksForIncidentType(typeId);
+  // May be empty — that's fine: the standing duties (CIMT_DUTIES) carry the
+  // baseline work; this list is only the type-specific extras.
+  return out;
 }
 
 // ============================================================
@@ -3316,7 +3480,10 @@ export function runCopilot(incident, now = Date.now()) {
 // reviewer (and the AI draft) work from the same evidence base.
 export function pirFacts(incident) {
   const roles = incident.roles || [];
-  const tasks = incident.tasks || [];
+  // Actions = standing duties (dutyChecks) for assigned roles + ad-hoc tasks.
+  const assignedRoleSet = new Set(roles.filter((r) => roleIsAssigned(r)).map((r) => r.role));
+  const dutyRows = CIMT_DUTIES.filter((d) => assignedRoleSet.has(d.role)).map((d) => ({ done: dutyDone(incident, d.id) }));
+  const tasks = [...dutyRows, ...(incident.tasks || [])];
   const comms = incident.comms || [];
   const notified = roles.filter((r) => roleIsAssigned(r) && r.notify);
   const acked = notified.filter((r) => r.notify.status === "acked").length;
