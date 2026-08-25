@@ -169,10 +169,16 @@ export default function Dashboard({ incidentId, onBack }) {
       <PhaseStepper incident={incident} onOpen={(phaseId) => setDrawer({ kind: "phases", phaseId })} />
       <GlanceStrip incident={incident} setDrawer={setDrawer} now={now} />
 
+      {/* Rails are frozen (sticky, self-scrolling if long); only the centre
+          task list scrolls with the page. */}
       <div style={{ maxWidth: 1480, margin: "0 auto", padding: "24px 32px", display: "grid", gridTemplateColumns: "260px 1fr 320px", gap: 24, alignItems: "start" }}>
-        <LeftRail incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} setDrawer={setDrawer} />
-        <CenterColumn incident={incident} addTimelineEntry={addTimelineEntry} update={update} now={now} isClosed={isClosed} />
-        <RightRail incident={incident} setDrawer={setDrawer} />
+        <div className="scroll-y" style={{ position: "sticky", top: 150, alignSelf: "start", maxHeight: "calc(100vh - 165px)", overflowY: "auto" }}>
+          <LeftRail incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} setDrawer={setDrawer} />
+        </div>
+        <CenterColumn incident={incident} addTimelineEntry={addTimelineEntry} update={update} now={now} isClosed={isClosed} setDrawer={setDrawer} />
+        <div className="scroll-y" style={{ position: "sticky", top: 150, alignSelf: "start", maxHeight: "calc(100vh - 165px)", overflowY: "auto" }}>
+          <RightRail incident={incident} setDrawer={setDrawer} />
+        </div>
       </div>
 
       {drawer === "student" && incident.student && (
@@ -214,9 +220,9 @@ export default function Dashboard({ incidentId, onBack }) {
           <TeamBoardDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />
         </Drawer>
       )}
-      {drawer === "instruments" && (
+      {(drawer === "instruments" || (drawer && typeof drawer === "object" && drawer.kind === "instruments")) && (
         <Drawer onClose={() => setDrawer(null)} title="CIMT Instruments">
-          <InstrumentsDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} />
+          <InstrumentsDrawer incident={incident} update={update} addTimelineEntry={addTimelineEntry} isClosed={isClosed} initialTab={typeof drawer === "object" ? drawer.tab : undefined} />
         </Drawer>
       )}
       {(drawer === "continuity" || (drawer && typeof drawer === "object" && drawer.kind === "continuity")) && (
@@ -627,66 +633,81 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
             <div style={{ maxWidth: 360, textAlign: "right", fontSize: 11.5, color: PALETTE.inkSoft, lineHeight: 1.5 }}>
               <strong style={{ color: sev.color }}>{sev.label}</strong> — {sev.tone}.
             </div>
-            <div style={{ display: "flex", gap: 16, justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap" }}>
-              <EscalationMatrixButton compact />
-              <button onClick={() => setDrawer({ kind: "continuity", tab: "impact" })} className="btn-ghost" style={{ background: "none", border: "none", padding: 0, color: PALETTE.teal, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 500 }}>
-                <Building2 size={13} /> Impact &amp; Issues
-              </button>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-              <button className="btn" onClick={onRedFolder} style={{ borderColor: PALETTE.crimson, color: PALETTE.crimson, fontWeight: 600 }}><AlertOctagon size={14} /> Red Folder</button>
-              {!incident.activation && !isClosed ? (
-                <button className="btn btn-danger" onClick={() => setDrawer("activation")}><Radio size={14} /> Activate</button>
-              ) : incident.activation ? (
-                <button className="btn" onClick={() => setDrawer("activation")} style={{ borderColor: PALETTE.sage, color: PALETTE.sage }}>
-                  <Radio size={14} /> Activated · {ackRollup(incident)}
-                </button>
-              ) : null}
-              <button className="btn" onClick={() => setDrawer({ kind: "phases", phaseId: incidentPhase(incident) })}>
-                <ListChecks size={14} /> Phase · {phaseMeta(incidentPhase(incident)).label}
-              </button>
-              {(() => { const done = Object.keys(incident.decisionFlows || {}).length; return (
-                <button className="btn" onClick={() => setDrawer("flowcharts")}>
-                  <GitBranch size={14} /> Flowcharts{done ? ` · ${done} run` : ""}
-                </button>
-              ); })()}
-              <button className="btn" onClick={() => setDrawer("copilot")} style={copilotFindings.length ? { borderColor: copilotCrit ? PALETTE.crimson : PALETTE.rust, color: copilotCrit ? PALETTE.crimson : PALETTE.rust } : undefined}>
-                <Lightbulb size={14} /> Blind Spots{copilotFindings.length ? ` · ${copilotFindings.length}` : ""}
-              </button>
-              <button className="btn" onClick={() => setDrawer("team")}><Users size={14} /> Team</button>
-              {(() => { const pr = peopleAtRiskCounts(incident); return (
-                <button className="btn" onClick={() => setDrawer("instruments")} style={pr.unaccounted ? { borderColor: PALETTE.crimson, color: PALETTE.crimson } : undefined}>
-                  <LayoutGrid size={14} /> Instruments{pr.unaccounted ? ` · ${pr.unaccounted} unaccounted` : ""}
-                </button>
-              ); })()}
-              <button className="btn" onClick={() => setDrawer("policy")}><BookOpen size={14} /> Policy</button>
-              {(() => { const pend = unacknowledgedDecisionCount(incident); return (
-                <button className="btn" onClick={() => setDrawer("decisions")} style={pend ? { borderColor: PALETTE.rust, color: PALETTE.rust } : undefined}>
-                  <Scale size={14} /> Decisions{(incident.decisions || []).length ? ` · ${(incident.decisions || []).length}` : ""}{pend ? ` · ${pend} to ack` : ""}
-                </button>
-              ); })()}
-              {(() => { const open = riskCounts(incident).open; return (
-                <button className="btn" onClick={() => setDrawer("risks")} style={open ? { borderColor: PALETTE.rust, color: PALETTE.rust } : undefined}>
-                  <AlertTriangle size={14} /> Risks{open ? ` · ${open}` : ""}
-                </button>
-              ); })()}
-              <button className="btn" onClick={() => setDrawer("comms")}><MessageSquare size={14} /> Communications{(incident.comms || []).length ? ` · ${(incident.comms || []).length}` : ""}</button>
-              {(() => { const n = activeStrategyCount(incident); return (
-                <button className="btn" onClick={() => setDrawer("continuity")} style={n ? { borderColor: PALETTE.sage, color: PALETTE.sage } : undefined}>
-                  <Building2 size={14} /> Continuity{n ? ` · ${n}` : ""}
-                </button>
-              ); })()}
-              <button className="btn" onClick={() => setDrawer("pir")} style={incident.pir ? { borderColor: PALETTE.sage, color: PALETTE.sage } : undefined}><ClipboardCheck size={14} /> Review</button>
-              <button className="btn" onClick={() => setDrawer("export")}><Download size={14} /> Export pack</button>
-              {!isClosed ? (
-                <button className="btn btn-primary" onClick={closeIncident}><Lock size={14} /> Close incident</button>
-              ) : (
-                <button className="btn" onClick={reopenIncident}><RotateCcw size={14} /> Reopen</button>
-              )}
-            </div>
           </div>
         </div>
+        {/* Command ribbon — incident-level actions only. Everything you go to in
+            order to DO work is reached from the task's Open button or the Tools
+            menu, so the ribbon stays short (Nash's declutter). */}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-start", alignItems: "center", marginTop: 18, paddingTop: 16, borderTop: `1px solid rgba(0,48,94,0.1)` }}>
+          <button className="btn" onClick={onRedFolder} style={{ borderColor: PALETTE.crimson, color: PALETTE.crimson, fontWeight: 600 }}><AlertOctagon size={14} /> Red Folder</button>
+          {!incident.activation && !isClosed ? (
+            <button className="btn btn-danger" onClick={() => setDrawer("activation")}><Radio size={14} /> Activate</button>
+          ) : incident.activation ? (
+            <button className="btn" onClick={() => setDrawer("activation")} style={{ borderColor: PALETTE.sage, color: PALETTE.sage }}>
+              <Radio size={14} /> Activated · {ackRollup(incident)}
+            </button>
+          ) : null}
+          <button className="btn" onClick={() => setDrawer({ kind: "phases", phaseId: incidentPhase(incident) })}>
+            <ListChecks size={14} /> Phase · {phaseMeta(incidentPhase(incident)).label}
+          </button>
+          <button className="btn" onClick={() => setDrawer({ kind: "continuity", tab: "impact" })}><Building2 size={14} /> Impact &amp; Issues</button>
+          <EscalationMatrixButton />
+          <ToolsMenu incident={incident} setDrawer={setDrawer} copilotFindings={copilotFindings} copilotCrit={copilotCrit} />
+          <div style={{ flex: 1 }} />
+          <button className="btn" onClick={() => setDrawer("export")}><Download size={14} /> Export pack</button>
+          {!isClosed ? (
+            <button className="btn btn-primary" onClick={closeIncident}><Lock size={14} /> Close incident</button>
+          ) : (
+            <button className="btn" onClick={reopenIncident}><RotateCcw size={14} /> Reopen</button>
+          )}
+        </div>
       </div>
+    </div>
+  );
+}
+
+// Secondary destinations, tucked behind one "Tools" button. Urgent counts
+// (decisions to ack, open risks, unaccounted people, critical blind spots)
+// raise a dot on the Tools button so nothing important hides silently.
+function ToolsMenu({ incident, setDrawer, copilotFindings, copilotCrit }) {
+  const [open, setOpen] = useState(false);
+  const pend = unacknowledgedDecisionCount(incident);
+  const openRisk = riskCounts(incident).open;
+  const unacc = peopleAtRiskCounts(incident).unaccounted;
+  const flowRuns = Object.keys(incident.decisionFlows || {}).length;
+  const alert = pend > 0 || openRisk > 0 || unacc > 0 || copilotCrit > 0;
+  const items = [
+    { icon: Users, label: "Team", onClick: () => setDrawer("team") },
+    { icon: LayoutGrid, label: "Instruments", onClick: () => setDrawer("instruments"), badge: unacc ? `${unacc} unaccounted` : null, color: unacc ? PALETTE.crimson : null },
+    { icon: Scale, label: "Decisions", onClick: () => setDrawer("decisions"), badge: pend ? `${pend} to ack` : (incident.decisions || []).length || null, color: pend ? PALETTE.rust : null },
+    { icon: AlertTriangle, label: "Risks", onClick: () => setDrawer("risks"), badge: openRisk || null, color: openRisk ? PALETTE.rust : null },
+    { icon: MessageSquare, label: "Communications", onClick: () => setDrawer("comms"), badge: (incident.comms || []).length || null },
+    { icon: Building2, label: "Continuity", onClick: () => setDrawer("continuity"), badge: activeStrategyCount(incident) || null },
+    { icon: GitBranch, label: "Flowcharts", onClick: () => setDrawer("flowcharts"), badge: flowRuns ? `${flowRuns} run` : null },
+    { icon: Lightbulb, label: "Blind Spots", onClick: () => setDrawer("copilot"), badge: copilotFindings.length || null, color: copilotCrit ? PALETTE.crimson : null },
+    { icon: BookOpen, label: "Policy", onClick: () => setDrawer("policy") },
+    { icon: ClipboardCheck, label: "Review", onClick: () => setDrawer("pir") },
+  ];
+  return (
+    <div style={{ position: "relative" }}>
+      <button className="btn" onClick={() => setOpen((o) => !o)} style={alert ? { borderColor: PALETTE.rust, color: PALETTE.rust } : undefined}>
+        <LayoutGrid size={14} /> Tools
+        {alert && <span style={{ width: 6, height: 6, borderRadius: "50%", background: PALETTE.rust }} />}
+        <ChevronDown size={13} />
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+          <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, background: PALETTE.paper, border: `1px solid rgba(0,48,94,0.18)`, boxShadow: "0 10px 30px -14px rgba(0,48,94,0.45)", zIndex: 41, minWidth: 230, padding: 5 }}>
+            {items.map((it, i) => (
+              <button key={i} className="row-hover" onClick={() => { setOpen(false); it.onClick(); }} style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", textAlign: "left", background: "none", border: "none", padding: "8px 10px", fontSize: 13, color: it.color || PALETTE.ink, cursor: "pointer" }}>
+                <it.icon size={14} color={it.color || PALETTE.teal} /> {it.label}
+                {it.badge != null && <span className="mono" style={{ marginLeft: "auto", fontSize: 10, color: it.color || PALETTE.inkSoft }}>{it.badge}</span>}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -696,7 +717,9 @@ function PhaseStepper({ incident, onOpen }) {
   const currentId = incidentPhase(incident);
   const curIdx = phaseIndex(currentId);
   return (
-    <div style={{ background: PALETTE.paper, borderBottom: `1px solid rgba(0, 48, 94, 0.1)` }}>
+    // Frozen under the masthead so the phase spine is always in view while the
+    // task list scrolls beneath it.
+    <div style={{ background: PALETTE.paper, borderBottom: `1px solid rgba(0, 48, 94, 0.1)`, position: "sticky", top: 82, zIndex: 20 }}>
       <div style={{ maxWidth: 1480, margin: "0 auto", padding: "0 32px", display: "flex", alignItems: "stretch" }}>
         {CIMT_PHASES.map((p, i) => {
           const prog = phaseProgress(incident, p.id);
@@ -1087,7 +1110,7 @@ function RoleRow({ role, incidentType, onConfirm, onAssign, onAssignSelf, onMana
 }
 
 /* ---------- Center column: timeline + composer + tasks ---------- */
-function CenterColumn({ incident, addTimelineEntry, update, now, isClosed }) {
+function CenterColumn({ incident, addTimelineEntry, update, now, isClosed, setDrawer }) {
   const [composerType, setComposerType] = useState("note");
 
   function handleSubmit(text) {
@@ -1120,7 +1143,7 @@ function CenterColumn({ incident, addTimelineEntry, update, now, isClosed }) {
     // Tasks up top (used most frequently), the timeline beneath (Annika's layout
     // feedback: keep the checklist at the top, move the timeline to the bottom).
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PhaseTaskBoard incident={incident} update={update} addTimelineEntry={addTimelineEntry} now={now} isClosed={isClosed} toggleTask={toggleTask} addTask={addTask} />
+      <PhaseTaskBoard incident={incident} update={update} addTimelineEntry={addTimelineEntry} now={now} isClosed={isClosed} toggleTask={toggleTask} addTask={addTask} setDrawer={setDrawer} />
 
       <div className="card">
         <div className="panel-h">
@@ -1141,7 +1164,30 @@ function CenterColumn({ incident, addTimelineEntry, update, now, isClosed }) {
 }
 
 /* ---------- Role-tabbed, phase-scoped, soft-locked task board (part c) ---------- */
-function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, toggleTask, addTask }) {
+// Maps a duty/task to the screen where it's actually completed (its "do it"
+// target), from the plan reference it carries. Lets each task row deep-link
+// straight to the doing surface — so the top bar needs far fewer buttons.
+function taskTargetDrawer(item) {
+  if (item.flowchart) return "flowcharts";
+  const map = {
+    "Call Taker Form": { kind: "instruments", tab: "calltaker" },
+    "Meeting Agenda": { kind: "instruments", tab: "meetings" },
+    "Visual Boards": { kind: "instruments", tab: "boards" },
+    "People at Risk Log": { kind: "instruments", tab: "people" },
+    "SITREP": { kind: "instruments", tab: "sitrep" },
+    "Impact Assessment": { kind: "continuity", tab: "impact" },
+    "Critical Business Functions": { kind: "continuity", tab: "cbf" },
+    "Relocation Plan": { kind: "continuity", tab: "strategies" },
+    "Insurance Register": { kind: "continuity", tab: "strategies" },
+    "Communications Strategy": "comms",
+    "Emergency Response Plan": "policy",
+    "Incident Levels": "flowcharts",
+    "PIR": "pir",
+  };
+  return item.reference ? (map[item.reference] || null) : null;
+}
+
+function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, toggleTask, addTask, setDrawer }) {
   const curPhase = incidentPhase(incident);
   const curIdx = phaseIndex(curPhase);
   const ownerNames = (incident.roles || []).map((r) => r.staff).filter((s) => s && s !== "—");
@@ -1247,7 +1293,7 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
       <div className="card">
         <div className="panel-h"><span className="panel-h-label">ACTIVE TASKS · {phaseMeta(curPhase).label.toUpperCase()} · {inScope.length} OPEN</span><span className="panel-h-meta">BY PHASE</span></div>
         <ActivePhaseBanner curPhase={curPhase} curIdx={curIdx} openCount={inScope.length} />
-        <div>{shown.map((t, i, arr) => <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleItem(t)} isLast={i === arr.length - 1} disabled={isClosed} onFlagRisk={t.kind === "task" ? () => flagTaskAsRisk(t) : undefined} ownerName={t.ownerName} ownerCode={t.owner} />)}</div>
+        <div>{shown.map((t, i, arr) => { const tgt = setDrawer ? taskTargetDrawer(t) : null; return <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleItem(t)} isLast={i === arr.length - 1} disabled={isClosed} onFlagRisk={t.kind === "task" ? () => flagTaskAsRisk(t) : undefined} onOpen={tgt ? () => setDrawer(tgt) : undefined} ownerName={t.ownerName} ownerCode={t.owner} />; })}</div>
         {!isClosed && <TaskAdder onAdd={addTask} />}
       </div>
     );
@@ -1353,10 +1399,10 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
                   {awaitingAck.has(s.role) && <span className="mono" style={{ fontSize: 9, letterSpacing: "0.06em", color: PALETTE.paper, background: PALETTE.rust, padding: "2px 6px", display: "inline-flex", alignItems: "center", gap: 4 }}><Scale size={10} /> DECISION TO ACK</span>}
                 </div>
               )}
-              {s.visible.map((t, i, arr) => (
+              {s.visible.map((t, i, arr) => { const tgt = setDrawer ? taskTargetDrawer(t) : null; return (
                 <TaskRow key={t.id} task={t} now={now} onToggle={() => toggleItem(t)} isLast={i === arr.length - 1} disabled={isClosed} onOverride={() => overrideLock(t.id)} onFlagRisk={t.kind === "task" ? () => flagTaskAsRisk(t) : undefined}
-                  ownerName={t.ownerName} ownerCode={t.owner} showChip />
-              ))}
+                  onOpen={tgt ? () => setDrawer(tgt) : undefined} ownerName={t.ownerName} ownerCode={t.owner} showChip />
+              ); })}
             </div>
           )
         ))}
@@ -1519,7 +1565,7 @@ function RespFlags({ r }) {
   );
 }
 
-function TaskRow({ task, now, onToggle, isLast, disabled, onOverride, onFlagRisk, ownerName, ownerCode, showChip }) {
+function TaskRow({ task, now, onToggle, isLast, disabled, onOverride, onFlagRisk, onOpen, ownerName, ownerCode, showChip }) {
   const p = { high: { color: PALETTE.rust, label: "HIGH" }, med: { color: PALETTE.amber, label: "MED" }, low: { color: PALETTE.sage, label: "LOW" } }[task.priority] || { color: PALETTE.inkSoft, label: "" };
   const overdue = !task.done && task.dueAt && task.dueAt < now;
   const locked = task.locked && !task.done;
@@ -1573,6 +1619,11 @@ function TaskRow({ task, now, onToggle, isLast, disabled, onOverride, onFlagRisk
         >
           <Clock size={9} /> {overdue ? "OVERDUE " : ""}{formatDue(task.dueAt, now)}
         </span>
+      )}
+      {onOpen && !disabled && (
+        <button onClick={onOpen} title="Go to where this is completed" className="btn" style={{ alignSelf: "center", padding: "3px 9px", fontSize: 11, gap: 4 }}>
+          Open <ArrowRight size={11} />
+        </button>
       )}
       {showChip && task.phase && <span style={{ alignSelf: "center" }}><PhaseChip phase={task.phase} /></span>}
       {!task.done && onFlagRisk && !disabled && (
@@ -3347,8 +3398,8 @@ function RecipientRow({ role, isClosed, onAck, onNoResponse, onEscalate, onRenot
 
 /* ---------- Communications drawer (PRD M4) ---------- */
 /* ---------- CIMT Instruments (the plan's appendix forms, live) ---------- */
-function InstrumentsDrawer({ incident, update, addTimelineEntry, isClosed }) {
-  const [tab, setTab] = useState("boards");
+function InstrumentsDrawer({ incident, update, addTimelineEntry, isClosed, initialTab }) {
+  const [tab, setTab] = useState(initialTab || "boards");
   const bc = boardCounts(incident);
   const prc = peopleAtRiskCounts(incident);
   const TABS = [
