@@ -1303,6 +1303,27 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
     addTimelineEntry({ type: "risk", text: `Task flagged as a risk: ${task.text}.` });
   }
 
+  // Activate a CIMT role that has duties this phase but wasn't stood up at the
+  // start — appends it to the incident (auto-filling the best-qualified person),
+  // so its duties appear on the board. Fixes the mismatch where a phase-checklist
+  // role (e.g. College Services) had nowhere to be actioned.
+  function activateRole(roleName) {
+    update((prev) => {
+      if ((prev.roles || []).some((r) => r.role === roleName)) return prev;
+      const cand = availableQualifiedStaff(roleName)[0];
+      const nr = {
+        id: `r${Date.now()}`, role: roleName,
+        staff: cand?.name || "—", initials: cand ? disambiguatedInitials(cand.name, ownerNames.concat(cand.name)) : "—",
+        status: cand ? "confirmed" : "unassigned", required: false, suggested: cand?.name || null,
+      };
+      return { ...prev, roles: [...(prev.roles || []), nr] };
+    });
+    addTimelineEntry({ type: "system", text: `${roleName} activated on the CIMT${availableQualifiedStaff(roleName)[0] ? ` — ${availableQualifiedStaff(roleName)[0].name}` : ""}.` });
+  }
+  // Roles that have duties in the current-or-earlier phases but aren't activated.
+  const inScopeDutyRoles = [...new Set(CIMT_DUTIES.filter((d) => phaseIndex(d.phase) <= curIdx).map((d) => d.role))];
+  const inactiveRoles = inScopeDutyRoles.filter((r) => !rolesPresent.includes(r));
+
   // Legacy / demo incidents with no role-tagged tasks: flat phase-scoped list.
   if (!hasRoles) {
     const open = all.filter((t) => !t.done);
@@ -1398,6 +1419,23 @@ function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, tog
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Roles with duties this phase that aren't activated yet — one tap to
+          stand them up so nothing in the plan is left without an owner. */}
+      {view === "phase" && !isClosed && inactiveRoles.length > 0 && (
+        <div style={{ margin: "4px 24px 8px", padding: "10px 12px", background: PALETTE.parchment, border: `1px solid rgba(0,48,94,0.14)`, borderLeft: `3px solid ${PALETTE.amber}` }}>
+          <div style={{ fontSize: 11.5, color: PALETTE.ink, marginBottom: 7, lineHeight: 1.4 }}>
+            {inactiveRoles.length} role{inactiveRoles.length > 1 ? "s have" : " has"} duties this phase but {inactiveRoles.length > 1 ? "aren't" : "isn't"} activated yet:
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {inactiveRoles.map((r) => (
+              <button key={r} onClick={() => activateRole(r)} className="btn" style={{ padding: "5px 10px", fontSize: 11.5 }}>
+                <Plus size={12} /> Activate {shortRole(r)}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
