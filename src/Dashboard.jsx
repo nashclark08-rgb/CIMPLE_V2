@@ -1169,7 +1169,7 @@ function CenterColumn({ incident, addTimelineEntry, update, now, isClosed, setDr
 // straight to the doing surface — so the top bar needs far fewer buttons.
 function taskTargetDrawer(item) {
   if (item.flowchart) return "flowcharts";
-  const map = {
+  const refMap = {
     "Call Taker Form": { kind: "instruments", tab: "calltaker" },
     "Meeting Agenda": { kind: "instruments", tab: "meetings" },
     "Visual Boards": { kind: "instruments", tab: "boards" },
@@ -1184,7 +1184,26 @@ function taskTargetDrawer(item) {
     "Incident Levels": "flowcharts",
     "PIR": "pir",
   };
-  return item.reference ? (map[item.reference] || null) : null;
+  if (item.reference && refMap[item.reference]) return refMap[item.reference];
+  // Fall back to the task's wording so nearly every job links to the surface
+  // where it's carried out. External-only actions (with no CIMPLE screen) fall
+  // through to null and stay tick-only.
+  const t = (item.text || "").toLowerCase();
+  if (/impact|issues assessment/.test(t)) return { kind: "continuity", tab: "impact" };
+  if (/critical business function|\brto\b|resum|relocation|insurance/.test(t)) return { kind: "continuity", tab: "cbf" };
+  if (/sitrep|situation report|status report/.test(t)) return { kind: "instruments", tab: "sitrep" };
+  if (/incident action plan|\biap\b/.test(t)) return { kind: "instruments", tab: "iap" };
+  if (/meeting|debrief|briefing/.test(t)) return { kind: "instruments", tab: "meetings" };
+  if (/visual board|assumption|action log|\bfacts\b/.test(t)) return { kind: "instruments", tab: "boards" };
+  if (/parent|guardian|next of kin|famil|hospitalis|welfare|at[- ]risk|vulnerable|locate|account for|staging area|counsell|wellbeing|trauma/.test(t)) return { kind: "instruments", tab: "people" };
+  if (/incident log|maintain a log|call taker|collect information/.test(t)) return { kind: "instruments", tab: "calltaker" };
+  if (/media|spokesperson|holding statement|social media|communicat|reception|call centre|key messages|\bfaq\b|press|stakeholder|notify|inform|contact|call 000|\b000\b|emergency services|safework|\botsi\b|police|\bdcj\b|ambulance|report to/.test(t)) return "comms";
+  if (/decision|approve|declare|authoris|formally|escalat/.test(t)) return "decisions";
+  if (/\brisk/.test(t)) return "risks";
+  if (/control room|boardroom|equipment/.test(t)) return { kind: "instruments", tab: "boards" };
+  if (/post-incident review|\bpir\b/.test(t)) return "pir";
+  if (/polic(y|ies)|procedure|\berp\b|emergency response/.test(t)) return "policy";
+  return null;
 }
 
 function PhaseTaskBoard({ incident, update, addTimelineEntry, now, isClosed, toggleTask, addTask, setDrawer }) {
