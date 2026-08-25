@@ -629,7 +629,7 @@ function CommandStrip({ incident, changeSeverity, setDrawer, closeIncident, reop
             <div style={{ display: "flex", gap: 16, justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap" }}>
               <EscalationMatrixButton compact />
               <button onClick={() => setDrawer({ kind: "continuity", tab: "impact" })} className="btn-ghost" style={{ background: "none", border: "none", padding: 0, color: PALETTE.teal, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 500 }}>
-                <Building2 size={13} /> Impact assessment
+                <Building2 size={13} /> Impact &amp; Issues
               </button>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
@@ -3843,7 +3843,7 @@ function ContinuityDrawer({ incident, update, addTimelineEntry, isClosed, initia
   const TABS = [
     { id: "strategies", label: "Recovery Strategies", badge: activeStrategyCount(incident) || null },
     { id: "cbf", label: "Critical Functions", badge: impactedCBFCount(incident) || null },
-    { id: "impact", label: "Impact Assessment", badge: null },
+    { id: "impact", label: "Impact & Issues", badge: null },
   ];
   return (
     <div>
