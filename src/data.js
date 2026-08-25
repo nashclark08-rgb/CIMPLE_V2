@@ -907,6 +907,18 @@ export function resetAll() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
+// Load ONLY the feature-test incident (the L2 bushfire) — for trialling the
+// round-2 additions without dumping the other demo samples into a shared list.
+export function loadTestIncident() {
+  const state = loadAll();
+  const sample = buildSampleIncidents().find((s) => s.id === "INC-2026-0803-005");
+  if (sample && !state.incidents.some((i) => i.id === sample.id)) {
+    state.incidents.unshift(sample);
+    saveAll(state);
+  }
+  return sample ? sample.id : null;
+}
+
 export function listIncidents() {
   return loadAll().incidents;
 }

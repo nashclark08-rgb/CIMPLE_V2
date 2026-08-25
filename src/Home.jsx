@@ -18,7 +18,7 @@ import {
   Lock,
 } from "lucide-react";
 import { PALETTE, TopBarShell, formatRelative, formatElapsed, formatDateShort } from "./shared.jsx";
-import { listIncidents, SEVERITY, loadSampleData, resetAll, deleteIncident } from "./data.js";
+import { listIncidents, SEVERITY, loadSampleData, loadTestIncident, resetAll, deleteIncident } from "./data.js";
 
 export default function Home({ onOpenIncident, onNew, onTriage }) {
   const [incidents, setIncidents] = useState([]);
@@ -43,6 +43,12 @@ export default function Home({ onOpenIncident, onNew, onTriage }) {
   function handleLoadSamples() {
     loadSampleData();
     refresh();
+  }
+
+  function handleLoadTest() {
+    const id = loadTestIncident();
+    refresh();
+    if (id && onOpenIncident) onOpenIncident(id);
   }
 
   function handleReset() {
@@ -115,6 +121,9 @@ export default function Home({ onOpenIncident, onNew, onTriage }) {
             </p>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn" onClick={handleLoadTest} title="Load the L2 bushfire test incident to trial the latest features">
+              <PlayCircle size={14} /> Load test incident
+            </button>
             <button className="btn" onClick={onTriage}>
               <Sparkles size={14} /> Guided triage
             </button>
